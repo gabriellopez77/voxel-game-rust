@@ -144,11 +144,11 @@ pub enum MouseButton {
 static mut KEYS: [bool; Keys::LAST_KEY as usize] = [false; Keys::LAST_KEY as usize];
 static mut LAST_KEYS: [bool; Keys::LAST_KEY as usize] = [false; Keys::LAST_KEY as usize];
 
-static mut MOUSE_POS: Vec2<f32> = Vec2{ x: 0.0, y: 0.0 };
-static mut LAST_MOUSE_POS: Vec2<f32> = Vec2{ x: 0.0, y: 0.0 };
+static mut MOUSE_POS: Vec2 = Vec2{ x: 0.0, y: 0.0 };
+static mut LAST_MOUSE_POS: Vec2 = Vec2{ x: 0.0, y: 0.0 };
 
-pub fn get_muse_pos() -> Vec2<f32> { unsafe {MOUSE_POS} }
-pub fn get_muse_delta()  -> Vec2<f32> { unsafe {MOUSE_POS - LAST_MOUSE_POS} }
+pub fn get_mouse_pos() -> Vec2 { unsafe {MOUSE_POS} }
+pub fn get_mouse_delta()  -> Vec2 { unsafe {MOUSE_POS - LAST_MOUSE_POS} }
 
 pub fn set_mouse_pos(x: f32, y: f32) {
     unsafe {

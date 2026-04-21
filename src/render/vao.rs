@@ -2,8 +2,9 @@
 
 
 pub struct Vao {
-    id: u32,
     pub triangles_count: i32,
+    
+    id: u32,
     buffers: [(GLenum, u32); 3]
 }
 
@@ -14,11 +15,13 @@ pub enum VaoBuffers {
 }
 
 impl Vao {
-    pub fn new() -> Self {
+    pub fn new() -> Self { Self { id: 0, triangles_count: 0, buffers: [(0, 0); 3] } }
+    
+    pub fn gen_vao(&mut self) {
         let mut id: u32 = 0;
         unsafe {gl::GenVertexArrays(1, &mut id) }
-
-        return Vao { id, triangles_count: 0, buffers: [(0, 0); 3] };
+        
+        self.id = id;
     }
     
     pub fn bind(&self) {
