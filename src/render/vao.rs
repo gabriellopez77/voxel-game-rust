@@ -1,4 +1,6 @@
 ﻿use gl::types::GLenum;
+use crate::resources;
+use crate::render;
 
 
 pub struct Vao {
@@ -11,7 +13,7 @@ pub struct Vao {
 pub enum VaoBuffers {
     Vbo,
     Ebo,
-    //Instance,
+    Instance,
 }
 
 impl Vao {
@@ -43,24 +45,12 @@ impl Vao {
     }
 
     pub fn bind_buffer(&self, buffer: VaoBuffers) {
-        static mut CURRENT_BIND_BUFFER_ID: u32 = 0;
-        static mut CURRENT_BIND_BUFFER_TYPE: GLenum = 0;
-
         let (buffer_type, buffer_id) = self.buffers[buffer as usize];
 
-        // unsafe block is safe because this func can just be call in main thread
-        unsafe {
-            // if current buffer type and id is the same that we want bind, then return
-            if buffer_type == CURRENT_BIND_BUFFER_TYPE || buffer_id == CURRENT_BIND_BUFFER_ID { return }
-
-            CURRENT_BIND_BUFFER_TYPE = buffer_type;
-            CURRENT_BIND_BUFFER_ID = buffer_id;
-            
-            gl::BindBuffer(buffer_type, buffer_id);
-        }
+        render::bind_buffer(buffer_type, buffer_id);
     }
 
-    pub fn buffer_data<T>(&mut self, vao_buffer: VaoBuffers, data: &[T], usage: GLenum) {
+    pub fn buffer_data_from_arr<T>(&mut self, vao_buffer: VaoBuffers, data: &[T], usage: GLenum) {
         use std::ffi::c_void;
 
         // if buffer is ebo then calculate triangles count
@@ -74,7 +64,28 @@ impl Vao {
         }
     }
 
-    pub fn attrib_pointer(&self, index: u32, size: i32, attrib_type: GLenum, stride: usize, offset: usize, instance: bool) {
+    pub fn buffer_data(&mut self, vao_buffer: VaoBuffers, size: usize, data: Option<*const ()>, usage: GLenum) {
+        use std::ffi::c_void;
+
+        unsafe {
+            let p: *const c_void = match data {
+                Some(data) => data as *const c_void,
+                _ => std::ptr::null(),
+            };
+
+            gl::BufferData(self.buffers[vao_buffer as usize].0, size as isize, p, usage)
+        }
+    }
+
+    pub fn update_buffer<T: Default + Copy, const SIZE: usize>(&mut self, vao_buffer: VaoBuffers, arr: &resources::ArrayBuffer<T, SIZE>) {
+        unsafe {
+            let p = arr.as_ptr();
+            let lb = arr.len_bytes();
+            gl::NamedBufferSubData(self.buffers[vao_buffer as usize].1, 0, arr.len_bytes(), arr.as_ptr())
+        }
+    }
+
+    pub fn attrib_info(&self, index: u32, size: i32, attrib_type: GLenum, stride: usize, offset: usize, instance: bool) {
         use std::ffi::c_void;
 
         unsafe {

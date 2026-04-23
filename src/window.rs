@@ -30,7 +30,7 @@ impl Window {
         glfw_instance.set_swap_interval(glfw::SwapInterval::Sync(1));
 
         // init opengl functions
-        gl::load_with(|s| window.get_proc_address(s));
+        gl::load_with(|s| window.get_proc_address(s).unwrap() as *const std::ffi::c_void);
 
         // set callbacks
         window.set_framebuffer_size_callback(|_window, width, height| Self::resize_callback(width, height));

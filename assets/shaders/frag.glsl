@@ -1,9 +1,17 @@
 #version 460 core
 
-in vec3 Color;
+uniform sampler2D myTexture;
+
+in vec4 Color;
+in vec2 TexCoords;
 
 out vec4 outColor;
 
 void main() {
-    outColor = vec4(Color, 1.f);
+    vec4 tex = texture(myTexture, TexCoords);
+
+    if (tex.a < 0.1f)
+        discard;
+
+    outColor = vec4(tex.rgb, 1.f);
 }
