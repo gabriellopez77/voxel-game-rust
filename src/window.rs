@@ -8,7 +8,6 @@ static mut WINDOW_INSTANCE: *mut Window = std::ptr::null_mut();
 pub struct Window {
     glfw_instance: glfw::Glfw,
     window: glfw::PWindow,
-    events: glfw::GlfwReceiver<(f64, glfw::WindowEvent)>,
 
     game: Game,
 
@@ -22,7 +21,7 @@ impl Window {
     pub fn init(width: i32, height: i32, title: &str) -> Self {
         use glfw::fail_on_errors;
         let mut glfw_instance = glfw::init(glfw::fail_on_errors!()).unwrap();
-        let (mut window, events) =
+        let (mut window, _) =
             glfw_instance.create_window(width as u32, height as u32, title, glfw::WindowMode::Windowed).unwrap();
 
 
@@ -40,7 +39,13 @@ impl Window {
 
         window.set_cursor_mode(glfw::CursorMode::Disabled);
         
-        return Window { glfw_instance, window, events, width, height, game: Game::new(), last_frame: 0.0 };
+        return Window {
+            glfw_instance,
+            window,
+            width, height,
+            game: Game::new(),
+            last_frame: 0.0 
+        };
     }
 
     pub fn set_window_instance(window: &mut Window) {

@@ -1,6 +1,7 @@
 ﻿use super::vec4::Vec4;
 use super::vec3::Vec3;
 use std::ops::Mul;
+use std::thread::sleep;
 
 pub struct Matrix4 {
     pub values: [Vec4; 4]
@@ -68,6 +69,59 @@ impl Matrix4 {
     }
     
     pub fn as_ptr(&self) -> *const f32 { self.values[0].as_ptr() }
+
+    pub fn remove_translation(&self) -> Self {
+        Self {
+            values: [self.values[0], self.values[1], self.values[2], Vec4{x: 0.0, y: 0.0, z: 0.0, w: 1.0}],
+        }
+    }
+
+    pub fn translate(&mut self, translation: Vec3) {
+        self.values[3] = self.values[0] * translation.x + self.values[1] * translation.y + self.values[2] * translation.z + self.values[3];
+    }
+
+    pub fn scale(&mut self, scale: Vec3) {
+        let mut result = Matrix4::ZERO;
+
+        result.values[0] = self.values[0] * scale.x;
+        result.values[1] = self.values[1] * scale.y;
+        result.values[2] = self.values[2] * scale.z;
+        result.values[3] = self.values[3];
+
+        *self = result;
+    }
+
+    pub fn rotate(&mut self, angle: f32, dir: Vec3) {
+        let a = angle.to_radians();
+        let c = a.cos();
+        let s = a.sin();
+
+        let axis = dir.normalized();
+        let temp = axis * (1.0 - c);
+
+        let mut rot = Matrix4::ZERO;
+
+        rot.values[0].x = c + temp.x * axis.x;
+        rot.values[0].y = temp.x * axis.y + s * axis.z;
+        rot.values[0].z = temp.x * axis.z - s * axis.y;
+
+        rot.values[1].x = temp.y * axis.x - s * axis.z;
+        rot.values[1].y = c + temp.y * axis.y;
+        rot.values[1].z = temp.y * axis.z + s * axis.x;
+
+        rot.values[2].x = temp.z * axis.x + s * axis.y;
+        rot.values[2].y = temp.z * axis.y - s * axis.x;
+        rot.values[2].z = c + temp.z * axis.z;
+
+        let mut result = Matrix4::ZERO;
+
+        result.values[0] = self.values[0] * rot.values[0].x + self.values[1] * rot.values[0].y + self.values[2] * rot.values[0].z;
+        result.values[1] = self.values[0] * rot.values[1].x + self.values[1] * rot.values[1].y + self.values[2] * rot.values[1].z;
+        result.values[2] = self.values[0] * rot.values[2].x + self.values[1] * rot.values[2].y + self.values[2] * rot.values[2].z;
+        result.values[3] = self.values[3];
+
+        *self = result;
+    }
 }
 
 impl Mul for Matrix4 {

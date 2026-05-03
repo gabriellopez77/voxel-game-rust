@@ -60,6 +60,12 @@ impl Vec3 {
 }
 
 
+impl PartialEq for Vec3 {
+    fn eq(&self, other: &Vec3) -> bool { self.x == other.x && self.y == other.y && self.z == other.z }
+    fn ne(&self, other: &Vec3) -> bool { return !self.eq(other); }
+}
+
+
 impl Add for Vec3 {
     type Output = Self; // Defines the return type
 

@@ -49,9 +49,9 @@ impl Camera {
     }
 
     fn process_rotation(&mut self) {
-        const sensitivity: f32 = 0.7;
+        const SENSITIVYTY: f32 = 0.7;
 
-        let delta = inputs::get_mouse_delta() * sensitivity;
+        let delta = inputs::get_mouse_delta() * SENSITIVYTY;
 
         self.rot.x += delta.x;
         self.rot.y -= delta.y;

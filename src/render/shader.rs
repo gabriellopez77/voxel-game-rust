@@ -84,7 +84,7 @@ impl Shader {
 
         let mut compile_status: i32 = 0;
 
-        let c_str = std::ffi::CString::new(string_data).unwrap();
+        let c_str = CString::new(string_data).unwrap();
 
         unsafe {
             gl::ShaderSource(shader_id, 1, &c_str.as_ptr(), std::ptr::null());
@@ -111,7 +111,7 @@ impl Shader {
 
     fn get_or_add_uniform(&mut self, name: &'static str) -> i32 {
         let key = self.uniforms.entry(name).or_insert_with(|| {
-            let c_str = std::ffi::CString::new(name).unwrap();
+            let c_str = CString::new(name).unwrap();
 
             return unsafe { gl::GetUniformLocation(self.id, c_str.as_ptr()) };
         });

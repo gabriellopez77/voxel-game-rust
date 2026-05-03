@@ -27,6 +27,11 @@ impl Vec2i16 {
     pub fn as_ptr(&self) -> *const i16 { &self.x }
 }
 
+impl PartialEq for Vec2i16 {
+    fn eq(&self, other: &Vec2i16) -> bool { self.x == other.x && self.y == other.y }
+    fn ne(&self, other: &Vec2i16) -> bool { return !self.eq(other); }
+}
+
 
 impl Add for Vec2i16 {
     type Output = Self; // Defines the return type

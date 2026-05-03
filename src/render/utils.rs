@@ -39,3 +39,15 @@ pub fn bind_buffer(buffer_type: GLenum, buffer_id: u32) {
         gl::BindBuffer(buffer_type, buffer_id);
     }
 }
+
+pub fn bind_texture(texture_id: u32) {
+    static mut CURRENT_BIND_TEXTURE:u32 = 0;
+
+    unsafe {
+        if CURRENT_BIND_TEXTURE == texture_id { return }
+
+        CURRENT_BIND_TEXTURE = texture_id;
+
+        gl::BindTexture(gl::TEXTURE_2D, texture_id);
+    }
+}

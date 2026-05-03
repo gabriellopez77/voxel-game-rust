@@ -39,6 +39,12 @@ impl Add for Vec2 {
     }
 }
 
+impl PartialEq for Vec2 {
+    fn eq(&self, other: &Vec2) -> bool { self.x == other.x && self.y == other.y }
+    fn ne(&self, other: &Vec2) -> bool { return !self.eq(other); }
+}
+
+
 impl Mul for Vec2 {
     type Output = Self; // Defines the return type
 

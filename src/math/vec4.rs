@@ -41,6 +41,12 @@ impl Vec4 {
 }
 
 
+impl PartialEq for Vec4 {
+    fn eq(&self, other: &Vec4) -> bool { self.x == other.x && self.y == other.y && self.z == other.z && self.w == other.w }
+    fn ne(&self, other: &Vec4) -> bool { return !self.eq(other); }
+}
+
+
 impl Add for Vec4 {
     type Output = Self; // Defines the return type
 
