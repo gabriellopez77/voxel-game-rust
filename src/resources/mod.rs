@@ -1,4 +1,4 @@
-﻿pub mod path;
+﻿pub mod resources_utils;
 pub mod array_buffer;
 pub mod texture_atlas;
 

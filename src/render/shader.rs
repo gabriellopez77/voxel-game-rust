@@ -1,7 +1,7 @@
 use std::collections::hash_map::HashMap;
 use std::ffi::{c_char, CStr, CString};
+
 use crate::math::matrix4::Matrix4;
-use crate::resources::path;
 
 
 pub struct Shader {
@@ -12,36 +12,36 @@ pub struct Shader {
 impl Shader {
     pub fn new() -> Self { Self { uniforms: HashMap::new(), id: 0 } }
 
-    pub fn compile_from_disk(&mut self, vert_path: &str, frag_path: &str) -> Option<String> {
-        let full_vert_path = format!("{}{}", path::SHADERS_PATH.get().unwrap(), vert_path);
-        let full_frag_path = format!("{}{}", path::SHADERS_PATH.get().unwrap(), frag_path);
+    pub fn create_from_disk(shader_path: &String, relative_vert_path: &str, relative_frag_path: &str) -> Shader {
+        let full_vert_path = format!("{}{}", shader_path, relative_vert_path);
+        let full_frag_path = format!("{}{}", shader_path, relative_frag_path);
 
         let vert_string_data = match std::fs::read_to_string(&full_vert_path) {
             Ok(x) => x,
-            Err(x) => return Some(x.to_string())
+            Err(x) => panic!("{}", x.to_string())
         };
         
         let frag_string_data = match std::fs::read_to_string(&full_frag_path) {
             Ok(x) => x,
-            Err(x) => return Some(x.to_string())
+            Err(x) => panic!("{}", x.to_string())
         };
+
 
 
         let mut shader_compile_info:[c_char; 512] = [0; 512];
 
-        
         let vert_id = match Self::compile_shader(&vert_string_data, gl::VERTEX_SHADER, &mut shader_compile_info) {
             Ok(x) => x,
-            Err(x) => return Some(x)
+            Err(x) => panic!("{}", x.to_string())
         };
         
         let frag_id = match Self::compile_shader(&frag_string_data, gl::FRAGMENT_SHADER, &mut shader_compile_info) {
             Ok(x) => x,
-            Err(x) => return Some(x)
+            Err(x) => panic!("{}", x.to_string())
         };
         
 
-        let id:u32;
+        let id: u32;
 
         unsafe {
             id = gl::CreateProgram();
@@ -54,9 +54,10 @@ impl Shader {
             gl::DeleteShader(frag_id);
         }
 
-        self.id = id;
-
-        return None;
+        return Self {
+            uniforms: HashMap::new(),
+            id
+        }
     }
 
     pub fn uniform_matrix(&mut self, uniform: &'static str, matrix: &Matrix4) {

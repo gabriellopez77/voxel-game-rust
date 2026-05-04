@@ -1,6 +1,6 @@
 ﻿pub mod shader;
 pub mod vao;
-pub mod utils;
+pub mod render_utils;
 pub mod texture;
 pub mod sprites_renderer;
 pub mod vertices_data;
@@ -13,4 +13,4 @@ pub use sprites_renderer::SpritesRenderer;
 pub use ubo::Ubo;
 pub use vertices_data::*;
 
-pub use utils::*;
+pub use render_utils::*;

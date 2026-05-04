@@ -1,4 +1,4 @@
-﻿use crate::math::{Vec2, Color4b};
+﻿use crate::math::{Color4b, Vec2, Vec4};
 use crate::render::{SpritesRenderer};
 use crate::ui::screen_base::ScreenBase;
 use crate::ui::tools::sprites::Sprite;
@@ -16,7 +16,8 @@ pub struct StartScreen {
 impl ScreenBase for StartScreen {
     fn start(&mut self) {
         self.teste.color = Color4b { r: 123, g: 53, b: 98, a: 255 };
-        self.teste.set_size(100.0, 100.0);
+        self.teste.set_size(500.0, 500.0);
+        self.teste.set_texture(Vec4::from4f(0.0, 1.0, 1.0, 0.0));
     }
 
     fn update(&mut self, dt: f32) {

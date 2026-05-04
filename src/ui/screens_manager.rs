@@ -3,9 +3,9 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::game::Game;
 use crate::math::{self, Vec2};
 use crate::render::{SpritesRenderer, Ubo};
+use crate::resources::resources_utils::ResourceManager;
 use crate::ui::screen_base::ScreenBase;
 use crate::ui::screens::start_screen::StartScreen;
 
@@ -34,8 +34,8 @@ impl ScreenManager {
         }
     }
 
-    pub fn start(&mut self) {
-        self.sprites_renderer.start();
+    pub fn start(&mut self, resource_manager: &ResourceManager) {
+        self.sprites_renderer.start(resource_manager);
 
         self.sprites_ubo.add::<math::Matrix4>("projection");
         self.sprites_ubo.create(0);
@@ -54,7 +54,7 @@ impl ScreenManager {
         self.current_screen.as_ref().unwrap().borrow_mut().resize(width, height);
     }
 
-    pub fn update(&mut self, dt: f32) {
+    pub fn update(&self, dt: f32) {
         self.current_screen.as_ref().unwrap().borrow_mut().update(dt);
     }
 
