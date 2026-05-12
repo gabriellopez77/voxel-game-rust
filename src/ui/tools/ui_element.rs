@@ -17,10 +17,13 @@ pub trait UiElement {
     fn set_sizev(&mut self, size: Vec2) { self.set_size(size.x, size.y);}
 
     fn mouse_hover(&self, mouse_pos: Vec2) -> bool {
-        return  mouse_pos.x > self.get_pos().x &&
-                mouse_pos.x < self.get_pos().x + self.get_size().x &&
-                mouse_pos.y > self.get_pos().y &&
-                mouse_pos.y < self.get_pos().y + self.get_size().y;
+        let pos = self.get_pos();
+        let size = self.get_size();
+
+        return  mouse_pos.x > pos.x &&
+                mouse_pos.x < pos.x + size.x &&
+                mouse_pos.y > pos.y &&
+                mouse_pos.y < pos.y + size.y;
     }
 
     fn get_center(&self, other: &dyn UiElement) -> Vec2 { other.get_pos() + other.get_size() / 2.0 - self.get_size() / 2.0 }

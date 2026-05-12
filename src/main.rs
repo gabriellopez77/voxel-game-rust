@@ -7,7 +7,6 @@ mod game;
 mod world;
 mod ui;
 
-use crate::resources::resources_utils;
 
 fn main() {
     let mut window = window::Window::init(800, 600, "My First Rust Window");
@@ -16,4 +15,3 @@ fn main() {
     
     window.run();
 }
-

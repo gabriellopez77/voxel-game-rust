@@ -1,6 +1,6 @@
 ﻿use gl::types::GLenum;
 
-use crate::{resources::ArrayBuffer};
+use crate::render::{render_utils, SpritesVertices};
 
 
 pub struct Vao {
@@ -9,7 +9,7 @@ pub struct Vao {
     id: u32,
     binding_index: u32,
     binding_buffer: VaoBuffers,
-    buffers: [(GLenum, u32, u32); 3],
+    buffers: [(GLenum, u32, u32); 3], // buffer type, buffer id, binding index
 }
 
 #[repr(i32)]
@@ -41,14 +41,7 @@ impl Vao {
     }
     
     pub fn bind(&self) {
-        static mut CURRENT_BIND_VAO_ID: u32 = 0;
-
-        unsafe {
-            if CURRENT_BIND_VAO_ID == self.id { return }
-
-            CURRENT_BIND_VAO_ID = self.id;
-            gl::BindVertexArray(self.id);
-        }
+        render_utils::bind_vao(self.id);
     }
 
     pub fn gen_buffer(&mut self, buffer_type: GLenum, vao_buffer: VaoBuffers) -> &mut Vao {
@@ -99,9 +92,13 @@ impl Vao {
         return self;
     }
 
-    pub fn update_buffer<T: Default + Copy, const SIZE: usize>(&mut self, buffer: VaoBuffers, arr: &ArrayBuffer<T, SIZE>) {
+    pub fn update_buffer<T: Default + Copy>(&mut self, buffer: VaoBuffers, arr: &Vec<T>) {
         unsafe {
-            gl::NamedBufferSubData(self.buffers[buffer as usize].1, 0, arr.len_bytes(), arr.as_ptr())
+            gl::NamedBufferSubData(
+                self.buffers[buffer as usize].1,
+                0, (arr.len() * size_of::<T>()) as isize,
+                arr.as_ptr() as *const std::ffi::c_void
+            )
         }
     }
 
@@ -112,9 +109,8 @@ impl Vao {
             gl::EnableVertexArrayAttrib(vao, index);
             gl::VertexArrayAttribBinding(vao, index, self.binding_index);
             gl::VertexArrayAttribFormat(vao, index, size, attrib_type, gl::FALSE, offset as u32);
-            
             if instance {
-                gl::VertexArrayBindingDivisor(vao, self.binding_index, 1)
+                gl::VertexArrayBindingDivisor(vao, index, 1)
             }
         }
 

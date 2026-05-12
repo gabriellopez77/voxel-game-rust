@@ -13,5 +13,5 @@ void main() {
     if (tex.a < 0.1f)
         discard;
 
-    outColor = vec4(tex.rgb, 1.f);
+    outColor = tex * Color;
 }

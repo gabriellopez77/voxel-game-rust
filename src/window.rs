@@ -57,9 +57,15 @@ impl Window {
     pub fn run(&mut self) {
         self.game.start();
 
-        unsafe {gl::ClearColor(0.0, 0.0, 0.0, 0.0)}
+        unsafe {
+            gl::ClearColor(0.0, 0.0, 0.0, 0.0);
+            gl::Enable(gl::DEPTH_TEST);
+            gl::Enable(gl::CULL_FACE);
+            gl::CullFace(gl::BACK);
+        }
 
         self.game.resize(self.width, self.height);
+
 
         while !self.window.should_close() {
             inputs::new_frame();
@@ -70,6 +76,8 @@ impl Window {
             let time = self.glfw_instance.get_time() as f32;
             let dt = time - self.last_frame;
             self.last_frame = time;
+
+            //println!("{}", 1.0 / dt);
 
             self.game.update(dt);
 

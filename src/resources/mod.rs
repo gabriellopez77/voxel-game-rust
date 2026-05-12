@@ -1,6 +1,8 @@
-﻿pub mod resources_utils;
-pub mod array_buffer;
+﻿pub mod resources_manager;
 pub mod texture_atlas;
+pub mod texture_coords;
 
-pub use array_buffer::*;
-pub use texture_atlas::*;
+pub use {
+    resources_manager::ResourceManager,
+    texture_coords::TextureCoords,
+};

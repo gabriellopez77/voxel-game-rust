@@ -10,6 +10,7 @@ pub struct Color4b {
 impl Color4b {
     pub const ZERO: Color4b = Color4b { r: 0, g: 0, b: 0, a: 0 };
 
+        pub fn new(r: u8, g: u8, b: u8, a: u8) -> Self { Self { r, g, b, a } }
     pub fn from1(value: u8) -> Self { Self { r: value, g: value, b: value, a: value } }
     
     pub fn from_hex(hex: u32) -> Self {

@@ -10,17 +10,28 @@ pub fn draw_indexed(primitive: GLenum, shader: &Shader, texture: Option<&Texture
         shader.bind();
         vao.bind();
         
-        gl::DrawElements(primitive, vao.triangles_count, gl::UNSIGNED_INT, std::ptr::null());
+        gl::DrawElements(
+            primitive,
+            vao.triangles_count,
+            gl::UNSIGNED_INT,
+            std::ptr::null()
+        );
     }
 }
 
-pub fn draw_indexed_instanced(primitive: GLenum, shader: &Shader, texture: Option<&Texture>, vao: &Vao, instances_count: i32) {
+pub fn draw_indexed_instanced(primitive: GLenum, shader: &Shader, texture: Option<&Texture>, vao: &Vao, instances_count: usize) {
     unsafe {
         if let Some(texture) = texture { texture.bind() }
         shader.bind();
         vao.bind();
 
-        gl::DrawElementsInstanced(primitive, vao.triangles_count, gl::UNSIGNED_INT, std::ptr::null(), instances_count);
+        gl::DrawElementsInstanced(
+            primitive,
+            vao.triangles_count,
+            gl::UNSIGNED_INT,
+            std::ptr::null(),
+            instances_count as i32
+        );
     }
 }
 
@@ -49,5 +60,16 @@ pub fn bind_texture(texture_id: u32) {
         CURRENT_BIND_TEXTURE = texture_id;
 
         gl::BindTexture(gl::TEXTURE_2D, texture_id);
+    }
+}
+
+pub fn bind_vao(vao_id: u32) {
+    static mut CURRENT_BIND_VAO_ID: u32 = 0;
+
+    unsafe {
+        if CURRENT_BIND_VAO_ID == vao_id { return }
+
+        CURRENT_BIND_VAO_ID = vao_id;
+        gl::BindVertexArray(vao_id);
     }
 }

@@ -19,4 +19,3 @@ void main() {
     TexCoords = mix(aInstanceTexCoords.xy, aInstanceTexCoords.zw, aVertex.zw);
     Color = aColor / 255.f;
 }
-

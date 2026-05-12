@@ -1,7 +1,7 @@
-﻿use super::vec4::Vec4;
-use super::vec3::Vec3;
+﻿use super::Vec4;
+use super::Vec3;
 use std::ops::Mul;
-use std::thread::sleep;
+
 
 pub struct Matrix4 {
     pub values: [Vec4; 4]
@@ -32,7 +32,7 @@ impl Matrix4 {
     }
 
     pub fn perspective(fov: f32, aspect: f32, near: f32, far: f32) -> Self {
-        let tan_half_fov = (fov / 2.0).tan();
+        let tan_half_fov = (fov.to_radians() / 2.0).tan();
 
         let mut result = Matrix4::ZERO;
 

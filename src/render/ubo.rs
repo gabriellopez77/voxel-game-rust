@@ -13,14 +13,21 @@ pub struct Ubo  {
     offsets: HashMap<&'static str, OffseData>,
     current_offset: i32,
     id: u32,
+    last_field_size: i32,
 }
 
 impl Ubo {
-    pub fn new() -> Self { Self { offsets: HashMap::new(), current_offset: 0, id: 0 } }
+    pub fn new() -> Self {
+        Self {
+            offsets: HashMap::new(),
+            current_offset: 0,
+            id: 0,
+            last_field_size: 0,
+        }
+    }
 
     pub fn add<T>(&mut self, name: &'static str) {
         let size = size_of::<T>() as i32;
-        let offset = self.current_offset;
 
         // align size to opengl memory layout specification
         let alignment = match size {
@@ -31,9 +38,16 @@ impl Ubo {
             _ => panic!("Ubo size not supported: {}", size),
         };
 
-        self.current_offset += math::align_up(size, alignment);
+        // fits int, bool or float in last vec3's padding
+        if self.last_field_size == 12 && size == 4 {
+            self.current_offset -= 4;
+        }
 
-        self.offsets.insert(name, OffseData { offset, size: size });
+        let offset = self.current_offset;
+        self.current_offset += math::align_up(size, alignment);
+        self.last_field_size = size;
+
+        self.offsets.insert(name, OffseData { offset, size });
     }
 
     pub fn create(&mut self, index: u32) {

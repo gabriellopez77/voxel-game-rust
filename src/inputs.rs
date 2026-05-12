@@ -2,6 +2,7 @@
 
 #[repr(i32)]
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+#[allow(unused)]
 pub enum Keys {
     Space              = 32,
     Apostrophe         = 39,  // '

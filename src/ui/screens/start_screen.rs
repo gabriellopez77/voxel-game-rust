@@ -1,45 +1,42 @@
-﻿use crate::math::{Color4b, Vec2, Vec4};
-use crate::render::{SpritesRenderer};
-use crate::ui::screen_base::ScreenBase;
-use crate::ui::tools::sprites::Sprite;
-use crate::ui::tools::ui_element::UiElement;
+﻿use std::{rc::Rc, cell::RefCell};
+
+use crate::math::{Color4b, Vec2};
+use crate::render::{SpritesRenderer, SpritesVertices, TextVertices};
+use crate::resources::{ResourceManager, TextureCoords};
+use crate::ui::{ScreenBase, tools::{Sprite, UiElement}};
 
 
 pub struct StartScreen {
     screen_size: Vec2,
     screen_center: Vec2,
     started: bool,
-
-    teste: Sprite,
 }
 
 impl ScreenBase for StartScreen {
-    fn start(&mut self) {
-        self.teste.color = Color4b { r: 123, g: 53, b: 98, a: 255 };
-        self.teste.set_size(500.0, 500.0);
-        self.teste.set_texture(Vec4::from4f(0.0, 1.0, 1.0, 0.0));
+    fn start(&mut self, resource_manager: Rc<RefCell<ResourceManager>>) {
+        
     }
 
     fn update(&mut self, dt: f32) {
 
     }
 
-    fn draw(&mut self, renderer: &mut SpritesRenderer) {
-        self.teste.draw(renderer);
+    fn draw(&mut self, sprite_renderer: &mut SpritesRenderer<SpritesVertices>, text_renderer: &mut SpritesRenderer<TextVertices>) {
+
     }
 
     fn resize(&mut self, width: f32, height: f32) {
-        println!("Rsize: {}, {}", width, height);
+
     }
 
-    fn change_logic(&mut self, width: f32, height: f32) {
+    fn change_logic(&mut self, width: f32, height: f32, resource_manager: Rc<RefCell<ResourceManager>>) {
         let new_screen_size = Vec2{ x: width, y: height };
 
         if !self.started {
             self.started = true;
             self.screen_size = new_screen_size;
             self.screen_center = new_screen_size / 2.0;
-            self.start();
+            self.start(resource_manager.clone());
 
             // not resize if screen size in zero
             if new_screen_size != Vec2::ZERO {
@@ -61,8 +58,6 @@ impl StartScreen {
             screen_size: Vec2::ZERO,
             screen_center: Vec2::ZERO,
             started: false,
-
-            teste: Sprite::new()
         }
     }
 }

@@ -3,49 +3,49 @@ use crate::math::vec2::Vec2;
 use crate::math::matrix4::Matrix4;
 
 use crate::inputs;
+use crate::render::Ubo;
 
 pub struct Camera {
-    pub view_matrix: Matrix4,
+    view_matrix: Matrix4,
+    projection_matrix: Matrix4,
     pub position: Vec3,
 
     pub direction: Vec3,
     pub rot: Vec2,
+    
+    ubo: Ubo
 }
 
 impl Camera {
     pub fn new() -> Self {
         Self {
             view_matrix: Matrix4::ZERO,
+            projection_matrix: Matrix4::ZERO,
             position: Vec3::ZERO,
             direction: Vec3::ZERO,
-            rot: Vec2::ZERO
+            rot: Vec2::ZERO,
+            
+            ubo: Ubo::new()
         }
+    }
+    
+    pub fn start(&mut self) {
+        self.ubo.add::<Matrix4>("projection");
+        self.ubo.add::<Matrix4>("view");
+        self.ubo.create(1);
     }
 
     pub fn update(&mut self, dt: f32) {
-        let mut dir = Vec3::ZERO;
-
-        let yaw = self.rot.x.to_radians();
-        let front = Vec3 { x: yaw.cos(), y: 0.0, z: yaw.sin() };
-
-        if inputs::is_key_down(inputs::Keys::W) { dir = dir + front };
-        if inputs::is_key_down(inputs::Keys::A) { dir = dir - front.cross(Vec3 { x: 0.0, y: 1.0, z: 0.0 }) };
-        if inputs::is_key_down(inputs::Keys::S) { dir = dir - front };
-        if inputs::is_key_down(inputs::Keys::D) { dir = dir + front.cross(Vec3 { x: 0.0, y: 1.0, z: 0.0 }) };
-        if inputs::is_key_down(inputs::Keys::LeftShift) { dir.y -= 1.0 };
-        if inputs::is_key_down(inputs::Keys::Space) { dir.y += 1.0 };
-
-        const SPEED: f32 = 10.0;
-
-        if dir.length() > 1.0 {
-            dir = dir.normalized()
-        }
-
-        self.position += dir * (SPEED * dt);
-
         self.process_rotation();
 
         self.view_matrix = Matrix4::look_at(self.position, self.position + self.direction);
+        
+        self.ubo.update("view", self.view_matrix.as_ptr());
+    }
+    
+    pub fn resize(&mut self, width: f32, height: f32) {
+        self.projection_matrix = Matrix4::perspective(80.0, width / height, 0.1, 100.0);
+        self.ubo.update("projection", self.projection_matrix.as_ptr());
     }
 
     fn process_rotation(&mut self) {
