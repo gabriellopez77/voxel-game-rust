@@ -1,5 +1,5 @@
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
-
+use crate::math::Vec2;
 use crate::resources::TextureCoords;
 
 
@@ -20,7 +20,7 @@ pub fn create(images_path: &Vec<PathBuf>, width: i32, height: i32) -> (Vec<u8>, 
                 rect.x, rect.y,
                 rect.x + rect.width,
                 rect.y + rect.height
-            ).normalized(width as f32, height as f32);
+            ).normalized(Vec2::new(width as f32, height as f32));
 
             images_coords.push((file_name, coords));
         }

@@ -1,3 +1,5 @@
+use crate::math::Vec2;
+
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct TextureCoords {
@@ -22,12 +24,25 @@ impl TextureCoords {
         }
     }
 
-    pub fn normalized(&self, atlas_width: f32, atlas_height: f32) -> Self {
+    pub fn normalized(&self, atlas_size: Vec2) -> Self {
         Self {
-            minx: self.minx / atlas_width,
-            miny: self.miny / atlas_height,
-            maxx: self.maxx / atlas_width,
-            maxy: self.maxy / atlas_height,
+            minx: self.minx / atlas_size.x,
+            miny: self.miny / atlas_size.y,
+            maxx: self.maxx / atlas_size.x,
+            maxy: self.maxy / atlas_size.y
         }
+    }
+
+    pub fn denormalized(&self, atlas_size: Vec2) -> Self {
+        Self {
+            minx: self.minx * atlas_size.x,
+            miny: self.miny * atlas_size.y,
+            maxx: self.maxx * atlas_size.x,
+            maxy: self.maxy * atlas_size.y
+        }
+    }
+
+    pub fn get_size(&self, atlas_size: Vec2) -> Vec2 {
+        Vec2::new(self.maxx - self.minx, self.maxy - self.miny) * atlas_size
     }
 }

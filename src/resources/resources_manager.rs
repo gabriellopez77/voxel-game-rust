@@ -1,12 +1,19 @@
-﻿use std::{path::PathBuf, collections::HashMap, rc::Rc, cell::RefCell};
+﻿use std::{
+    path::PathBuf,
+    collections::HashMap,
+    rc::Rc,
+    cell::RefCell
+};
 use crate::render::{Texture, Shader};
 
 
 pub struct ResourceManager {
-    pub shader_path: String,
-    pub textures_path: String,
+    shader_path: String,
+    textures_path: String,
+    //assets_path: String,
 
     textures: HashMap<&'static str, Rc<Texture>>,
+    //fonts: HashMap<&'static str, Rc<Texture>>,
     shaders: HashMap<&'static str, Rc<RefCell<Shader>>>,
 }
 
@@ -17,6 +24,8 @@ impl ResourceManager {
         Self {
             shader_path: format!(r"{assets_path}\assets\shaders"),
             textures_path: format!(r"{assets_path}\assets\textures"),
+            //assets_path,
+
             textures: HashMap::new(),
             shaders: HashMap::new(),
         }
@@ -44,8 +53,9 @@ impl ResourceManager {
         {
             path.clear();
             path.push_str(&self.textures_path);
-            path.push_str(r"\default_font.png");
-            self.textures.insert("default_font", Rc::new(Texture::create_from_file(&path, gl::NEAREST)));
+            path.push_str(r"\fonts");
+            let images = get_files_in_directory_with_filter(&path, "png");
+            self.textures.insert("fonts", Rc::new(Texture::create_from_atlas(&images, 256, 256, gl::NEAREST)));
         }
 
         // read shaders

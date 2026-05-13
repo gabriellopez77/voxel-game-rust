@@ -7,6 +7,12 @@ edition = "2024"
 glfw = "0.62"
 gl = "0.14.0"
 image = "0.25.10"
-serde_json = "1.0.149"
+
 fastnoise-lite = "1.1.1"
+
+# random utils
 rand = "0.10.1"
+
+# json
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
