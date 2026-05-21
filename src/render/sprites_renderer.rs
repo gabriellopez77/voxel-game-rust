@@ -6,7 +6,7 @@ use crate::render::{Shader, Texture, Vao, vao::VaoBuffers};
 
 pub const MAX_SPRITES: usize = 500;
 
-pub struct SpritesRenderer<T: Default + Copy> {
+pub struct SpritesRenderer<T: Copy> {
     buffer: Vec<T>,
 
     shader: Option<Rc<RefCell<Shader>>>,
@@ -14,7 +14,7 @@ pub struct SpritesRenderer<T: Default + Copy> {
     vao: Vao
 }
 
-impl<T: Default + Copy> SpritesRenderer<T> {    
+impl<T: Copy> SpritesRenderer<T> {
     pub fn new() -> Self {
         Self {
             buffer: Vec::new(),
@@ -43,11 +43,11 @@ impl<T: Default + Copy> SpritesRenderer<T> {
             &self.vao,
             buffer_len
         );
-        
+
         self.buffer.clear()
     }
 
-    pub fn buffer_len(&self) -> usize { self.buffer.len() } 
+    pub fn buffer_len(&self) -> usize { self.buffer.len() }
 
     pub fn add_element(&mut self, element: T) { self.buffer.push(element) }
 }

@@ -1,15 +1,15 @@
-﻿use std::collections::HashMap;
-use std::path::PathBuf;
+﻿use std::{collections::HashMap, path::PathBuf};
 use crate::render::render_utils;
 use crate::math::{Vec2};
-use crate::resources::{TextureCoords, texture_atlas};
+use crate::resources::{TexCoords, texture_atlas};
+
 
 pub struct Texture {
     id: u32,
 
     size: Vec2,
 
-    textures_coords: HashMap<String, TextureCoords>
+    textures_coords: HashMap<String, TexCoords>
 }
 
 impl Texture {
@@ -77,7 +77,8 @@ impl Texture {
         self.id = 0;
     }
 
-    pub fn get_coords(&self, name: &str) -> TextureCoords {
+    /// return normalized tex coords
+    pub fn get_coords(&self, name: &str) -> TexCoords {
         if let Some(tex) = self.textures_coords.get(name) { return *tex; }
 
         // is guaranteed that atlas contains the 'error_404' texture coords

@@ -1,0 +1,9 @@
+{
+    "parent": "blocks/parents/cube",
+    "textures": {
+        "particle": "blocks/white_oak_log_side",
+        "up": "blocks/white_oak_log_top",
+        "down": "blocks/white_oak_log_top",
+        "$side": "blocks/white_oak_log_side"
+    }
+}

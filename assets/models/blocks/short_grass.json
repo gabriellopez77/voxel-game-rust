@@ -1,0 +1,8 @@
+{
+    "parent": "blocks/parents/cross",
+    "itemIcon": "blocks/short_grass",
+    "textures": {
+        "particle": "blocks/short_grass",
+        "side": "blocks/short_grass"
+    }
+}

@@ -1,0 +1,9 @@
+{
+    "parent": "blocks/parents/cube",
+    "textures": {
+        "particle": "blocks/mushroom_trunk_side",
+        "up": "blocks/mushroom_trunk_top",
+        "down": "blocks/mushroom_trunk_top",
+        "$side": "blocks/mushroom_trunk_side"
+    }
+}

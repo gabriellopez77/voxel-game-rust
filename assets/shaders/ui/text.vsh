@@ -8,9 +8,9 @@ layout (location = 4) in vec2 aAdvance;
 layout (location = 5) in vec3 aColor;
 layout (location = 6) in float aLayer;
 
-layout (std140, binding = 1) uniform shader_matrix {
+layout(std140, binding = 0) uniform sla {
     mat4 projection;
-    int pixelScale;
+    float pixelScale;
 };
 
 out vec2 TexCoords;
@@ -18,8 +18,9 @@ out vec3 Color;
 
 void main()
 {
-    gl_Position = projection * vec4(((aPosition + aAdvance) * pixelScale) + aVertex.xy * (aSize * pixelScale), aLayer - 1000, 1.f);
+    //const float pixelScale = 3.f;
+    gl_Position = projection * vec4(((aPosition + aAdvance) * pixelScale) + aVertex.xy * (aSize * pixelScale), 0.f, 1.f);
 
-    TexCoords = mix(aTexCoordsInstance.xy, aTexCoordsInstance.zw, aVertex.zw) / 128.f;
+    TexCoords = mix(aTexCoordsInstance.xy, aTexCoordsInstance.zw, aVertex.zw);
     Color = aColor / 255.f;
 } 

@@ -1,4 +1,5 @@
 use std::ops::{Add, Mul, Div, Sub, AddAssign, MulAssign, DivAssign, SubAssign};
+use super::{Vec3, Matrix4};
 
 
 #[repr(C)]
@@ -14,8 +15,16 @@ impl Vec4 {
     pub const ZERO: Vec4 = Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 };
 
     pub fn new(x: f32, y: f32, z: f32, w: f32) -> Self { Self { x, y, z, w } }
-    pub fn from1f(value: f32) -> Self { Self { x: value, y: value, z: value, w: value } }
-    
+    pub fn from1(value: f32) -> Self { Self { x: value, y: value, z: value, w: value } }
+    pub fn from3(vec: Vec3, value: f32) -> Self { Self { x: vec.x, y: vec.y, z: vec.z, w: value } }
+
+    pub fn dot(left: Vec4, right: Vec4) -> f32 {
+        let temp = left * right;
+
+        return temp.x + temp.y + temp.z + temp.w;
+
+    }
+
     pub fn as_ptr(&self) -> *const f32 { &self.x }
 }
 
@@ -41,3 +50,16 @@ impl AddAssign<f32> for Vec4 { fn add_assign(&mut self, o: f32) { self.x += o; s
 impl MulAssign<f32> for Vec4 { fn mul_assign(&mut self, o: f32) { self.x *= o; self.y *= o; self.z *= o; self.w *= o; } }
 impl DivAssign<f32> for Vec4 { fn div_assign(&mut self, o: f32) { self.x /= o; self.y /= o; self.z /= o; self.w /= o; } }
 impl SubAssign<f32> for Vec4 { fn sub_assign(&mut self, o: f32) { self.x -= o; self.y -= o; self.z -= o; self.w -= o; } }
+
+impl Mul<Matrix4> for Vec4 {
+    type Output = Vec4;
+
+    fn mul(self, m: Matrix4) -> Vec4 {
+        return Vec4::new(
+            Vec4::dot(m.values[0], self),
+            Vec4::dot(m.values[1], self),
+            Vec4::dot(m.values[2], self),
+            Vec4::dot(m.values[3], self)
+            );
+    }
+}

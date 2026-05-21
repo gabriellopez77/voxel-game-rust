@@ -1,44 +1,138 @@
-﻿use std::{cell::RefCell, collections::HashMap, rc::Rc};
+﻿use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
-use crate::math::Vec3i;
+
+use crate::math::{Vec3, Vec3i, self};
+
+use crate::render::Shader;
 use crate::resources::ResourceManager;
-use crate::world::chunk::Chunk;
-use crate::world::WorldGen;
+use crate::world::chunk::{ChunkGetter, NeighborChunks, neighbor_chunks};
+use crate::world::{Chunk, WorldGen, player::Camera};
+
 
 pub struct Planet {
-    chunks: HashMap<Vec3i, Rc<RefCell<Chunk>>>,
+    chunks: HashMap<Vec3i, Arc<RefCell<Chunk>>>,
+    world_gen: WorldGen,
+
     render_distance: i32,
-    world_gen: WorldGen
+
+    last_player_chunk: Vec3i,
+    change_chunk_logic: bool,
+
+    remove_chunks_list: Vec<Arc<RefCell<Chunk>>>,
+    ordered_chunks: Vec<Arc<RefCell<Chunk>>>,
+
+    shader: Option<Rc<RefCell<Shader>>>,
 }
 
 impl Planet {
     pub fn new() -> Self {
         Self {
             chunks: HashMap::new(),
+            world_gen: WorldGen::new(),
+
             render_distance: 8,
-            world_gen: WorldGen::new()
+
+            last_player_chunk: Vec3i::ZERO,
+            change_chunk_logic: true,
+
+            remove_chunks_list: Vec::new(),
+            ordered_chunks: Vec::new(),
+
+            shader: None
         }
     }
 
     pub fn start(&mut self, resource_manager: Rc<RefCell<ResourceManager>>) {
-        let shader = resource_manager.borrow().get_shader("chunk").expect("shader not exists");
-        //let texture = resource_manager.get_texture("chunk").expect("texture not exists");
-
-        let pos = Vec3i::new(0, 0, 0);
-
-        let chunk = Rc::new(RefCell::new(Chunk::new(pos, shader.clone())));
-
-        self.world_gen.gen_data(pos, &mut chunk.borrow_mut().chunk_data);
-        
-        let (vertices, indices) = chunk.borrow_mut().gen_mesh();
-        chunk.borrow_mut().renderer.create_vao(&vertices, &indices);
-
-        self.chunks.insert(pos, chunk.clone());
+        self.shader = Some(resource_manager.borrow().get_shader("chunk").expect("shader not exists"));
     }
 
-    pub fn draw(&mut self) {
-        for (pos, chunk) in self.chunks.iter() {
-            chunk.borrow_mut().renderer.draw();
+    pub fn update(&mut self, player_pos: Vec3) {
+        let player_chunk = math::get_chunk_pos(player_pos);
+
+        if self.last_player_chunk != player_chunk || self.change_chunk_logic {
+        //if self.change_chunk_logic {
+            self.ordered_chunks.clear();
+            self.remove_chunks_list.clear();
+            
+            self.change_chunk_logic = false;
+
+            // remove chunks so far
+            for (pos, ch) in &self.chunks {
+                let distance = math::get_chunk_distance(player_chunk, *pos);
+
+                if distance >= self.render_distance {
+                    self.remove_chunks_list.push(ch.clone());
+                    continue;
+                }
+
+                self.ordered_chunks.push(ch.clone());
+            }
+
+            for ch in &self.remove_chunks_list {
+                let mut ch_borrow = ch.borrow_mut();
+
+                ch_borrow.erase();
+                self.chunks.remove(&ch_borrow.position);
+            }
+
+            self.remove_chunks_list.clear();
+
+
+            let start = player_chunk - self.render_distance;
+            let end = player_chunk + self.render_distance;
+
+            for x in start.x..=end.x {
+                for z in start.z..=end.z {
+                    let new_chunk_pos = Vec3i::new(x, 0, z);
+
+                    let distance = math::get_chunk_distance(new_chunk_pos, player_chunk);
+
+                    if distance >= self.render_distance || self.chunks.contains_key(&new_chunk_pos) { continue; }
+
+                    let neighbor_chunks = NeighborChunks::new_set(self, new_chunk_pos);
+                    self.regen_neighbor_chunks(&neighbor_chunks);
+
+                    let new_chunk = Arc::new(RefCell::new(Chunk::new(new_chunk_pos, self.shader.as_ref().unwrap().clone())));
+                    new_chunk.borrow_mut().start(&self.world_gen);
+
+                    self.chunks.insert(new_chunk_pos, new_chunk.clone());
+                    self.ordered_chunks.push(new_chunk.clone());
+                }
+            }
+
+            // sort chunks
+            self.ordered_chunks.sort_by(|ch1, ch2| {
+                let ch1_distance = math::get_chunk_distance(ch1.borrow().position, player_chunk);
+                let ch2_distance = math::get_chunk_distance(ch2.borrow().position, player_chunk);
+
+                return ch1_distance.cmp(&ch2_distance);
+            });
+            
         }
+
+        self.last_player_chunk = player_chunk;
+    }
+
+    pub fn draw(&self, camera: &Camera) {
+        for ch in &self.ordered_chunks {
+            ch.borrow_mut().draw(camera, self);
+        }
+    }
+
+    pub fn get_chunk(&self, pos: Vec3i) -> ChunkGetter {
+        if let Some(chunk) = self.chunks.get(&pos) {
+            return ChunkGetter::new(Some(chunk.clone()));
+        }
+
+        return ChunkGetter::new(None);
+    }
+
+    pub fn get_chunk_int(&self, x: i32, y: i32, z: i32) -> ChunkGetter { self.get_chunk(Vec3i::new(x, y, z))}
+
+    fn regen_neighbor_chunks(&self, neighbor_chunks: &NeighborChunks) {
+        if neighbor_chunks.north.exists() { neighbor_chunks.north.get().borrow_mut().regen_mesh = true }
+        if neighbor_chunks.south.exists() { neighbor_chunks.south.get().borrow_mut().regen_mesh = true }
+        if neighbor_chunks.west.exists() { neighbor_chunks. west.get().borrow_mut().regen_mesh = true }
+        if neighbor_chunks.east.exists() { neighbor_chunks. east.get().borrow_mut().regen_mesh = true }
     }
 }

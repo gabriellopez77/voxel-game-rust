@@ -1,20 +1,25 @@
 ﻿use std::{rc::Rc, cell::RefCell};
 
-use crate::math::{Color4b, Vec2};
+use crate::math::{Color3b, Color4b, Vec2};
 use crate::render::{SpritesRenderer, SpritesVertices, TextVertices};
-use crate::resources::{ResourceManager, TextureCoords};
+use crate::resources::{ResourceManager, TexCoords};
 use crate::ui::{ScreenBase, tools::{Sprite, UiElement}};
+use crate::ui::tools::Text;
 
 
 pub struct StartScreen {
     screen_size: Vec2,
     screen_center: Vec2,
     started: bool,
+
+    text: Text,
 }
 
 impl ScreenBase for StartScreen {
     fn start(&mut self, resource_manager: Rc<RefCell<ResourceManager>>) {
-        
+        self.text.set_font(resource_manager.borrow().get_font("default_font").unwrap());
+        self.text.set_text("Hello, World".to_string());
+        self.text.set_color(Color3b::WHITE);
     }
 
     fn update(&mut self, dt: f32) {
@@ -22,7 +27,7 @@ impl ScreenBase for StartScreen {
     }
 
     fn draw(&mut self, sprite_renderer: &mut SpritesRenderer<SpritesVertices>, text_renderer: &mut SpritesRenderer<TextVertices>) {
-
+        self.text.draw(text_renderer)
     }
 
     fn resize(&mut self, width: f32, height: f32) {
@@ -58,6 +63,8 @@ impl StartScreen {
             screen_size: Vec2::ZERO,
             screen_center: Vec2::ZERO,
             started: false,
+
+            text: Text::new()
         }
     }
 }

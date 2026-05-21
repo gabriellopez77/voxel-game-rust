@@ -1,15 +1,23 @@
 ﻿use gl::types::GLenum;
 
-use crate::render::{render_utils, SpritesVertices};
+use crate::render::render_utils;
 
+
+#[derive(Copy, Clone)]
+struct BufferInfo {
+    buffer_type: GLenum,
+    id: u32,
+    size: u32,
+    binding_index: u32
+}
 
 pub struct Vao {
     pub triangles_count: i32,
-    
+
     id: u32,
     binding_index: u32,
     binding_buffer: VaoBuffers,
-    buffers: [(GLenum, u32, u32); 3], // buffer type, buffer id, binding index
+    buffers: [BufferInfo; 3], // buffer type, buffer id, binding index
 }
 
 #[repr(i32)]
@@ -21,25 +29,44 @@ pub enum VaoBuffers {
 }
 
 impl Vao {
-    pub fn new() -> Self { 
+    pub fn new() -> Self {
         Self {
             triangles_count: 0,
             id: 0,
             binding_index: 0,
             binding_buffer: VaoBuffers::Vbo,
-            buffers: [(0, 0, 0); 3]
-        } 
+            buffers: [BufferInfo{ buffer_type: 0, id: 0, size: 0, binding_index: 0 }; 3]
+        }
     }
-    
+
+    pub fn is_generated(&self) -> bool { self.id != 0 }
+
     pub fn gen_vao(&mut self) -> &mut Vao {
         let mut id: u32 = 0;
         unsafe {gl::CreateVertexArrays(1, &mut id) }
-        
+
         self.id = id;
 
         return self;
     }
-    
+
+    pub fn delete(&mut self) {
+        unsafe {
+            for buffer_info in &mut self.buffers {
+                let id = buffer_info.id;
+
+                if id != 0 {
+                    gl::DeleteBuffers(1, &id);
+                }
+
+                buffer_info.id = 0;
+            }
+
+            gl::DeleteVertexArrays(1, &self.id);
+            self.id = 0;
+        }
+    }
+
     pub fn bind(&self) {
         render_utils::bind_vao(self.id);
     }
@@ -48,7 +75,12 @@ impl Vao {
         let mut buffer_id: u32 = 0;
         unsafe {gl::CreateBuffers(1, &mut buffer_id) }
 
-        self.buffers[vao_buffer as usize] = (buffer_type, buffer_id, self.binding_index);
+        self.buffers[vao_buffer as usize] = BufferInfo{
+            buffer_type: buffer_type,
+            id: buffer_id,
+            size: 0,
+            binding_index: self.binding_index
+        };
 
         if !matches!(vao_buffer, VaoBuffers::Ebo) {
             self.binding_index += 1
@@ -62,29 +94,25 @@ impl Vao {
     }
 
     pub fn buffer_data(&mut self, buffer: VaoBuffers, size: usize, data: Option<*const ()>, usage: GLenum) -> &Vao {
-        let mut is_ebo: bool = false;
-        let (_, buffer_id, buffer_binding_index) = self.buffers[buffer as usize];
+        let buffer_info = &mut self.buffers[buffer as usize];
 
-        let p = match data {
+        let data_ptr = match data {
             Some(data) => data as *const std::ffi::c_void,
             _ => std::ptr::null(),
         };
 
-        // if buffer is ebo then calculate triangles count
-        if matches!(buffer, VaoBuffers::Ebo) {
-            is_ebo = true;
-            self.triangles_count = size as i32 / 4;
-        }
-        else {
-            self.binding_index = buffer_binding_index;
-        }
+
+        buffer_info.size = size as u32;
 
         unsafe {
-            gl::NamedBufferData(buffer_id, size as isize, p, usage);
+            gl::NamedBufferData(buffer_info.id, size as isize, data_ptr, usage);
 
-            if is_ebo {
-                gl::VertexArrayElementBuffer(self.id, buffer_id)
+            // if buffer is ebo then calculate triangles count
+            if matches!(buffer, VaoBuffers::Ebo) {
+                self.triangles_count = size as i32 / 4;
+                gl::VertexArrayElementBuffer(self.id, buffer_info.id);
             }
+            else { self.binding_index = buffer_info.binding_index }
         }
 
         self.binding_buffer = buffer;
@@ -92,19 +120,39 @@ impl Vao {
         return self;
     }
 
-    pub fn update_buffer<T: Default + Copy>(&mut self, buffer: VaoBuffers, arr: &Vec<T>) {
+    pub fn update_buffer<T: Copy>(&mut self, buffer: VaoBuffers, arr: &Vec<T>) {
         unsafe {
             gl::NamedBufferSubData(
-                self.buffers[buffer as usize].1,
+                self.buffers[buffer as usize].id,
                 0, (arr.len() * size_of::<T>()) as isize,
                 arr.as_ptr() as *const std::ffi::c_void
             )
         }
     }
 
-    pub fn attrib_info(&self, index: u32, size: i32, attrib_type: GLenum, offset: usize, instance: bool) -> &Vao{
+    pub fn smart_reallocate_buffer<T>(&mut self, buffer: VaoBuffers, data: &Vec<T>) {
+        let buffer_info = self.buffers[buffer as usize];
+        let data_size = (data.len() * size_of::<T>()) as isize;
+        let data_ptr = data.as_ptr() as *const std::ffi::c_void;
+
+        // if buffer is ebo then calculate triangles count
+        if matches!(buffer, VaoBuffers::Ebo) {
+            self.triangles_count = data_size as i32 / 4;
+        }
+
+        unsafe {
+            if data_size >= buffer_info.size as isize {
+                gl::NamedBufferData(buffer_info.id, data_size, data_ptr, gl::STATIC_DRAW);
+            }
+            else {
+                gl::NamedBufferSubData(buffer_info.id, 0, data_size, data_ptr);
+            }
+        }
+    }
+
+    pub fn attrib_info(&self, index: u32, size: i32, attrib_type: GLenum, offset: usize, instance: bool) -> &Vao {
         let vao = self.id;
-        
+
         unsafe {
             gl::EnableVertexArrayAttrib(vao, index);
             gl::VertexArrayAttribBinding(vao, index, self.binding_index);
@@ -119,8 +167,8 @@ impl Vao {
 
     pub fn set_stride(&self, stride: usize) {
         unsafe {
-            let buffer_id = self.buffers[self.binding_buffer as usize].1;
-            
+            let buffer_id = self.buffers[self.binding_buffer as usize].id;
+
             gl::VertexArrayVertexBuffer(self.id, self.binding_index, buffer_id, 0, stride as i32);
         }
     }

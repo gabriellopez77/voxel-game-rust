@@ -16,6 +16,7 @@ impl Player {
 
     pub fn start(&mut self) {
         self.camera.start();
+        self.camera.position.y = 60.0;
     }
 
     pub fn update(&mut self, dt: f32) {
@@ -37,7 +38,7 @@ impl Player {
             dir = dir.normalized()
         }
 
-        self.camera.position += dir * (SPEED * dt);
-        self.camera.update(dt);
+        let new_pos = self.camera.position + dir * (SPEED * dt);
+        self.camera.update(new_pos);
     }
 }

@@ -1,4 +1,5 @@
 ﻿pub mod vec2;
+pub mod vec2i;
 pub mod vec2u8;
 pub mod vec2i16;
 
@@ -20,6 +21,7 @@ pub use utils::*;
 
 pub use {
     vec2::Vec2,
+    vec2i::Vec2i,
     vec2u8::Vec2u8,
     vec2i16::Vec2i16,
     

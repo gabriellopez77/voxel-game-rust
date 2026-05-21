@@ -1,4 +1,4 @@
-use crate::resources::TextureCoords;
+use crate::resources::TexCoords;
 use crate::world::items::*;
 
 
@@ -30,7 +30,7 @@ impl BlockProperties {
             is_transparent: false,
             light_filter: 0,
             light_emission: 0,
-            base_properties: ItemBaseProperties::new(internal_name, name, TextureCoords::ZERO, Some(index as u32), None)
+            base_properties: ItemBaseProperties::new(internal_name, name, TexCoords::ZERO, Some(index as u32), None)
         }
     }
 }

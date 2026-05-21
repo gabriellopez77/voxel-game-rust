@@ -26,6 +26,10 @@ impl ChunkRenderer {
         }
     }
 
+    pub fn erase(&mut self) {
+        self.vao.delete();
+    }
+
     pub fn draw(&mut self) {
         if self.vao.triangles_count == 0 { return }
         
@@ -39,17 +43,25 @@ impl ChunkRenderer {
         );
     }
 
-    pub fn create_vao(&mut self, vertices: &Vec<ChunkVertices>, indices: &Vec<u32>) {
-        self.vao.gen_vao()
-            .gen_buffer(gl::ELEMENT_ARRAY_BUFFER, VaoBuffers::Ebo)
-            .gen_buffer(gl::ARRAY_BUFFER, VaoBuffers::Vbo);
+    pub fn update_mesh(&mut self, vertices: &Vec<ChunkVertices>, indices: &Vec<u32>) {
+        if vertices.is_empty() { return }
 
-        self.vao.buffer_data_from_arr(VaoBuffers::Ebo, &indices, gl::STATIC_DRAW);
+        if !self.vao.is_generated() {
+            self.vao.gen_vao()
+                .gen_buffer(gl::ELEMENT_ARRAY_BUFFER, VaoBuffers::Ebo)
+                .gen_buffer(gl::ARRAY_BUFFER, VaoBuffers::Vbo);
 
-        self.vao.buffer_data(VaoBuffers::Vbo, size_of::<ChunkVertices>() * vertices.len(), Some(vertices.as_ptr() as *const ()), gl::STATIC_DRAW)
-            .attrib_info(0, 3, gl::FLOAT, offset_of!(ChunkVertices, vertices), false)
-            .attrib_info(1, 3, gl::FLOAT, offset_of!(ChunkVertices, normal), false)
-            .attrib_info(2, 2, gl::FLOAT, offset_of!(ChunkVertices, uv), false)
-            .set_stride(size_of::<ChunkVertices>());
+            self.vao.buffer_data_from_arr(VaoBuffers::Ebo, &indices, gl::STATIC_DRAW);
+
+            self.vao.buffer_data(VaoBuffers::Vbo, size_of::<ChunkVertices>() * vertices.len(), Some(vertices.as_ptr() as *const ()), gl::STATIC_DRAW)
+                .attrib_info(0, 3, gl::FLOAT, offset_of!(ChunkVertices, vertices), false)
+                .attrib_info(1, 3, gl::FLOAT, offset_of!(ChunkVertices, normal), false)
+                .attrib_info(2, 2, gl::FLOAT, offset_of!(ChunkVertices, uv), false)
+                .set_stride(size_of::<ChunkVertices>());
+        }
+        else {
+            self.vao.smart_reallocate_buffer(VaoBuffers::Vbo, &vertices);
+            self.vao.smart_reallocate_buffer(VaoBuffers::Ebo, &indices);
+        }
     }
 }

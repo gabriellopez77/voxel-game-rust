@@ -1,5 +1,7 @@
 use std::ops::{Add, Mul, Div, Sub, AddAssign, MulAssign, DivAssign, SubAssign};
 
+use crate::math::Vec4;
+
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -14,7 +16,8 @@ impl Vec3 {
     pub const UP: Vec3 = Vec3{ x: 0.0, y: 1.0, z: 0.0 };
 
     pub fn new(x: f32, y: f32, z: f32 ) -> Self { Self { x, y, z, } }
-    pub fn from1f(value: f32) -> Self { Self { x: value, y: value, z: value } }
+    pub fn from1(value: f32) -> Self { Self { x: value, y: value, z: value } }
+    pub fn from4(v: Vec4) -> Self { Self { x: v.x, y: v.y, z: v.z } }
 
     pub fn as_ptr(&self) -> *const f32 { &self.x }
 

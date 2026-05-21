@@ -1,22 +1,21 @@
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 use crate::math::Vec2;
-use crate::resources::TextureCoords;
+use crate::resources::TexCoords;
 
 
-pub fn create(images_path: &Vec<PathBuf>, width: i32, height: i32) -> (Vec<u8>, Vec<(String, TextureCoords)>) {
-    let root = Rc::new(RefCell::new(Node::new(0, 0, width, height)));
+pub fn create(images_path: &Vec<PathBuf>, width: i32, height: i32) -> (Vec<u8>, Vec<(String, TexCoords)>) {
+    let root = Node::new(0, 0, width, height);
 
     let buffer_size = (width * height * 4) as usize;
-    let mut images_coords: Vec<(String, TextureCoords)> = Vec::with_capacity(images_path.len());
+    let mut images_coords: Vec<(String, TexCoords)> = Vec::with_capacity(images_path.len());
     let mut atlas_pixels: Vec<u8> = vec![0; buffer_size];
-
-
+    
     for path in images_path {
-        let image = image::open(path).unwrap();
+        let image = image::open(path).expect("Failed to open image");
         let file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
 
         if let Some(ref rect) = add_image(root.clone(), &image, &mut atlas_pixels, width) {
-            let coords = TextureCoords::newi(
+            let coords = TexCoords::newi(
                 rect.x, rect.y,
                 rect.x + rect.width,
                 rect.y + rect.height
@@ -24,7 +23,7 @@ pub fn create(images_path: &Vec<PathBuf>, width: i32, height: i32) -> (Vec<u8>, 
 
             images_coords.push((file_name, coords));
         }
-        else { println!("Error to Insert: {}", file_name) }
+        else { println!("Error to Insert: {file_name}") }
     }
 
     return (atlas_pixels, images_coords);
@@ -43,7 +42,9 @@ fn add_image(root: Rc<RefCell<Node>>, image_info: &image::DynamicImage, atlas_pi
             None => &image_info.to_rgba8()
         };
 
-        write_image(data.as_raw(), rect, atlas_pixels, atlas_width);
+        //let data = image_info.to_rgba8().into_raw();
+        //write_image(data.as_raw(), rect, atlas_pixels, atlas_width);
+        write_image(&data, rect, atlas_pixels, atlas_width);
 
         return Some(rect);
     }
@@ -88,14 +89,15 @@ struct Node {
 }
 
 impl Node {
-    pub fn new(x: i32, y: i32, width: i32, height: i32) -> Self {
-        Self {
+    pub fn new(x: i32, y: i32, width: i32, height: i32) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(Self {
             rect: ImageRect { x, y, width, height },
             left: None,
             right: None,
             used: false
-        }
+        }))
     }
+
     pub fn insert(n: Rc<RefCell<Node>>, width: i32, height: i32) -> Option<Rc<RefCell<Node>>>{
         let it = &mut n.borrow_mut();
 
@@ -129,13 +131,13 @@ impl Node {
         let rect = it.rect;
 
         if dw > dh {
-            it.left = Some(Rc::new(RefCell::new(Node::new(rect.x, rect.y, width, rect.height))));
-            it.right = Some(Rc::new(RefCell::new(Node::new(rect.x + width, rect.y, rect.width - width, rect.height))));
+            it.left = Some(Node::new(rect.x, rect.y, width, rect.height));
+            it.right = Some(Node::new(rect.x + width, rect.y, rect.width - width, rect.height));
         }
         else
         {
-            it.left = Some(Rc::new(RefCell::new(Node::new(rect.x, rect.y, rect.width, height))));
-            it.right = Some(Rc::new(RefCell::new(Node::new(rect.x, rect.y + height, rect.width, rect.height - height))));
+            it.left = Some(Node::new(rect.x, rect.y, rect.width, height));
+            it.right = Some(Node::new(rect.x, rect.y + height, rect.width, rect.height - height));
         }
 
         return Self::insert(it.left.as_ref().unwrap().clone(), width, height);

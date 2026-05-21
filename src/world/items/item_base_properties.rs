@@ -1,18 +1,18 @@
-use crate::resources::TextureCoords;
+use crate::resources::TexCoords;
 
 
 pub struct ItemBaseProperties {
     pub id: u16,
     pub name: &'static str,
     pub internal_name: &'static str,
-    pub icon: TextureCoords,
+    pub icon: TexCoords,
     
     pub block_index: Option<u32>,
     pub item_index: Option<u32>,
 }
 
 impl ItemBaseProperties {
-    pub fn new(internal_name: &'static str, name: &'static str, icon: TextureCoords, block_index: Option<u32>, item_index: Option<u32>) -> Self {
+    pub fn new(internal_name: &'static str, name: &'static str, icon: TexCoords, block_index: Option<u32>, item_index: Option<u32>) -> Self {
         static mut CURRENT_ID: u16 = 0;
 
         let new_id;

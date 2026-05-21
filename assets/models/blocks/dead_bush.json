@@ -1,0 +1,8 @@
+{
+    "parent": "blocks/parents/cross",
+    "itemIcon": "blocks/dead_bush",
+    "textures": {
+        "particle": "blocks/dead_bush",
+        "side": "blocks/dead_bush"
+    }
+}

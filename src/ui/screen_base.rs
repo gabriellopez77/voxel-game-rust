@@ -1,7 +1,7 @@
-﻿use std::cell::RefCell;
-use std::rc::Rc;
+﻿use std::{cell::RefCell, rc::Rc};
 use crate::render::{SpritesRenderer, SpritesVertices, TextVertices};
 use crate::resources::ResourceManager;
+
 
 pub trait ScreenBase {
     fn start(&mut self, resource_manager: Rc<RefCell<ResourceManager>>);

@@ -1,13 +1,13 @@
 ﻿use crate::math::{Color4b, Vec2, Vec2i16, Vec4};
 use crate::render::{SpritesRenderer, SpritesVertices, sprites_renderer};
-use crate::resources::TextureCoords;
+use crate::resources::TexCoords;
 use crate::ui::tools::ui_element::UiElement;
 
 
 pub struct Sprite {
     position: Vec2,
     size: Vec2,
-    uv: TextureCoords,
+    uv: TexCoords,
 
     pub color: Color4b,
 }
@@ -26,11 +26,11 @@ impl Sprite {
             color: Color4b {r: 255, g: 255, b: 255, a: 255},
             position: Vec2::ZERO,
             size: Vec2::ZERO,
-            uv: TextureCoords::ZERO,
+            uv: TexCoords::ZERO,
         }
     }
 
-    pub fn set_texture(&mut self, uv: TextureCoords) { self.uv = uv }
+    pub fn set_texture(&mut self, uv: TexCoords) { self.uv = uv }
 
     pub fn draw(&self, renderer: &mut SpritesRenderer<SpritesVertices>) {
         if renderer.buffer_len() >= sprites_renderer::MAX_SPRITES { return }

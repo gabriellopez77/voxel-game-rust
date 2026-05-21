@@ -35,7 +35,7 @@ impl Ubo {
             5..=8 => 8,
             12..=16 => 16,
             64 => 16,
-            _ => panic!("Ubo size not supported: {}", size),
+            _ => panic!("Ubo size not supported: {size}"),
         };
 
         // fits int, bool or float in last vec3's padding

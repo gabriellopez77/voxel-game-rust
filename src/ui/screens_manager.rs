@@ -1,12 +1,13 @@
-use std::any::TypeId;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::mem::offset_of;
-use std::rc::Rc;
+use std::{
+    any::TypeId,
+    cell::RefCell,
+    collections::HashMap,
+    mem::offset_of,
+    rc::Rc,
+};
 
-use crate::math::{self, Vec2};
-use crate::render::sprites_renderer;
-use crate::render::{SPRITES_VERTICES, SPRITES_INDICES, SpritesRenderer, SpritesVertices, TextVertices, Ubo, Vao, vao::VaoBuffers};
+use crate::math::{self, Vec2, Matrix4};
+use crate::render::{sprites_renderer, SPRITES_VERTICES, SPRITES_INDICES, SpritesRenderer, SpritesVertices, TextVertices, Ubo, Vao, vao::VaoBuffers};
 use crate::resources::ResourceManager;
 use crate::ui::{screen_base::ScreenBase, screens::StartScreen};
 
@@ -18,7 +19,7 @@ pub struct ScreenManager {
 
     resource_manager: Option<Rc<RefCell<ResourceManager>>>,
 
-    pixel_scale: i32,
+    pixel_scale: f32,
     screen_size: Vec2,
 
     current_screen: Option<Rc<RefCell<dyn ScreenBase>>>,
@@ -34,7 +35,7 @@ impl ScreenManager {
 
             resource_manager: None,
 
-            pixel_scale: 3,
+            pixel_scale: 3.0,
             screen_size: Vec2::ZERO,
 
             screens: HashMap::new(),
@@ -83,7 +84,7 @@ impl ScreenManager {
 
         text_vao.buffer_data(VaoBuffers::Instance, size_of::<TextVertices>() * sprites_renderer::MAX_SPRITES, None, gl::DYNAMIC_DRAW)
             .attrib_info(1, 2, gl::SHORT, offset_of!(TextVertices, position), true)
-            .attrib_info(2, 2, gl::SHORT, offset_of!(TextVertices, size), true)
+            .attrib_info(2, 2, gl::UNSIGNED_BYTE, offset_of!(TextVertices, size), true)
             .attrib_info(3, 4, gl::FLOAT, offset_of!(TextVertices, uv), true)
             .attrib_info(4, 2, gl::SHORT, offset_of!(TextVertices, advance), true)
             .attrib_info(5, 4, gl::UNSIGNED_BYTE, offset_of!(TextVertices, color), true)
@@ -92,11 +93,13 @@ impl ScreenManager {
         self.text_renderer.start(
             text_vao,
             resource_manager.borrow().get_shader("ui/text"),
-            resource_manager.borrow().get_texture("font")
+            resource_manager.borrow().get_texture("fonts")
         );
 
         self.resource_manager = Some(resource_manager.clone());
+
         self.sprites_ubo.add::<math::Matrix4>("projection");
+        self.sprites_ubo.add::<f32>("pixelScale");
         self.sprites_ubo.create(0);
 
         self.screens.insert(TypeId::of::<StartScreen>(), Rc::new(RefCell::new(StartScreen::new())));
@@ -107,8 +110,18 @@ impl ScreenManager {
     pub fn resize(&mut self, width: f32, height: f32) {
         self.screen_size = Vec2 { x: width, y: height };
 
-        let projection = math::Matrix4::orthographic(0.0, width, height, 0.0);
+        // update pixel scale and screen size
+        self.pixel_scale = 3.0;
+        
+        if width <= 1000.0 || height <= 750.0 { self.pixel_scale = 2.0 }
+        if width >= 2200.0 || height >= 1200.0 { self.pixel_scale = 4.0 }
+        if width >= 2800.0 || height >= 1800.0 { self.pixel_scale = 6.0 }
+
+
+        let projection = Matrix4::orthographic(0.0, width, height, 0.0);
+
         self.sprites_ubo.update("projection", projection.as_ptr() as *const ());
+        self.sprites_ubo.update("pixelScale", &self.pixel_scale);
 
         self.current_screen.as_ref().unwrap().borrow_mut().resize(width, height);
     }
@@ -120,7 +133,8 @@ impl ScreenManager {
     pub fn draw(&mut self) {
         self.current_screen.as_ref().unwrap().borrow_mut().draw(&mut self.sprites_renderer, &mut self.text_renderer);
 
-        self.sprites_renderer.draw()
+        self.sprites_renderer.draw();
+        self.text_renderer.draw();
     }
 
     pub fn change<T: ScreenBase>(&mut self) {

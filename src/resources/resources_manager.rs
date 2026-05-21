@@ -5,16 +5,19 @@
     cell::RefCell
 };
 use crate::render::{Texture, Shader};
+use crate::resources::{BlockItemModel, FontInfo};
 
 
 pub struct ResourceManager {
     shader_path: String,
     textures_path: String,
-    //assets_path: String,
+    models_path: String,
+    assets_path: String,
 
     textures: HashMap<&'static str, Rc<Texture>>,
-    //fonts: HashMap<&'static str, Rc<Texture>>,
+    fonts: HashMap<&'static str, Rc<FontInfo>>,
     shaders: HashMap<&'static str, Rc<RefCell<Shader>>>,
+    models: HashMap<&'static str, Rc<BlockItemModel>>,
 }
 
 impl ResourceManager {
@@ -24,10 +27,13 @@ impl ResourceManager {
         Self {
             shader_path: format!(r"{assets_path}\assets\shaders"),
             textures_path: format!(r"{assets_path}\assets\textures"),
-            //assets_path,
+            models_path: format!(r"{assets_path}\assets\models"),
+            assets_path,
 
             textures: HashMap::new(),
             shaders: HashMap::new(),
+            fonts: HashMap::new(),
+            models: HashMap::new(),
         }
     }
 
@@ -58,6 +64,22 @@ impl ResourceManager {
             self.textures.insert("fonts", Rc::new(Texture::create_from_atlas(&images, 256, 256, gl::NEAREST)));
         }
 
+        // load fonts
+        {
+            path.clear();
+            path.push_str(&self.textures_path);
+            path.push_str(r"\fonts\default_font.json");
+            self.fonts.insert("default_font", Rc::new(FontInfo::create_from_file(&path, "default_font", self.textures["fonts"].clone())));
+        }
+
+        // load models
+        {
+            path.clear();
+            path.push_str(&self.models_path);
+            path.push_str(r"\blocks\torch.json");
+            self.models.insert("Teste", Rc::new(BlockItemModel::new(&self.models_path, &path, self.get_texture("blocks").unwrap())));
+        }
+
         // read shaders
         self.read_shader("ui/sprites");
         self.read_shader("chunk");
@@ -68,7 +90,7 @@ impl ResourceManager {
         if let Some(shader) = self.shaders.get(name) {
             return Some(shader.clone());
         }
-        
+
         return None;
     }
 
@@ -76,7 +98,15 @@ impl ResourceManager {
         if let Some(texture) = self.textures.get(name) {
             return Some(texture.clone());
         }
-        
+
+        return None;
+    }
+
+    pub fn get_font(&self, name: &str) -> Option<Rc<FontInfo>> {
+        if let Some(font) = self.fonts.get(name) {
+            return Some(font.clone());
+        }
+
         return None;
     }
 

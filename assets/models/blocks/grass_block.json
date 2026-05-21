@@ -1,0 +1,11 @@
+{
+	"format_version": "1.21.6",
+	"credit": "Made with Blockbench",
+	"parent": "blocks/parents/cube",
+	"textures": {
+		"particle": "blocks/dirt",
+		"up": "blocks/grass_block_top",
+		"down": "blocks/dirt",
+		"$side": "blocks/grass_block_side"
+	}
+}

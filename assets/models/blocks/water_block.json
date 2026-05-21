@@ -1,0 +1,7 @@
+{
+    "parent": "blocks/parents/fluid",
+    "textures": {
+        "particle": "blocks/water_block",
+        "$all": "blocks/water_block"
+    }
+}

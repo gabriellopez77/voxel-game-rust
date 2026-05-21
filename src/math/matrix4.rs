@@ -3,6 +3,8 @@ use super::Vec3;
 use std::ops::Mul;
 
 
+#[repr(C)]
+#[derive(Copy, Clone)]
 pub struct Matrix4 {
     pub values: [Vec4; 4]
 }
@@ -49,9 +51,9 @@ impl Matrix4 {
         let f = (target - eye).normalized();
         let s = f.cross(Vec3::UP).normalized();
         let u = s.cross(f);
-        
+
         let mut result = Matrix4::IDENTITY;
-        
+
         result.values[0].x =  s.x;
         result.values[1].x =  s.y;
         result.values[2].x =  s.z;
@@ -64,11 +66,16 @@ impl Matrix4 {
         result.values[3].x = -s.dot(eye);
         result.values[3].y = -u.dot(eye);
         result.values[3].z =  f.dot(eye);
-        
+
         return result;
     }
-    
+
     pub fn as_ptr(&self) -> *const f32 { self.values[0].as_ptr() }
+
+    pub fn get_row0(&self) -> Vec4 { Vec4::new(self.values[0].x, self.values[1].x, self.values[2].x, self.values[3].x) }
+    pub fn get_row1(&self) -> Vec4 { Vec4::new(self.values[0].y, self.values[1].y, self.values[2].y, self.values[3].y) }
+    pub fn get_row2(&self) -> Vec4 { Vec4::new(self.values[0].z, self.values[1].z, self.values[2].z, self.values[3].z) }
+    pub fn get_row3(&self) -> Vec4 { Vec4::new(self.values[0].w, self.values[1].w, self.values[2].w, self.values[3].w) }
 
     pub fn remove_translation(&self) -> Self {
         Self {
@@ -91,12 +98,12 @@ impl Matrix4 {
         *self = result;
     }
 
-    pub fn rotate(&mut self, angle: f32, dir: Vec3) {
+    pub fn rotate(&mut self, angle: f32, dx: f32, dy: f32, dz: f32) {
         let a = angle.to_radians();
         let c = a.cos();
         let s = a.sin();
 
-        let axis = dir.normalized();
+        let axis = Vec3::new(dx, dy, dz).normalized();
         let temp = axis * (1.0 - c);
 
         let mut rot = Matrix4::ZERO;
@@ -145,5 +152,21 @@ impl Mul for Matrix4 {
             src_a3 * src_b3.w + src_a2 * src_b3.z + src_a1 * src_b3.y + src_a0 * src_b3.x
         ]
         };
+    }
+}
+
+impl Mul<Vec4> for Matrix4 {
+    type Output = Vec4;
+
+    fn mul(self, v: Vec4) -> Vec4 {
+        let mul0 = self.values[0] * v.x;
+        let mul1 = self.values[1] * v.y;
+        let add0 = mul0 + mul1;
+        let mul2 = self.values[2] * v.z;
+        let mul3 = self.values[3] * v.w;
+        let add1 = mul2 + mul3;
+        let add2 = add0 + add1;
+
+        return add2;
     }
 }

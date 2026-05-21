@@ -9,9 +9,8 @@ mod ui;
 
 
 fn main() {
-    let mut window = window::Window::init(800, 600, "My First Rust Window");
+    let (mut window, events) = window::Window::init(800, 600, "My First Rust Window");
+    let mut game = game::Game::new();
     
-    window::Window::set_window_instance(&mut window);
-    
-    window.run();
+    window.run(&mut game, &events);
 }

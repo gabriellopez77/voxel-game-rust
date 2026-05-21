@@ -1,0 +1,9 @@
+{
+    "parent": "blocks/parents/cube",
+    "ambientOcclusion": false,
+    "isCompleteBlock": false,
+    "textures": {
+        "particle": "blocks/structure_air",
+        "$all": "blocks/structure_air"
+    }
+}

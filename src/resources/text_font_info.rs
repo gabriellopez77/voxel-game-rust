@@ -1,37 +1,39 @@
-use std::ascii::AsciiExt;
-use std::collections::HashMap;
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
+use std::path::{Path, PathBuf};
 use serde::Deserialize;
-use crate::math::{Vec2, Vec2i16};
+use crate::math::{Vec2i16, Vec2u8};
 use crate::render::Texture;
-use crate::resources::{CharacterInfo, TextureCoords};
+use crate::resources::TexCoords;
 
 
 pub struct FontInfo {
     characters_info: HashMap<char, CharacterInfo>,
+    
     unknown_character_info: CharacterInfo,
 }
 
 impl FontInfo {
-    pub fn create_from_file(path: &str, fonts_atlas: Rc<Texture>) -> Self {
+    pub fn create_from_file(path: &str, font_name: &str, fonts_atlas: Rc<Texture>) -> Self {
         let file_content = match std::fs::read_to_string(path) {
             Ok(content) => content,
-            Err(e) => { panic!("Error reading file: {}", e)}
+            Err(e) => panic!("Error reading file: {e}")
         };
 
         let json_info: JsonFontInfo = serde_json::from_str(&file_content).unwrap();
 
+
         let atlas_size = fonts_atlas.get_size();
+        let font_tex_coords = fonts_atlas.get_coords(font_name).denormalized(atlas_size);
+
 
         let unknown_char_coords = fonts_atlas.get_coords("error_404");
-        let unknown_char_size = unknown_char_coords.get_size(atlas_size);
+        let unknown_char_size = unknown_char_coords.denormalized(atlas_size).get_size();
 
-        let unknown_char_info = CharacterInfo::new(
-            Vec2i16::from1(8),
-            unknown_char_coords,
-            unknown_char_size.x as i16, unknown_char_size.y as i16
-        );
-
+        let unknown_char_info = CharacterInfo {
+            uv: unknown_char_coords,
+            advance: Vec2i16::from1(8),
+            size: Vec2u8::new(unknown_char_size.x as u8, unknown_char_size.y as u8)
+        };
 
 
         let mut chars_info: HashMap<char, CharacterInfo> = HashMap::with_capacity(json_info.characters.len());
@@ -41,30 +43,35 @@ impl FontInfo {
             if !ch.is_ascii() { continue }
 
             let advance = match info.advance {
-                Some(advance) => Vec2i16::new(advance[0] as i16, advance[1] as i16),
-                None => Vec2i16::from1(8),
+                Some(advance) => Vec2i16::new(advance[0], advance[1]),
+                None => Vec2i16::new(json_info.default_info.advance[0], json_info.default_info.advance[1]),
             };
 
-            let uv = TextureCoords::newi(
-                info.uv[0],
-                info.uv[1],
-                info.uv[0] + info.uv[2],
-                info.uv[1] + info.uv[3]
+            let uv = font_tex_coords.get_sub_tex(
+                info.uv[0] as f32,
+                info.uv[1] as f32,
+                info.uv[2] as f32,
+                info.uv[3] as f32
             );
-            let ch_size = uv.get_size(atlas_size);
+            let ch_size = uv.get_size();
 
 
-            let ch_info = CharacterInfo::new(
+            let ch_info = CharacterInfo {
+                uv: uv.normalized(atlas_size),
                 advance,
-                uv.normalized(atlas_size),
-                ch_size.x as i16, ch_size.y as i16
-            );
+                size: Vec2u8::new(ch_size.x as u8, ch_size.y as u8)
+            };
 
             if ch.is_ascii_digit() {
                 chars_info.insert(*ch, ch_info);
             }
             else {
-                if info.case_sensitive.unwrap_or_default() {
+                let case_sensitive = match info.case_sensitive {
+                    Some(case_sensitive) => case_sensitive,
+                    None => json_info.default_info.case_sensitive
+                };
+
+                if case_sensitive {
                     chars_info.insert(ch.to_ascii_lowercase(), ch_info);
                     chars_info.insert(ch.to_ascii_uppercase(), ch_info);
                 }
@@ -77,11 +84,25 @@ impl FontInfo {
 
         return FontInfo{ characters_info: chars_info, unknown_character_info: unknown_char_info };
     }
+
+    pub fn get_info(&self, ch: char) -> &CharacterInfo {
+        if let Some(info) = self.characters_info.get(&ch) { return info }
+
+        return &self.unknown_character_info;
+    }
 }
+
+#[derive(Copy, Clone)]
+pub struct CharacterInfo {
+    pub uv: TexCoords,
+    pub size: Vec2u8,
+    pub advance: Vec2i16,
+}
+
 
 #[derive(Deserialize, Copy, Clone)]
 struct DefaultCharacterInfo {
-    advance: [i32; 2],
+    advance: [i16; 2],
 
     #[serde(rename = "caseSensitive")]
     case_sensitive: bool,
@@ -89,9 +110,8 @@ struct DefaultCharacterInfo {
 
 #[derive(Deserialize, Copy, Clone)]
 struct JsonCharacterInfo {
-    character: char,
     uv: [i32; 4],
-    advance: Option<[i32; 2]>,
+    advance: Option<[i16; 2]>,
 
     #[serde(rename = "caseSensitive")]
     case_sensitive: Option<bool>,

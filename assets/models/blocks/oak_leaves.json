@@ -1,0 +1,7 @@
+{
+    "parent": "blocks/parents/cube",
+    "textures": {
+        "particle": "blocks/oak_leaves",
+        "$all": "blocks/oak_leaves"
+    }
+}
