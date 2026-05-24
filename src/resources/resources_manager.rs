@@ -1,10 +1,13 @@
-﻿use std::{
+﻿use std::f32;
+use std::ops::Add;
+use std::{
     path::PathBuf,
     collections::HashMap,
     rc::Rc,
     cell::RefCell
 };
-use crate::render::{Texture, Shader};
+use crate::math::{Matrix4, Vec3};
+use crate::render::{Shader, Texture, Ubo};
 use crate::resources::{BlockItemModel, FontInfo};
 
 
@@ -15,9 +18,10 @@ pub struct ResourceManager {
     assets_path: String,
 
     textures: HashMap<&'static str, Rc<Texture>>,
-    fonts: HashMap<&'static str, Rc<FontInfo>>,
     shaders: HashMap<&'static str, Rc<RefCell<Shader>>>,
-    models: HashMap<&'static str, Rc<BlockItemModel>>,
+    ubos: HashMap<&'static str, Rc<Ubo>>,
+    fonts: HashMap<&'static str, Rc<FontInfo>>,
+    models: HashMap<String, Rc<BlockItemModel>>,
 }
 
 impl ResourceManager {
@@ -32,6 +36,7 @@ impl ResourceManager {
 
             textures: HashMap::new(),
             shaders: HashMap::new(),
+            ubos: HashMap::new(),
             fonts: HashMap::new(),
             models: HashMap::new(),
         }
@@ -43,7 +48,7 @@ impl ResourceManager {
         // read atlas and textures
         {
             path.push_str(r"\blocks");
-            let images = get_files_in_directory_with_filter(&path, "png");
+            let images = get_filtered_files_in_directory(&path, "png");
             self.textures.insert("blocks", Rc::new(Texture::create_from_atlas(&images, 256, 256, gl::NEAREST)));
         }
 
@@ -51,7 +56,7 @@ impl ResourceManager {
             path.clear();
             path.push_str(&self.textures_path);
             path.push_str(r"\ui");
-            let images = get_files_in_directory_with_filter(&path, "png");
+            let images = get_filtered_files_in_directory(&path, "png");
 
             self.textures.insert("ui", Rc::new(Texture::create_from_atlas(&images, 256, 256, gl::NEAREST)));
         }
@@ -60,7 +65,7 @@ impl ResourceManager {
             path.clear();
             path.push_str(&self.textures_path);
             path.push_str(r"\fonts");
-            let images = get_files_in_directory_with_filter(&path, "png");
+            let images = get_filtered_files_in_directory(&path, "png");
             self.textures.insert("fonts", Rc::new(Texture::create_from_atlas(&images, 256, 256, gl::NEAREST)));
         }
 
@@ -73,17 +78,52 @@ impl ResourceManager {
         }
 
         // load models
+
+        self.models.clear();
+        self.read_models();
+
+
         {
-            path.clear();
-            path.push_str(&self.models_path);
-            path.push_str(r"\blocks\torch.json");
-            self.models.insert("Teste", Rc::new(BlockItemModel::new(&self.models_path, &path, self.get_texture("blocks").unwrap())));
+            let mut ubo = Ubo::new();
+            ubo.add::<Matrix4>("uiProj");
+            ubo.add::<f32>("uiPixelScale");
+            ubo.add::<Matrix4>("camProj");
+            ubo.add::<Matrix4>("camView");
+            ubo.add::<Matrix4>("camViewProj");
+            ubo.add::<Matrix4>("camViewNoTranslate");
+            ubo.create(0);
+            self.ubos.insert("globalData", Rc::new(ubo));
         }
+
+        {
+            let mut ubo = Ubo::new();
+           	ubo.add::<Vec3>("skyColor");
+           	ubo.add::<Vec3>("fogColor");
+           	ubo.add::<Vec3>("lightColor");
+           	ubo.add::<Vec3>("darknessColor");
+           	ubo.add::<Vec3>("ambientColor");
+           	ubo.add::<f32>("fogDistance");
+           	ubo.add::<f32>("fogDensity");
+           	ubo.add::<i32>("fogEnable");
+            ubo.create(1);
+            self.ubos.insert("worldData", Rc::new(ubo));
+        }
+
+
 
         // read shaders
         self.read_shader("ui/sprites");
         self.read_shader("chunk");
         self.read_shader("ui/text");
+        self.read_shader("skyDome");
+    }
+
+    pub fn get_ubo(&self, name: &str) -> Option<Rc<Ubo>> {
+        if let Some(ubo) = self.ubos.get(name) {
+            return Some(ubo.clone());
+        }
+
+        return None;
     }
 
     pub fn get_shader(&self, name: &str) -> Option<Rc<RefCell<Shader>>> {
@@ -110,12 +150,45 @@ impl ResourceManager {
         return None;
     }
 
+    pub fn get_model(&self, name: &str) -> Option<Rc<BlockItemModel>> {
+        if let Some(model) = self.models.get(name) {
+            return Some(model.clone());
+        }
+
+        return None;
+    }
+
     fn read_shader(&mut self, name: &'static str) {
         let vert_path = format!(r"\{name}.vsh");
         let frag_path = format!(r"\{name}.fsh");
 
         let shader = Shader::create_from_disk(&self.shader_path, &vert_path, &frag_path);
         self.shaders.insert(name, Rc::new(RefCell::new(shader)));
+    }
+
+    fn read_models(&mut self) {
+        let items_blocks_texture = self.get_texture("blocks").unwrap();
+
+
+        let block_paths = get_filtered_files_in_directory(&format!(r"{}\blocks", self.models_path), "json");
+
+        for path in &block_paths {
+            let name = path.file_stem().unwrap().to_str().unwrap().to_string();
+
+            let model = Rc::new(BlockItemModel::new(&self.models_path, &path.to_str().unwrap(), &items_blocks_texture));
+
+            self.models.insert(name, model);
+        }
+
+        let items_paths = get_filtered_files_in_directory(&format!(r"{}\items", self.models_path), "json");
+
+        for path in &items_paths {
+            let name = path.file_stem().unwrap().to_str().unwrap().to_string();
+
+            let model = Rc::new(BlockItemModel::new(&self.models_path, &path.to_str().unwrap(), &items_blocks_texture));
+
+            self.models.insert(name, model);
+        }
     }
 }
 
@@ -131,7 +204,7 @@ pub fn get_files_in_directory(path: &str) -> Vec<PathBuf> {
     return files_path;
 }
 
-pub fn get_files_in_directory_with_filter(path: &str, filter: &str) -> Vec<PathBuf> {
+pub fn get_filtered_files_in_directory(path: &str, filter: &str) -> Vec<PathBuf> {
     let dir = std::fs::read_dir(path).expect("Error to read Dir");
     let mut files_path: Vec<PathBuf> = vec!();
 
@@ -145,4 +218,46 @@ pub fn get_files_in_directory_with_filter(path: &str, filter: &str) -> Vec<PathB
     }
 
     return files_path;
+}
+
+
+pub fn gen_sphere(stacks: f32, slices: f32) -> (Vec<Vec3>, Vec<u32>) {
+    let mut vertices: Vec<Vec3> = Vec::with_capacity(((stacks + 1.0) * (slices + 1.0)) as usize);
+    let mut indices: Vec<u32> = Vec::with_capacity((stacks * slices * 6.0) as usize);
+
+
+    for i in 0..=stacks as i32 {
+        let theta = i as f32 / stacks * f32::consts::PI;
+        let sin_theta = theta.sin();
+        let cos_theta = theta.cos();
+
+        for j in 0..=slices as i32 {
+            let phi = j as f32 / slices * 2.0 * f32::consts::PI;
+            let sin_phi = phi.sin();
+            let cos_phi = phi.cos();
+
+            vertices.push(Vec3 {
+                x: sin_theta * cos_phi,
+                y: cos_theta,
+                z: sin_theta * sin_phi
+            });
+        }
+    }
+
+    for i in 0..stacks as u32 {
+        for j in 0.. slices as u32 {
+            let first = i * (slices as u32 + 1) + j;
+            let second = first + slices as u32 + 1;
+
+            indices.push(first);
+            indices.push(second);
+            indices.push(first + 1);
+
+            indices.push(second);
+            indices.push(second + 1);
+            indices.push(first + 1);
+        }
+    }
+
+    return (vertices, indices);
 }

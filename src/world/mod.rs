@@ -4,6 +4,7 @@ pub mod chunk;
 pub mod world_gen;
 pub mod blocks;
 pub mod items;
+pub mod sky;
 
 pub use {
     world_gen::WorldGen,

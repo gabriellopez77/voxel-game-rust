@@ -2,16 +2,12 @@ use crate::resources::TexCoords;
 use crate::world::items::*;
 
 
-pub trait BlockCreation {
-    type BlockType;
-
-    fn new(internal_name: &'static str, name: &'static str, id: usize) -> Self::BlockType;
-}
-
 pub trait BlockFunctions {
+    fn get_properties_mut(&mut self) -> &mut BlockProperties;
     fn get_properties(&self) -> &BlockProperties;
 
     fn get_base(&self) -> &ItemBaseProperties { &self.get_properties().base_properties }
+    fn get_base_mut(&mut self) -> &mut ItemBaseProperties { &mut self.get_properties_mut().base_properties }
 }
 
 pub struct BlockProperties {

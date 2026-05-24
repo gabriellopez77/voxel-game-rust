@@ -8,9 +8,13 @@ layout (location = 4) in vec2 aAdvance;
 layout (location = 5) in vec3 aColor;
 layout (location = 6) in float aLayer;
 
-layout(std140, binding = 0) uniform sla {
-    mat4 projection;
+layout(std140, binding = 0) uniform shaderData {
+    mat4 uiProj;
     float pixelScale;
+    mat4 camProj;
+	mat4 camView;
+	mat4 camViewProj;
+	mat4 viewNoTranslation;
 };
 
 out vec2 TexCoords;
@@ -18,9 +22,8 @@ out vec3 Color;
 
 void main()
 {
-    //const float pixelScale = 3.f;
-    gl_Position = projection * vec4(((aPosition + aAdvance) * pixelScale) + aVertex.xy * (aSize * pixelScale), 0.f, 1.f);
+    gl_Position = uiProj * vec4(((aPosition + aAdvance) * pixelScale) + aVertex.xy * (aSize * pixelScale), 0.f, 1.f);
 
     TexCoords = mix(aTexCoordsInstance.xy, aTexCoordsInstance.zw, aVertex.zw);
     Color = aColor / 255.f;
-} 
+}

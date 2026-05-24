@@ -1,5 +1,9 @@
-﻿use crate::inputs;
+﻿use std::cell::RefCell;
+use std::rc::Rc;
+
+use crate::inputs;
 use crate::math::Vec3;
+use crate::resources::ResourceManager;
 use crate::world::player::camera::Camera;
 
 
@@ -14,8 +18,8 @@ impl Player {
         }
     }
 
-    pub fn start(&mut self) {
-        self.camera.start();
+    pub fn start(&mut self, resources_manager: Rc<RefCell<ResourceManager>>) {
+        self.camera.start(resources_manager);
         self.camera.position.y = 60.0;
     }
 

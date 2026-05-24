@@ -1,4 +1,4 @@
-use crate::world::blocks::{BlockFunctions, BlockProperties, BlockCreation};
+use crate::world::{blocks::{BlockFunctions, BlockProperties}, items::ItemCreation};
 
 
 pub struct Dirt {
@@ -9,17 +9,18 @@ impl BlockFunctions for Dirt {
     fn get_properties(&self) -> &BlockProperties {
         &self.properties
     }
+    fn get_properties_mut(&mut self) -> &mut BlockProperties { &mut self.properties }
 }
 
-impl BlockCreation for Dirt {
-    type BlockType = Self;
+impl ItemCreation for Dirt {
+    type ItemType = Self;
 
     fn new(internal_name: &'static str, name: &'static str, id: usize) -> Self {
         let mut properties = BlockProperties::new(internal_name, name, id);
         properties.can_replaced = false;
         properties.is_transparent = false;
         properties.light_filter = 15;
-        
+
         Self { properties }
     }
 }

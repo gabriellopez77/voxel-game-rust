@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::ffi::{c_char, CStr, CString};
 
 use crate::math::{Vec3, Matrix4};
+use crate::render::render_utils;
 
 
 pub struct Shader {
@@ -20,7 +21,7 @@ impl Shader {
             Ok(x) => x,
             Err(x) => panic!("{}", x.to_string())
         };
-        
+
         let frag_string_data = match std::fs::read_to_string(&full_frag_path) {
             Ok(x) => x,
             Err(x) => panic!("{}", x.to_string())
@@ -34,12 +35,12 @@ impl Shader {
             Ok(x) => x,
             Err(x) => panic!("{}", x.to_string())
         };
-        
+
         let frag_id = match Self::compile_shader(&frag_string_data, gl::FRAGMENT_SHADER, &mut shader_compile_info) {
             Ok(x) => x,
             Err(x) => panic!("{}", x.to_string())
         };
-        
+
 
         let id: u32;
 
@@ -77,15 +78,7 @@ impl Shader {
     }
 
     pub fn bind(&self) {
-        static mut CURRENT_BIND_SHADER:u32 = 0;
-
-        unsafe{
-            if CURRENT_BIND_SHADER == self.id { return }
-
-            CURRENT_BIND_SHADER = self.id;
-
-            gl::UseProgram(self.id);
-        }
+        render_utils::bind_shader(self.id);
     }
 
     fn compile_shader(string_data: &str, shader_type: gl::types::GLenum, info: &mut [c_char; 512]) -> Result<u32, String> {
@@ -108,7 +101,7 @@ impl Shader {
                     gl::FRAGMENT_SHADER => "FRAGMENT_SHADER",
                     _ => "???"
                 };
-                
+
                 gl::GetShaderInfoLog(shader_id, 512, std::ptr::null_mut(), info.as_mut_ptr());
 
                 // convert c_str to str

@@ -1,15 +1,18 @@
-﻿use gl::types::GLenum;
+﻿use std::cell::RefCell;
+use std::rc::Rc;
+
+use gl::types::GLenum;
 use crate::render::shader::Shader;
 use crate::render::texture::Texture;
 use crate::render::vao::Vao;
 
 
-pub fn draw_indexed(primitive: GLenum, shader: &Shader, texture: Option<&Texture>, vao: &Vao) {
+pub fn draw_indexed(primitive: GLenum, shader: &Rc<RefCell<Shader>>, texture: Option<&Texture>, vao: &Vao) {
     unsafe {
         if let Some(texture) = texture { texture.bind() }
-        shader.bind();
+        shader.borrow().bind();
         vao.bind();
-        
+
         gl::DrawElements(
             primitive,
             vao.triangles_count,
@@ -52,7 +55,7 @@ pub fn bind_buffer(buffer_type: GLenum, buffer_id: u32) {
 }
 
 pub fn bind_texture(texture_id: u32) {
-    static mut CURRENT_BIND_TEXTURE:u32 = 0;
+    static mut CURRENT_BIND_TEXTURE: u32 = 0;
 
     unsafe {
         if CURRENT_BIND_TEXTURE == texture_id { return }
@@ -71,5 +74,17 @@ pub fn bind_vao(vao_id: u32) {
 
         CURRENT_BIND_VAO_ID = vao_id;
         gl::BindVertexArray(vao_id);
+    }
+}
+
+pub fn bind_shader(shader_id: u32) {
+    static mut CURRENT_BIND_SHADER: u32 = 0;
+
+    unsafe{
+        if CURRENT_BIND_SHADER == shader_id { return }
+
+        CURRENT_BIND_SHADER = shader_id;
+
+        gl::UseProgram(shader_id);
     }
 }

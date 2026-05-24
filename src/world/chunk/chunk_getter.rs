@@ -8,6 +8,8 @@ pub struct ChunkGetter {
 }
 
 impl ChunkGetter {
+    pub const NOTHING: ChunkGetter = ChunkGetter{ chunk: None };
+
     pub fn new(chunk: Option<Arc<RefCell<Chunk>>>) -> Self { Self { chunk } }
 
     pub fn exists(&self) -> bool { self.chunk.is_some() }

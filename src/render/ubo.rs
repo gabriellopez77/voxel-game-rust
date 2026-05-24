@@ -12,8 +12,9 @@ struct OffseData {
 pub struct Ubo  {
     offsets: HashMap<&'static str, OffseData>,
     current_offset: i32,
-    id: u32,
     last_field_size: i32,
+
+    id: u32,
 }
 
 impl Ubo {
@@ -21,8 +22,9 @@ impl Ubo {
         Self {
             offsets: HashMap::new(),
             current_offset: 0,
-            id: 0,
             last_field_size: 0,
+
+            id: 0,
         }
     }
 
@@ -43,8 +45,8 @@ impl Ubo {
             self.current_offset -= 4;
         }
 
-        let offset = self.current_offset;
-        self.current_offset += math::align_up(size, alignment);
+        let offset = math::align_up(self.current_offset, alignment);
+        self.current_offset = offset + size;
         self.last_field_size = size;
 
         self.offsets.insert(name, OffseData { offset, size });
@@ -53,7 +55,7 @@ impl Ubo {
     pub fn create(&mut self, index: u32) {
         unsafe {
             gl::CreateBuffers(1, &mut self.id);
-            
+
             gl::NamedBufferData(self.id, self.current_offset as isize, std::ptr::null(), gl::DYNAMIC_DRAW);
             gl::BindBufferBase(gl::UNIFORM_BUFFER, index, self.id);
         }

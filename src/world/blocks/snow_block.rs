@@ -1,18 +1,18 @@
-use crate::{world::{blocks::{BlockFunctions, BlockProperties}, items::ItemCreation}};
+use crate::world::{blocks::{BlockFunctions, BlockProperties}, items::ItemCreation};
 
 
-pub struct GrassBlock {
+pub struct SnowBlock {
     properties: BlockProperties
 }
 
-impl BlockFunctions for GrassBlock {
+impl BlockFunctions for SnowBlock {
     fn get_properties(&self) -> &BlockProperties {
         &self.properties
     }
     fn get_properties_mut(&mut self) -> &mut BlockProperties { &mut self.properties }
 }
 
-impl ItemCreation for GrassBlock {
+impl ItemCreation for SnowBlock {
     type ItemType = Self;
 
     fn new(internal_name: &'static str, name: &'static str, id: usize) -> Self {

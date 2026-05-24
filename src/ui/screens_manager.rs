@@ -15,7 +15,7 @@ use crate::ui::{screen_base::ScreenBase, screens::StartScreen};
 pub struct ScreenManager {
     sprites_renderer: SpritesRenderer<SpritesVertices>,
     text_renderer: SpritesRenderer<TextVertices>,
-    sprites_ubo: Ubo,
+    ubo: Option<Rc<Ubo>>,
 
     resource_manager: Option<Rc<RefCell<ResourceManager>>>,
 
@@ -31,7 +31,7 @@ impl ScreenManager {
         Self {
             sprites_renderer: SpritesRenderer::new(),
             text_renderer: SpritesRenderer::new(),
-            sprites_ubo: Ubo::new(),
+            ubo: None,
 
             resource_manager: None,
 
@@ -49,7 +49,7 @@ impl ScreenManager {
             .gen_buffer(gl::ELEMENT_ARRAY_BUFFER, VaoBuffers::Ebo)
             .gen_buffer(gl::ARRAY_BUFFER, VaoBuffers::Vbo)
             .gen_buffer(gl::ARRAY_BUFFER, VaoBuffers::Instance);
-        
+
         sprites_vao.buffer_data_from_arr(VaoBuffers::Ebo, &SPRITES_INDICES, gl::STATIC_DRAW);
 
         sprites_vao.buffer_data_from_arr(VaoBuffers::Vbo, &SPRITES_VERTICES, gl::STATIC_DRAW)
@@ -98,9 +98,7 @@ impl ScreenManager {
 
         self.resource_manager = Some(resource_manager.clone());
 
-        self.sprites_ubo.add::<math::Matrix4>("projection");
-        self.sprites_ubo.add::<f32>("pixelScale");
-        self.sprites_ubo.create(0);
+        self.ubo = resource_manager.borrow().get_ubo("globalData");
 
         self.screens.insert(TypeId::of::<StartScreen>(), Rc::new(RefCell::new(StartScreen::new())));
 
@@ -112,7 +110,7 @@ impl ScreenManager {
 
         // update pixel scale and screen size
         self.pixel_scale = 3.0;
-        
+
         if width <= 1000.0 || height <= 750.0 { self.pixel_scale = 2.0 }
         if width >= 2200.0 || height >= 1200.0 { self.pixel_scale = 4.0 }
         if width >= 2800.0 || height >= 1800.0 { self.pixel_scale = 6.0 }
@@ -120,8 +118,8 @@ impl ScreenManager {
 
         let projection = Matrix4::orthographic(0.0, width, height, 0.0);
 
-        self.sprites_ubo.update("projection", projection.as_ptr() as *const ());
-        self.sprites_ubo.update("pixelScale", &self.pixel_scale);
+        self.ubo.as_ref().unwrap().update("uiProj", projection.as_ptr() as *const ());
+        self.ubo.as_ref().unwrap().update("uiPixelScale", &self.pixel_scale);
 
         self.current_screen.as_ref().unwrap().borrow_mut().resize(width, height);
     }

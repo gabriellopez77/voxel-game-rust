@@ -47,14 +47,14 @@ pub struct BlockItemModel {
 }
 
 impl BlockItemModel {
-    pub fn new(models_path: &str, path: &str, texture: Rc<Texture>) -> Self {
+    pub fn new(models_path: &str, path: &str, texture: &Rc<Texture>) -> Self {
         let file_content = match std::fs::read_to_string(path) {
             Ok(content) => content,
             Err(e) => panic!("Error reading model file: {e}")
         };
 
         let json_info: ModelInfo = serde_json::from_str(&file_content).unwrap_or_else(|err| {
-            println!("Error parsing model file: {err}");
+            println!("Error parsing model file: {err} path: {path}");
             serde_json::from_str(ERROR_MODEL).unwrap()
         });
 
@@ -77,21 +77,28 @@ impl BlockItemModel {
         return instance;
     }
 
-    fn read(&mut self, models_path: &str, info: ModelInfo, texture: Rc<Texture>) {
+    fn read(&mut self, models_path: &str, info: ModelInfo, texture: &Rc<Texture>) {
         let mut parent_info: Option<ModelInfo> = None;
 
-        let mut used_textures: HashMap<String, TexCoords> = HashMap::with_capacity(info.textures.as_ref().unwrap().len());
-        self.read_textures(&mut used_textures, &info.textures.unwrap(), texture.clone());
+        let mut used_textures: HashMap<String, TexCoords> = HashMap::new();
+
+        // read texture if model have it
+        if let Some(ref textures_info) = info.textures {
+            used_textures = HashMap::with_capacity(textures_info.len());
+            self.read_textures(&mut used_textures, &textures_info, texture);
+        }
 
         // read parent model
-        if let Some(parent_name) = &info.perent {
-            let parent_file_content = match std::fs::read_to_string(format!("{models_path}{parent_name}.json")) {
+        if let Some(parent_name) = &info.parent {
+            let full_parent_path = format!(r"{models_path}\{parent_name}.json");
+
+            let parent_file_content = match std::fs::read_to_string(&full_parent_path) {
                 Ok(content) => content,
                 Err(e) => panic!("Error reading model file: {e}")
             };
 
             parent_info = Some(serde_json::from_str::<ModelInfo>(&parent_file_content).unwrap_or_else(|err| {
-                println!("Error parsing model file: {err}");
+                println!("Error parsing model file: {err} path: {full_parent_path}");
                 serde_json::from_str(ERROR_MODEL).unwrap()
             }));
 
@@ -307,7 +314,7 @@ impl BlockItemModel {
 
     fn get_tex_coords(used_textures: &HashMap<String, TexCoords>, face_info: &FaceInfo,
                       texture_size: Vec2) -> (Vec2, Vec2, Vec2, Vec2) {
-        let tex_coords = match used_textures.get(&face_info.texture) {
+        let tex_coords = match used_textures.get(face_info.texture.as_str()) {
             Some(x) => x,
             None => used_textures.get("#missing").unwrap()
         }.denormalized(texture_size);
@@ -354,7 +361,7 @@ impl BlockItemModel {
     }
 
     fn read_textures(&mut self, used_textures: &mut HashMap<String, TexCoords>,
-                     textures_info: &HashMap<String, String>, texture: Rc<Texture>) {
+                     textures_info: &HashMap<String, String>, texture: &Rc<Texture>) {
         fn remove_unnecessary_path(path: &String) -> String {
             if path.starts_with("blocks/") {
                 return path.replace("blocks/", "")
@@ -367,7 +374,7 @@ impl BlockItemModel {
         }
 
         // add missing (error texture)
-        used_textures.insert("#missing".to_string(), texture.get_coords("error_404"));
+        used_textures.insert("#missing".into(), texture.get_coords("error_404"));
 
         // load error particle texture
         self.particle_tex_coords = texture.get_coords("error_404");
@@ -380,18 +387,18 @@ impl BlockItemModel {
                 self.particle_tex_coords = coords;
             }
             else if tex_alias == "$side" {
-                used_textures.insert("#north".to_string(), coords);
-                used_textures.insert("#south".to_string(), coords);
-                used_textures.insert("#west".to_string(), coords);
-                used_textures.insert("#east".to_string(), coords);
+                used_textures.insert("#north".into(), coords);
+                used_textures.insert("#south".into(), coords);
+                used_textures.insert("#west".into(), coords);
+                used_textures.insert("#east".into(), coords);
             }
             else if tex_alias == "$all" {
-                used_textures.insert("#up".to_string(), coords);
-                used_textures.insert("#down".to_string(), coords);
-                used_textures.insert("#north".to_string(), coords);
-                used_textures.insert("#south".to_string(), coords);
-                used_textures.insert("#west".to_string(), coords);
-                used_textures.insert("#east".to_string(), coords);
+                used_textures.insert("#up".into(), coords);
+                used_textures.insert("#down".into(), coords);
+                used_textures.insert("#north".into(), coords);
+                used_textures.insert("#south".into(), coords);
+                used_textures.insert("#west".into(), coords);
+                used_textures.insert("#east".into(), coords);
             }
             else {
                 used_textures.insert(format!("#{tex_alias}"), coords);
@@ -404,7 +411,7 @@ impl BlockItemModel {
 struct ModelInfo {
     #[serde(rename = "itemIcon")]
     item_icon: Option<String>,
-    perent: Option<String>,
+    parent: Option<String>,
     textures: Option<HashMap<String, String>>,
 
     elements: Option<Vec<ElementInfo>>
@@ -428,7 +435,7 @@ struct RotateInfo {
 
 #[derive(Deserialize)]
 struct FaceInfo {
-    uv: [i32; 4],
+    uv: [f32; 4],
     texture: String,
     cullface: Option<String>,
 }

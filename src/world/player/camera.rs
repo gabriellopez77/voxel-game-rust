@@ -1,10 +1,14 @@
-﻿use crate::math::Vec3i;
+﻿use std::cell::RefCell;
+use std::rc::Rc;
+
+use crate::math::Vec3i;
 use crate::math::vec3::Vec3;
 use crate::math::vec2::Vec2;
 use crate::math::matrix4::Matrix4;
 
 use crate::inputs;
 use crate::render::Ubo;
+use crate::resources::ResourceManager;
 use crate::world::Chunk;
 
 
@@ -20,12 +24,12 @@ impl Plane {
 
 pub struct Camera {
     pub position: Vec3,
-    
+
     pub direction: Vec3,
     pub rot: Vec2,
     pub view_changed: bool,
-    
-    ubo: Ubo,
+
+    ubo: Option<Rc<Ubo>>,
 
     view_matrix: Matrix4,
     projection_matrix: Matrix4,
@@ -41,9 +45,9 @@ impl Camera {
             direction: Vec3::ZERO,
             rot: Vec2::ZERO,
             view_changed: false,
-            
-            ubo: Ubo::new(),
-            
+
+            ubo: None,
+
             view_matrix: Matrix4::ZERO,
             projection_matrix: Matrix4::ZERO,
             projection_view_matrix: Matrix4::ZERO,
@@ -51,17 +55,15 @@ impl Camera {
             frustum_planes: [Plane{normal: Vec3::ZERO, d: 0.0}; 6]
         }
     }
-    
-    pub fn start(&mut self) {
-        self.ubo.add::<Matrix4>("projection");
-        self.ubo.add::<Matrix4>("view");
-        self.ubo.create(1);
+
+    pub fn start(&mut self, resources_manager: Rc<RefCell<ResourceManager>>) {
+        self.ubo = resources_manager.borrow().get_ubo("globalData");
     }
 
     pub fn update(&mut self, new_pos: Vec3) {
         if self.position != new_pos {
             self.view_changed = true;
-        
+
         }
         self.position = new_pos;
 
@@ -73,15 +75,16 @@ impl Camera {
         self.projection_view_matrix = self.projection_matrix * self.view_matrix;
 
         self.update_frustum_planes();
-        
-        self.ubo.update("view", self.view_matrix.as_ptr());
+
+        self.ubo.as_ref().unwrap().update("camView", self.view_matrix.as_ptr());
+        self.ubo.as_ref().unwrap().update("camViewNoTranslate", &self.view_matrix.remove_translation());
     }
-    
+
     pub fn resize(&mut self, width: f32, height: f32) {
         self.view_changed = true;
 
         self.projection_matrix = Matrix4::perspective(80.0, width / height, 0.1, 1000.0);
-        self.ubo.update("projection", self.projection_matrix.as_ptr());
+        self.ubo.as_ref().unwrap().update("camProj", self.projection_matrix.as_ptr());
     }
 
     pub fn chunk_inside_frustum(&self, chunk_pos: Vec3i) -> bool  {
@@ -122,7 +125,7 @@ impl Camera {
             y: f32::to_radians(self.rot.y).sin(),
             z: f32::to_radians(self.rot.x).sin() * f32::to_radians(self.rot.y).cos()
         };
-        
+
         self.direction = direction.normalized();
 
         if last_rotate != self.rot {
@@ -163,7 +166,7 @@ impl Camera {
         // normalize planes
         for plane in &mut self.frustum_planes {
             let length = plane.normal.length();
-            
+
             plane.normal /= length;
             plane.d /= length;
         }

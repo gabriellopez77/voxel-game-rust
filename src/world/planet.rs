@@ -3,8 +3,10 @@
 
 use crate::math::{Vec3, Vec3i, self};
 
-use crate::render::Shader;
-use crate::resources::ResourceManager;
+use crate::render::{ChunkVertices, Shader, Texture};
+use crate::resources::{BlockItemModel, ResourceManager};
+use crate::utils::ObjectPool;
+use crate::world::blocks::BlocksManager;
 use crate::world::chunk::{ChunkGetter, NeighborChunks, neighbor_chunks};
 use crate::world::{Chunk, WorldGen, player::Camera};
 
@@ -22,6 +24,11 @@ pub struct Planet {
     ordered_chunks: Vec<Arc<RefCell<Chunk>>>,
 
     shader: Option<Rc<RefCell<Shader>>>,
+    texture: Option<Rc<Texture>>,
+
+    model: Option<Rc<BlockItemModel>>,
+
+    chunk_pool: ObjectPool<Arc<RefCell<Chunk>>>,
 }
 
 impl Planet {
@@ -30,7 +37,7 @@ impl Planet {
             chunks: HashMap::new(),
             world_gen: WorldGen::new(),
 
-            render_distance: 8,
+            render_distance: 4,
 
             last_player_chunk: Vec3i::ZERO,
             change_chunk_logic: true,
@@ -38,22 +45,29 @@ impl Planet {
             remove_chunks_list: Vec::new(),
             ordered_chunks: Vec::new(),
 
-            shader: None
+            shader: None,
+            texture: None,
+
+            model: None,
+
+            chunk_pool: ObjectPool::new(),
         }
     }
 
     pub fn start(&mut self, resource_manager: Rc<RefCell<ResourceManager>>) {
         self.shader = Some(resource_manager.borrow().get_shader("chunk").expect("shader not exists"));
+        self.texture = Some(resource_manager.borrow().get_texture("blocks").expect("texture not exists"));
+
+        self.model = resource_manager.borrow().get_model("smooth_stone_slab");
     }
 
-    pub fn update(&mut self, player_pos: Vec3) {
+    pub fn update(&mut self, player_pos: Vec3, blocks_manager: &BlocksManager) {
         let player_chunk = math::get_chunk_pos(player_pos);
 
         if self.last_player_chunk != player_chunk || self.change_chunk_logic {
-        //if self.change_chunk_logic {
             self.ordered_chunks.clear();
             self.remove_chunks_list.clear();
-            
+
             self.change_chunk_logic = false;
 
             // remove chunks so far
@@ -69,10 +83,9 @@ impl Planet {
             }
 
             for ch in &self.remove_chunks_list {
-                let mut ch_borrow = ch.borrow_mut();
-
-                ch_borrow.erase();
-                self.chunks.remove(&ch_borrow.position);
+                ch.borrow_mut().erase();
+                self.chunks.remove(&ch.borrow_mut().position);
+                self.chunk_pool.insert(ch.clone());
             }
 
             self.remove_chunks_list.clear();
@@ -92,8 +105,28 @@ impl Planet {
                     let neighbor_chunks = NeighborChunks::new_set(self, new_chunk_pos);
                     self.regen_neighbor_chunks(&neighbor_chunks);
 
-                    let new_chunk = Arc::new(RefCell::new(Chunk::new(new_chunk_pos, self.shader.as_ref().unwrap().clone())));
-                    new_chunk.borrow_mut().start(&self.world_gen);
+
+                    let new_chunk = match self.chunk_pool.get() {
+                        Some(ch) => {
+                            ch.borrow_mut().recreate(
+                                new_chunk_pos,
+                                self.shader.as_ref().unwrap().clone(),
+                                self.texture.as_ref().unwrap().clone()
+                            );
+
+                            ch
+                        }
+                        None => {
+                            Arc::new(RefCell::new(Chunk::new(
+                                new_chunk_pos,
+                                self.shader.as_ref().unwrap().clone(),
+                                self.texture.as_ref().unwrap().clone()
+                            )))
+                        }
+
+                    };
+
+                    new_chunk.borrow_mut().start(&self.world_gen, blocks_manager);
 
                     self.chunks.insert(new_chunk_pos, new_chunk.clone());
                     self.ordered_chunks.push(new_chunk.clone());
@@ -107,15 +140,16 @@ impl Planet {
 
                 return ch1_distance.cmp(&ch2_distance);
             });
-            
+
         }
 
         self.last_player_chunk = player_chunk;
     }
 
-    pub fn draw(&self, camera: &Camera) {
+    pub fn draw(&self, camera: &Camera, blocks_manager: &BlocksManager,
+        vertices_pool: &mut ObjectPool<Vec<ChunkVertices>>, indices_pool: &mut ObjectPool<Vec<u32>>) {
         for ch in &self.ordered_chunks {
-            ch.borrow_mut().draw(camera, self);
+            ch.borrow_mut().draw(camera, self, blocks_manager, vertices_pool, indices_pool);
         }
     }
 
@@ -124,15 +158,15 @@ impl Planet {
             return ChunkGetter::new(Some(chunk.clone()));
         }
 
-        return ChunkGetter::new(None);
+        return ChunkGetter::NOTHING;
     }
 
     pub fn get_chunk_int(&self, x: i32, y: i32, z: i32) -> ChunkGetter { self.get_chunk(Vec3i::new(x, y, z))}
 
     fn regen_neighbor_chunks(&self, neighbor_chunks: &NeighborChunks) {
-        if neighbor_chunks.north.exists() { neighbor_chunks.north.get().borrow_mut().regen_mesh = true }
-        if neighbor_chunks.south.exists() { neighbor_chunks.south.get().borrow_mut().regen_mesh = true }
-        if neighbor_chunks.west.exists() { neighbor_chunks. west.get().borrow_mut().regen_mesh = true }
-        if neighbor_chunks.east.exists() { neighbor_chunks. east.get().borrow_mut().regen_mesh = true }
+        if neighbor_chunks.north.exists() { neighbor_chunks.north.get().borrow_mut().chunk_data.regen_mesh = true }
+        if neighbor_chunks.south.exists() { neighbor_chunks.south.get().borrow_mut().chunk_data.regen_mesh = true }
+        if neighbor_chunks.west.exists() { neighbor_chunks. west.get().borrow_mut().chunk_data.regen_mesh = true }
+        if neighbor_chunks.east.exists() { neighbor_chunks. east.get().borrow_mut().chunk_data.regen_mesh = true }
     }
 }

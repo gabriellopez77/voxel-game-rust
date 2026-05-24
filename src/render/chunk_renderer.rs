@@ -5,25 +5,41 @@ use crate::world::Chunk;
 
 
 pub struct ChunkRenderer {
-    position: Vec3,
+    pub position: Vec3,
 
     vao: Vao,
-    shader: Rc<RefCell<Shader>>,
+    pub shader: Rc<RefCell<Shader>>,
+    pub texture: Rc<Texture>,
 }
 
 impl ChunkRenderer {
-    pub fn new(position: Vec3i, shader: Rc<RefCell<Shader>>, ) -> Self {
+    pub fn new(position: Vec3i, shader: Rc<RefCell<Shader>>, texture: Rc<Texture>) -> Self {
         let pos = Vec3 {
             x: (position.x * Chunk::CHUNK_SIZE.x) as f32,
             y: (position.y * Chunk::CHUNK_SIZE.y) as f32,
             z: (position.z * Chunk::CHUNK_SIZE.z) as f32
         };
-        
+
         Self {
             position: pos,
             vao: Vao::new(),
-            shader
+            shader,
+            texture,
         }
+    }
+
+    pub fn recreate(&mut self, position: Vec3i, shader: Rc<RefCell<Shader>>, texture: Rc<Texture>) {
+        let pos = Vec3 {
+            x: (position.x * Chunk::CHUNK_SIZE.x) as f32,
+            y: (position.y * Chunk::CHUNK_SIZE.y) as f32,
+            z: (position.z * Chunk::CHUNK_SIZE.z) as f32
+        };
+
+        self.position = pos;
+
+        self.vao = Vao::new();
+        self.shader = shader;
+        self.texture = texture;
     }
 
     pub fn erase(&mut self) {
@@ -32,13 +48,13 @@ impl ChunkRenderer {
 
     pub fn draw(&mut self) {
         if self.vao.triangles_count == 0 { return }
-        
+
         self.shader.borrow_mut().set_vec3("pos", self.position);
-        
+
         render_utils::draw_indexed(
             gl::TRIANGLES,
-            &self.shader.borrow(),
-            None,
+            &self.shader,
+            Some(self.texture.as_ref()),
             &self.vao,
         );
     }
