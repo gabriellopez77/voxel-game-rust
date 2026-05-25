@@ -17,7 +17,7 @@ pub struct Vao {
     id: u32,
     binding_index: u32,
     binding_buffer: VaoBuffers,
-    buffers: [BufferInfo; 3], // buffer type, buffer id, binding index
+    buffers: [BufferInfo; 3],
 }
 
 #[repr(i32)]

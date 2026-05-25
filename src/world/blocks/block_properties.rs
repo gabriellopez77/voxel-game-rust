@@ -1,6 +1,17 @@
+use crate::render::chunk_renderer::RendererType;
 use crate::resources::TexCoords;
 use crate::world::items::*;
 
+
+#[repr(u8)]
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum BlockTypes {
+    Default,
+    Glass,
+    Slab,
+    Water,
+    SnowLayer,
+}
 
 pub trait BlockFunctions {
     fn get_properties_mut(&mut self) -> &mut BlockProperties;
@@ -10,11 +21,14 @@ pub trait BlockFunctions {
     fn get_base_mut(&mut self) -> &mut ItemBaseProperties { &mut self.get_properties_mut().base_properties }
 }
 
+
 pub struct BlockProperties {
     pub can_replaced: bool,
     pub is_transparent: bool,
     pub light_filter: u8,
     pub light_emission: u8,
+    pub block_type: BlockTypes,
+    pub renderer_type: RendererType,
 
     pub base_properties: ItemBaseProperties
 }
@@ -26,6 +40,8 @@ impl BlockProperties {
             is_transparent: false,
             light_filter: 0,
             light_emission: 0,
+            block_type: BlockTypes::Default,
+            renderer_type: RendererType::Opaque,
             base_properties: ItemBaseProperties::new(internal_name, name, TexCoords::ZERO, Some(index as u32), None)
         }
     }

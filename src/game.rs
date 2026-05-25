@@ -67,10 +67,6 @@ impl Game {
         }
 
         if !self.paused {
-            //println!("vertices pool count: {}", self.chunk_mesh_vertices_pool.count());
-            //println!("indices pool count: {}", self.chunk_mesh_indices_pool.count());
-            //println!("chunks pool count: {}", self.planet.chunk_pool.count());
-
             self.player.update(dt);
             self.sky.update();
             self.planet.update(self.player.camera.position, &self.blocks_manager);
@@ -81,7 +77,7 @@ impl Game {
 
     pub fn render(&mut self) {
         self.sky.draw();
-        self.planet.draw(&self.player.camera, &self.blocks_manager, &mut self.chunk_mesh_vertices_pool, &mut self.chunk_mesh_indices_pool);
+        self.planet.draw(&self.player.camera, &self.blocks_manager);
 
         self.player.camera.view_changed = false;
         self.screen_manager.draw();

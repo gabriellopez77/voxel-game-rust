@@ -9,6 +9,7 @@ use std::{
 use crate::math::{self, Vec2, Matrix4};
 use crate::render::{sprites_renderer, SPRITES_VERTICES, SPRITES_INDICES, SpritesRenderer, SpritesVertices, TextVertices, Ubo, Vao, vao::VaoBuffers};
 use crate::resources::ResourceManager;
+use crate::ui::HudScreen;
 use crate::ui::{screen_base::ScreenBase, screens::StartScreen};
 
 
@@ -101,12 +102,12 @@ impl ScreenManager {
         self.ubo = resource_manager.borrow().get_ubo("globalData");
 
         self.screens.insert(TypeId::of::<StartScreen>(), Rc::new(RefCell::new(StartScreen::new())));
+        self.screens.insert(TypeId::of::<HudScreen>(), Rc::new(RefCell::new(HudScreen::new())));
 
-        self.change::<StartScreen>();
+        self.change::<HudScreen>();
     }
 
     pub fn resize(&mut self, width: f32, height: f32) {
-        self.screen_size = Vec2 { x: width, y: height };
 
         // update pixel scale and screen size
         self.pixel_scale = 3.0;
@@ -115,13 +116,14 @@ impl ScreenManager {
         if width >= 2200.0 || height >= 1200.0 { self.pixel_scale = 4.0 }
         if width >= 2800.0 || height >= 1800.0 { self.pixel_scale = 6.0 }
 
+        self.screen_size = Vec2 { x: width, y: height } / self.pixel_scale;
 
         let projection = Matrix4::orthographic(0.0, width, height, 0.0);
 
         self.ubo.as_ref().unwrap().update("uiProj", projection.as_ptr() as *const ());
         self.ubo.as_ref().unwrap().update("uiPixelScale", &self.pixel_scale);
 
-        self.current_screen.as_ref().unwrap().borrow_mut().resize(width, height);
+        self.current_screen.as_ref().unwrap().borrow_mut().resize(self.screen_size, self.screen_size / 2.0);
     }
 
     pub fn update(&self, dt: f32) {
@@ -135,11 +137,13 @@ impl ScreenManager {
         self.text_renderer.draw();
     }
 
-    pub fn change<T: ScreenBase>(&mut self) {
-        let new_screen_id = TypeId::of::<StartScreen>();
+    pub fn change<T: ScreenBase>(&mut self)
+    where for<'a> T: 'a
+    {
+        let new_screen_id = TypeId::of::<T>();
         let new_screen = self.screens[&new_screen_id].clone();
 
-        new_screen.borrow_mut().change_logic(self.screen_size.x, self.screen_size.y, self.resource_manager.as_ref().unwrap().clone());
+        new_screen.borrow_mut().change_logic(self.screen_size, self.resource_manager.as_ref().unwrap().clone());
         self.current_screen = Some(new_screen);
     }
 }

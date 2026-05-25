@@ -17,6 +17,7 @@ pub struct BlocksManager {
     pub sand: Option<Rc<dyn BlockFunctions>>,
     pub snow_block: Option<Rc<dyn BlockFunctions>>,
     pub ice_block: Option<Rc<dyn BlockFunctions>>,
+    pub water_block: Option<Rc<dyn BlockFunctions>>,
 }
 
 impl BlocksManager {
@@ -33,6 +34,7 @@ impl BlocksManager {
             sand: None,
             snow_block: None,
             ice_block: None,
+            water_block: None,
         }
     }
 
@@ -46,6 +48,7 @@ impl BlocksManager {
         self.sand = self.add::<Sand>("sand", "Sand", &resources_manager);
         self.snow_block = self.add::<SnowBlock>("snow_block", "Snow Block", &resources_manager);
         self.ice_block = self.add::<IceBlock>("ice_block", "Ice Block", &resources_manager);
+        self.water_block = self.add::<WaterBlock>("water_block", "Water", &resources_manager);
     }
 
     pub fn get(&self, id: u16) -> Rc<dyn BlockFunctions> {

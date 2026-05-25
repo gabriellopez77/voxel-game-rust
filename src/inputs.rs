@@ -1,4 +1,7 @@
-﻿use crate::math::vec2::Vec2;
+﻿use glfw::WindowEvent;
+
+use crate::math::Vec2;
+
 
 #[repr(i32)]
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
@@ -126,11 +129,7 @@ pub enum Keys {
     RightAlt           = 346,
     RightSuper         = 347,
     Menu               = 348,
-}
-
-
-impl Keys {
-    pub const LAST_KEY: Keys = Keys::Menu;
+    LAST_KEY,
 }
 
 #[repr(i32)]
@@ -140,6 +139,7 @@ pub enum MouseButton {
     Right = 1,
 }
 
+static mut MOUSE_SCROLL_DELTA: i32 = 0;
 static mut KEYS: [bool; Keys::LAST_KEY as usize] = [false; Keys::LAST_KEY as usize];
 static mut LAST_KEYS: [bool; Keys::LAST_KEY as usize] = [false; Keys::LAST_KEY as usize];
 
@@ -149,16 +149,32 @@ static mut LAST_MOUSE_POS: Vec2 = Vec2{ x: 0.0, y: 0.0 };
 pub fn get_mouse_pos() -> Vec2 { unsafe {MOUSE_POS} }
 pub fn get_mouse_delta()  -> Vec2 { unsafe {MOUSE_POS - LAST_MOUSE_POS} }
 
-pub fn set_mouse_pos(x: f32, y: f32) {
+pub fn roll_event(event: &WindowEvent) {
     unsafe {
-        LAST_MOUSE_POS = MOUSE_POS;
-        MOUSE_POS = Vec2{ x, y };
+        match event {
+            WindowEvent::Key(key, _, action, _) => {
+                KEYS[*key as usize] = (*action != glfw::Action::Release) && (*key != glfw::Key::Unknown);
+            }
+            WindowEvent::MouseButton(button, action, _) => {
+                KEYS[*button as usize] = *action != glfw::Action::Release
+            }
+            WindowEvent::CursorPos(x, y) => {
+                LAST_MOUSE_POS = MOUSE_POS;
+                MOUSE_POS = Vec2::new(*x as f32, *y as f32);
+            }
+            WindowEvent::Scroll(x, y) => {
+                MOUSE_SCROLL_DELTA = *  y as i32;
+            }
+            _ => {}
+        }
     }
 }
 
 pub fn new_frame() {
     unsafe {
-        set_mouse_pos(MOUSE_POS.x, MOUSE_POS.y);
+        MOUSE_SCROLL_DELTA = 0;
+
+        LAST_MOUSE_POS = MOUSE_POS;
 
         for i in 0..Keys::LAST_KEY as usize {
             LAST_KEYS[i] = false;
@@ -167,12 +183,12 @@ pub fn new_frame() {
     }
 }
 
-pub fn is_key_down(key: Keys) -> bool { unsafe {  KEYS[key as usize] && LAST_KEYS[key as usize] } }
-pub fn is_key_pressed(key: Keys) -> bool { unsafe {  KEYS[key as usize] && !LAST_KEYS[key as usize] } }
+pub fn get_mouse_scroll() -> i32 { unsafe { MOUSE_SCROLL_DELTA } }
+
+pub fn is_key_down(key: Keys) -> bool { unsafe { KEYS[key as usize] && LAST_KEYS[key as usize] } }
+pub fn is_key_pressed(key: Keys) -> bool { unsafe { KEYS[key as usize] && !LAST_KEYS[key as usize] } }
 pub fn is_key_release(key: Keys) -> bool { unsafe { !KEYS[key as usize] && LAST_KEYS[key as usize] } }
-pub fn set_key_state(key: i32, state: bool) { unsafe { KEYS[key as usize] = state } }
 
 pub fn is_mouse_button_down(button: MouseButton) -> bool { unsafe {  KEYS[button as usize] && LAST_KEYS[button as usize] } }
 pub fn is_mouse_button_pressed(button: MouseButton) -> bool { unsafe {  KEYS[button as usize] && !LAST_KEYS[button as usize] } }
 pub fn is_mouse_button_release(button: MouseButton) -> bool { unsafe { !KEYS[button as usize] && LAST_KEYS[button as usize] } }
-pub fn set_mouse_button_state(button: i32, state: bool) { unsafe { KEYS[button as usize] = state } }

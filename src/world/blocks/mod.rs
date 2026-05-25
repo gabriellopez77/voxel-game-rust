@@ -10,6 +10,7 @@ pub mod cobblestone;
 pub mod sand;
 pub mod snow_block;
 pub mod ice_block;
+pub mod water_block;
 
 pub use {
     blocks_manager::BlocksManager,
@@ -24,5 +25,5 @@ pub use {
     sand::Sand,
     snow_block::SnowBlock,
     ice_block::IceBlock,
-
+    water_block::WaterBlock,
 };

@@ -70,16 +70,16 @@ impl WorldGen {
 
                     // surface features
                     if y > surface_height {
-                    //    data.set_block(current_block, &blocks_manager.air);
+                        data.set_block(current_block, &blocks_manager.air);
 
-                    //    if (y < WATER_HEIGHT) {
+                        if (y < WATER_HEIGHT) {
                     //        //if (y == 49) {
                     //        //    if (chance(0..100) < 2)
                     //        //        data.set_block(current_block, bLOCKS_manager::LILY_PAD);
                     //        //}
                     //        //else
-                    //            data.set_block(current_block, blocks_manager.WATER_BLOCK);
-                    //    }
+                                data.set_block(current_block, &blocks_manager.water_block);
+                        }
 
                     //    if (y == surface_height + 1) {
                     //        if (y >= 100) {

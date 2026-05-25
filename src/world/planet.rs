@@ -1,13 +1,13 @@
 ﻿use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
-
 use crate::math::{Vec3, Vec3i, self};
 
+use crate::render::chunk_renderer::RendererType;
 use crate::render::{ChunkVertices, Shader, Texture};
 use crate::resources::{BlockItemModel, ResourceManager};
 use crate::utils::ObjectPool;
 use crate::world::blocks::BlocksManager;
-use crate::world::chunk::{ChunkGetter, NeighborChunks, neighbor_chunks};
+use crate::world::chunk::{ChunkGetter, ChunkMeshResult, NeighborChunks};
 use crate::world::{Chunk, WorldGen, player::Camera};
 
 
@@ -22,6 +22,7 @@ pub struct Planet {
 
     remove_chunks_list: Vec<Arc<RefCell<Chunk>>>,
     ordered_chunks: Vec<Arc<RefCell<Chunk>>>,
+    visible_chunks: Vec<Arc<RefCell<Chunk>>>,
 
     shader: Option<Rc<RefCell<Shader>>>,
     texture: Option<Rc<Texture>>,
@@ -29,6 +30,9 @@ pub struct Planet {
     model: Option<Rc<BlockItemModel>>,
 
     chunk_pool: ObjectPool<Arc<RefCell<Chunk>>>,
+
+    pub chunk_mesh_vertices_pool: ObjectPool<Vec<ChunkVertices>>,
+    pub chunk_mesh_indices_pool: ObjectPool<Vec<u32>>,
 }
 
 impl Planet {
@@ -44,6 +48,7 @@ impl Planet {
 
             remove_chunks_list: Vec::new(),
             ordered_chunks: Vec::new(),
+            visible_chunks: Vec::new(),
 
             shader: None,
             texture: None,
@@ -51,6 +56,9 @@ impl Planet {
             model: None,
 
             chunk_pool: ObjectPool::new(),
+
+            chunk_mesh_vertices_pool: ObjectPool::new(),
+            chunk_mesh_indices_pool: ObjectPool::new(),
         }
     }
 
@@ -146,10 +154,45 @@ impl Planet {
         self.last_player_chunk = player_chunk;
     }
 
-    pub fn draw(&self, camera: &Camera, blocks_manager: &BlocksManager,
-        vertices_pool: &mut ObjectPool<Vec<ChunkVertices>>, indices_pool: &mut ObjectPool<Vec<u32>>) {
-        for ch in &self.ordered_chunks {
-            ch.borrow_mut().draw(camera, self, blocks_manager, vertices_pool, indices_pool);
+    pub fn draw(&mut self, camera: &Camera, blocks_manager: &BlocksManager) {
+        self.visible_chunks.clear();
+
+        for chunk in &self.ordered_chunks {
+            let mut ch = chunk.borrow_mut();
+
+            if camera.view_changed {
+                ch.inside_frustum = camera.chunk_inside_frustum(ch.position)
+            }
+
+            if !ch.inside_frustum { continue }
+
+            if !ch.mesh_generated {
+                ch.chunk_data.regen_mesh = true;
+                ch.mesh_generated = true;
+            }
+
+            if ch.chunk_data.regen_mesh {
+                let neighbor_chunks = NeighborChunks::new_set(self, ch.position);
+
+                let mut mesh_result = ChunkMeshResult::new(&mut self.chunk_mesh_vertices_pool, &mut self.chunk_mesh_indices_pool);
+
+                ch.gen_mesh(&neighbor_chunks, blocks_manager, &mut mesh_result);
+
+                ch.renderers[0].update_mesh(&mesh_result, RendererType::Opaque);
+                ch.renderers[1].update_mesh(&mesh_result, RendererType::Alpha);
+
+                ch.chunk_data.regen_mesh = false;
+            }
+
+            self.visible_chunks.push(chunk.clone());
+        }
+
+        for ch in &self.visible_chunks {
+            ch.borrow().draw(RendererType::Opaque);
+        }
+
+        for ch in &self.visible_chunks {
+            ch.borrow().draw(RendererType::Alpha);
         }
     }
 
@@ -166,7 +209,7 @@ impl Planet {
     fn regen_neighbor_chunks(&self, neighbor_chunks: &NeighborChunks) {
         if neighbor_chunks.north.exists() { neighbor_chunks.north.get().borrow_mut().chunk_data.regen_mesh = true }
         if neighbor_chunks.south.exists() { neighbor_chunks.south.get().borrow_mut().chunk_data.regen_mesh = true }
-        if neighbor_chunks.west.exists() { neighbor_chunks. west.get().borrow_mut().chunk_data.regen_mesh = true }
-        if neighbor_chunks.east.exists() { neighbor_chunks. east.get().borrow_mut().chunk_data.regen_mesh = true }
+        if neighbor_chunks.west.exists() { neighbor_chunks.west.get().borrow_mut().chunk_data.regen_mesh = true }
+        if neighbor_chunks.east.exists() { neighbor_chunks.east.get().borrow_mut().chunk_data.regen_mesh = true }
     }
 }

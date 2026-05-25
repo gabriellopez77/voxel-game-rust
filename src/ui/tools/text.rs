@@ -2,13 +2,28 @@ use std::rc::Rc;
 use crate::{math::{Color3b, Vec2, Vec2i16}, render::{self, SpritesRenderer, TextVertices}, ui::tools::UiElement};
 use crate::resources::FontInfo;
 
+enum TextTypes {
+    String(String),
+    Str(&'static str),
+    None,
+}
+
+impl TextTypes {
+    pub fn get(&self) -> &str {
+        match self {
+            TextTypes::String(value) => value.as_str(),
+            TextTypes::Str(value) => value,
+            TextTypes::None => panic!("text not set!")
+        }
+    }
+}
 
 pub struct Text {
     position: Vec2,
     size: Vec2,
     color: Color3b,
 
-    text: String,
+    text: TextTypes,
 
     pos_modified: bool,
     color_modified: bool,
@@ -21,12 +36,12 @@ pub struct Text {
 impl UiElement for Text {
     fn get_pos(&self) -> Vec2 { self.position }
     fn set_pos(&mut self, x: f32, y: f32) {
-        
+
     }
 
     fn get_size(&self) -> Vec2 { self.size }
     fn set_size(&mut self, x: f32, y: f32) {
-        
+
     }
 }
 
@@ -37,7 +52,7 @@ impl Text {
             size: Vec2::ZERO,
             color: Color3b::ZERO,
 
-            text: String::new(),
+            text: TextTypes::None,
 
             pos_modified: false,
             color_modified: false,
@@ -52,18 +67,23 @@ impl Text {
         self.font_info = Some(font);
     }
 
-    pub fn set_text(&mut self, text: String) {
-        self.text = text;
+    pub fn set_text(&mut self, text: &'static str) {
+        self.text = TextTypes::Str(text);
         self.update_mesh();
     }
-    
+
+    pub fn set_text_string(&mut self, text: String) {
+        self.text = TextTypes::String(text);
+        self.update_mesh();
+    }
+
     pub fn set_color(&mut self, color: Color3b) {
         self.color = color;
         self.color_modified = true;
     }
 
     pub fn draw(&mut self, renderer: &mut SpritesRenderer<TextVertices>) {
-        if self.text.len() == 0 { return }
+        if self.text.get().len() == 0 { return }
 
         if self.pos_modified {
             self.pos_modified = false;
@@ -101,7 +121,7 @@ impl Text {
 
         let font_info = self.font_info.as_ref().unwrap();
 
-        for ch in self.text.chars() {
+        for ch in self.text.get().chars() {
             // breakline
             if ch == '\n' {
                 advance_x = 0;

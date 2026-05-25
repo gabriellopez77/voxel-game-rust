@@ -2,7 +2,15 @@
 use crate::math::{Vec3, Vec3i};
 use crate::render::{render_utils, ChunkVertices, Shader, Texture, Vao, vao::VaoBuffers};
 use crate::world::Chunk;
+use crate::world::chunk::ChunkMeshResult;
 
+
+#[repr(i32)]
+#[derive(Copy, Clone)]
+pub enum RendererType {
+    Opaque,
+    Alpha
+}
 
 pub struct ChunkRenderer {
     pub position: Vec3,
@@ -46,7 +54,7 @@ impl ChunkRenderer {
         self.vao.delete();
     }
 
-    pub fn draw(&mut self) {
+    pub fn draw(&self) {
         if self.vao.triangles_count == 0 { return }
 
         self.shader.borrow_mut().set_vec3("pos", self.position);
@@ -59,7 +67,10 @@ impl ChunkRenderer {
         );
     }
 
-    pub fn update_mesh(&mut self, vertices: &Vec<ChunkVertices>, indices: &Vec<u32>) {
+    pub fn update_mesh(&mut self, mesh_result: &ChunkMeshResult, render_type: RendererType) {
+        let vertices = &mesh_result.vertices[render_type as usize];
+        let indices = &mesh_result.indices[render_type as usize];
+
         if vertices.is_empty() { return }
 
         if !self.vao.is_generated() {
