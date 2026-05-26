@@ -16,7 +16,7 @@ mod utils;
 fn main() {
     //test1();
     //test2();
-    let (mut window, events) = window::Window::init(800, 600, "My First Rust Window");
+    let (mut window, events) = window::Window::init(1050, 650, "My First Rust Window");
     let mut game = game::Game::new();
 
     window.run(&mut game, &events);

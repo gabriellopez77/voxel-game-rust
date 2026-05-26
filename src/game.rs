@@ -1,11 +1,8 @@
 use std::{rc::Rc, cell::RefCell};
-use crate::render::ChunkVertices;
-use crate::utils::ObjectPool;
-use crate::world::sky::Sky;
 use crate::{inputs, window};
 use crate::resources::ResourceManager;
 use crate::ui::screens_manager::ScreenManager;
-use crate::world::{Player, Planet, blocks::BlocksManager};
+use crate::world::{Player, Planet, blocks::BlocksManager, sky::Sky};
 
 
 pub struct Game {
@@ -18,9 +15,6 @@ pub struct Game {
     blocks_manager: BlocksManager,
 
     paused: bool,
-
-    chunk_mesh_vertices_pool: ObjectPool<Vec<ChunkVertices>>,
-    chunk_mesh_indices_pool: ObjectPool<Vec<u32>>,
 }
 
 
@@ -36,9 +30,6 @@ impl Game {
             blocks_manager: BlocksManager::new(),
 
             paused: false,
-
-            chunk_mesh_vertices_pool: ObjectPool::new(),
-            chunk_mesh_indices_pool: ObjectPool::new(),
         }
     }
 
@@ -63,7 +54,7 @@ impl Game {
             self.paused = !self.paused;
 
             if self.paused {window.set_cursor(glfw::CursorMode::Normal);}
-            else {window.set_cursor(glfw::CursorMode::Hidden);}
+            else {window.set_cursor(glfw::CursorMode::Disabled);}
         }
 
         if !self.paused {

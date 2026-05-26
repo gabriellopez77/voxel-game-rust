@@ -150,12 +150,13 @@ impl ResourceManager {
         return None;
     }
 
-    pub fn get_model(&self, name: &str) -> Option<Rc<BlockItemModel>> {
+    pub fn get_model(&self, name: &str) -> Rc<BlockItemModel> {
         if let Some(model) = self.models.get(name) {
-            return Some(model.clone());
+            return model.clone();
         }
 
-        return None;
+        // is guaranteed that contains the 'error_404' texture coords
+        return self.models.get("error_404").unwrap().clone();
     }
 
     fn read_shader(&mut self, name: &'static str) {
@@ -172,12 +173,21 @@ impl ResourceManager {
 
         let block_paths = get_filtered_files_in_directory(&format!(r"{}\blocks", self.models_path), "json");
 
+        // load error model
+        self.models.insert("error_404".to_string(), Rc::new(BlockItemModel::read_error_model(&items_blocks_texture)));
+
         for path in &block_paths {
             let name = path.file_stem().unwrap().to_str().unwrap().to_string();
 
-            let model = Rc::new(BlockItemModel::new(&self.models_path, &path.to_str().unwrap(), &items_blocks_texture));
+            let model = match BlockItemModel::new(&self.models_path, &path.to_str().unwrap(), &items_blocks_texture) {
+                Ok(m) => m,
+                Err(err) => {
+                    println!("{err}");
+                    BlockItemModel::read_error_model(&items_blocks_texture)
+                }
+            };
 
-            self.models.insert(name, model);
+            self.models.insert(name, Rc::new(model));
         }
 
         let items_paths = get_filtered_files_in_directory(&format!(r"{}\items", self.models_path), "json");
@@ -185,9 +195,15 @@ impl ResourceManager {
         for path in &items_paths {
             let name = path.file_stem().unwrap().to_str().unwrap().to_string();
 
-            let model = Rc::new(BlockItemModel::new(&self.models_path, &path.to_str().unwrap(), &items_blocks_texture));
+            let model = match BlockItemModel::new(&self.models_path, &path.to_str().unwrap(), &items_blocks_texture) {
+                Ok(m) => m,
+                Err(err) => {
+                    println!("{err}");
+                    BlockItemModel::read_error_model(&items_blocks_texture)
+                }
+            };
 
-            self.models.insert(name, model);
+            self.models.insert(name, Rc::new(model));
         }
     }
 }

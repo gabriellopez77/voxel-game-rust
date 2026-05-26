@@ -47,6 +47,6 @@ impl ItemBaseProperties {
     pub fn get_model(&self) -> Rc<BlockItemModel> { self.model.as_ref().unwrap().clone() }
 
     pub fn load_model(&mut self, resources_manager: &Rc<RefCell<ResourceManager>>) {
-        self.model = resources_manager.borrow().get_model(self.internal_name);
+        self.model = Some(resources_manager.borrow().get_model(self.internal_name));
     }
 }

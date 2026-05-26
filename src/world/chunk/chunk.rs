@@ -3,14 +3,11 @@ use std::sync::atomic::AtomicI32;
 use crate::math::{Vec2, Vec3, Vec3i};
 use crate::render::chunk_renderer::RendererType;
 use crate::render::{BlockModelMesh, ChunkRenderer, ChunkVertices, Shader, Texture};
-use crate::utils::ObjectPool;
 use crate::world::blocks::{BlockProperties, BlockTypes, BlocksManager};
-use crate::world::{Planet, WorldGen};
+use crate::world::WorldGen;
 use crate::world::chunk::{ChunkData, ChunkMeshResult, NeighborChunks};
-use crate::world::player::Camera;
 
 
-#[repr(i32)]
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum Directions {
     Up,
@@ -27,7 +24,7 @@ pub struct Chunk {
     pub chunk_data: ChunkData,
 
     pub mesh_generated: bool,
-    pub renderers: [ChunkRenderer; 2],
+    pub renderer: ChunkRenderer,
     pub inside_frustum: bool,
 
     using_count: AtomicI32,
@@ -47,10 +44,7 @@ impl Chunk {
             chunk_data: ChunkData::new(),
 
             mesh_generated: false,
-            renderers: [
-                ChunkRenderer::new(position, shader.clone(), texture.clone()),
-                ChunkRenderer::new(position, shader, texture)
-            ],
+            renderer: ChunkRenderer::new(position, shader, texture),
             inside_frustum: false,
 
             using_count: AtomicI32::new(0)
@@ -63,27 +57,22 @@ impl Chunk {
         self.chunk_data.get_data_mut().fill(0);
 
         self.mesh_generated = false;
-        self.renderers[0].recreate(position, shader.clone(), texture.clone());
-        self.renderers[1].recreate(position, shader, texture);
+        self.renderer.recreate(position, shader, texture);
         self.inside_frustum = false;
 
         self.using_count.store(0, std::sync::atomic::Ordering::SeqCst);
     }
 
-    pub fn start(&mut self, world_gen: &WorldGen, blocks_manager: &BlocksManager) {
+    pub fn start(&mut self, world_gen: &mut WorldGen, blocks_manager: &BlocksManager) {
         world_gen.gen_data(self.position, &mut self.chunk_data, blocks_manager);
     }
 
-
-
     pub fn draw(&self, render_type: RendererType) {
-        self.renderers[render_type as usize].draw();
+        self.renderer.draw(render_type);
     }
 
     pub fn erase(&mut self) {
-        for renderer in &mut self.renderers {
-            renderer.erase();
-        }
+        self.renderer.erase();
     }
 
     pub fn lock(&self) { self.using_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst); }
@@ -98,10 +87,15 @@ impl Chunk {
                 let vert3 = &model_vertices[i + 2];
                 let vert4 = &model_vertices[i + 3];
 
-                vertices.push(ChunkVertices { vertices: vert1.vertices + chunk_block, normal: vert1.normal, uv: vert1.uv });
-                vertices.push(ChunkVertices { vertices: vert2.vertices + chunk_block, normal: vert2.normal, uv: vert2.uv });
-                vertices.push(ChunkVertices { vertices: vert3.vertices + chunk_block, normal: vert3.normal, uv: vert3.uv });
-                vertices.push(ChunkVertices { vertices: vert4.vertices + chunk_block, normal: vert4.normal, uv: vert4.uv });
+                let flag1 = (vert1.shade as u8) << 2;
+			    let flag2 = (vert2.shade as u8) << 2;
+			    let flag3 = (vert3.shade as u8) << 2;
+			    let flag4 = (vert4.shade as u8) << 2;
+
+                vertices.push(ChunkVertices { vertices: vert1.vertices + chunk_block, normal: vert1.normal, uv: vert1.uv, flags: flag1 });
+                vertices.push(ChunkVertices { vertices: vert2.vertices + chunk_block, normal: vert2.normal, uv: vert2.uv, flags: flag2 });
+                vertices.push(ChunkVertices { vertices: vert3.vertices + chunk_block, normal: vert3.normal, uv: vert3.uv, flags: flag3 });
+                vertices.push(ChunkVertices { vertices: vert4.vertices + chunk_block, normal: vert4.normal, uv: vert4.uv, flags: flag4 });
             }
         }
 
@@ -126,9 +120,8 @@ impl Chunk {
             add_face(&mut vertices, chunk_block, &model.nothing_vertices);
 
             if y < Chunk::CHUNK_SIZE_MINUS_ONE.y {
-                let around = blocks_manager.get(self.chunk_data.get_blocki(x, y + 1, z));
-                let around_block = around.get_properties();
-                draw = Self::draw_face(block_properties, around_block, Directions::Up);
+                let temp = blocks_manager.get(self.chunk_data.get_blocki(x, y + 1, z));
+                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::Up);
             }
             else if y == Chunk::CHUNK_SIZE_MINUS_ONE.y { draw = true }
 
@@ -137,9 +130,8 @@ impl Chunk {
 
 
             if y > 0 {
-                let around = blocks_manager.get(self.chunk_data.get_blocki(x, y - 1, z));
-                let around_block = around.get_properties();
-                draw = Self::draw_face(block_properties, around_block, Directions::Down);
+                let temp = blocks_manager.get(self.chunk_data.get_blocki(x, y - 1, z));
+                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::Down);
             }
 
             if draw { add_face(&mut vertices, chunk_block, &model.down_vertices); }
@@ -147,14 +139,12 @@ impl Chunk {
 
 
             if z < Chunk::CHUNK_SIZE_MINUS_ONE.z {
-                let around = blocks_manager.get(self.chunk_data.get_blocki(x, y, z + 1));
-                let around_block = around.get_properties();
-                draw = Self::draw_face(block_properties, around_block, Directions::South);
+                let temp = blocks_manager.get(self.chunk_data.get_blocki(x, y, z + 1));
+                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::South);
             }
-            else if neighbor_chunks.south.exists() {
-                let around = blocks_manager.get(neighbor_chunks.south.get().borrow().chunk_data.get_blocki(x, y, 0));
-                let around_block = around.get_properties();
-                draw = Self::draw_face(block_properties, around_block, Directions::South);
+            else if let Some(ref south) = neighbor_chunks.south.chunk {
+                let temp = blocks_manager.get(south.borrow().chunk_data.get_blocki(x, y, 0));
+                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::South);
             }
 
             if draw { add_face(&mut vertices, chunk_block, &model.south_vertices); }
@@ -162,14 +152,12 @@ impl Chunk {
 
 
             if z > 0 {
-                let around = blocks_manager.get(self.chunk_data.get_blocki(x, y, z - 1));
-                let around_block = around.get_properties();
-                draw = Self::draw_face(block_properties, around_block, Directions::North);
+                let temp = blocks_manager.get(self.chunk_data.get_blocki(x, y, z - 1));
+                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::North);
             }
-            else if neighbor_chunks.north.exists() {
-                let around = blocks_manager.get(neighbor_chunks.north.get().borrow().chunk_data.get_blocki(x, y, Self::CHUNK_SIZE_MINUS_ONE.z));
-                let around_block = around.get_properties();
-                draw = Self::draw_face(block_properties, around_block, Directions::North);
+            else if let Some(ref north) = neighbor_chunks.north.chunk {
+                let temp = blocks_manager.get(north.borrow().chunk_data.get_blocki(x, y, Self::CHUNK_SIZE_MINUS_ONE.z));
+                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::North);
             }
 
             if draw { add_face(&mut vertices, chunk_block, &model.north_vertices); }
@@ -178,14 +166,12 @@ impl Chunk {
 
             // east
             if x < Chunk::CHUNK_SIZE_MINUS_ONE.x {
-                let around = blocks_manager.get(self.chunk_data.get_blocki(x + 1, y, z));
-                let around_block = around.get_properties();
-                draw = Self::draw_face(block_properties, around_block, Directions::East);
+                let temp = blocks_manager.get(self.chunk_data.get_blocki(x + 1, y, z));
+                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::East);
             }
-            else if neighbor_chunks.east.exists() {
-                let around = blocks_manager.get(neighbor_chunks.east.get().borrow().chunk_data.get_blocki(0, y, z));
-                let around_block = around.get_properties();
-                draw = Self::draw_face(block_properties, around_block, Directions::East);
+            else if let Some(ref east) = neighbor_chunks.east.chunk {
+                let temp = blocks_manager.get(east.borrow().chunk_data.get_blocki(0, y, z));
+                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::East);
             }
 
             if draw { add_face(&mut vertices, chunk_block, &model.east_vertices); }
@@ -194,14 +180,12 @@ impl Chunk {
 
             // west
             if x > 0 {
-                let around = blocks_manager.get(self.chunk_data.get_blocki(x - 1, y, z));
-                let around_block = around.get_properties();
-                draw = Self::draw_face(block_properties, around_block, Directions::West);
+                let temp = blocks_manager.get(self.chunk_data.get_blocki(x - 1, y, z));
+                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::West);
             }
-            else if neighbor_chunks.west.exists() {
-                let around = blocks_manager.get(neighbor_chunks.west.get().borrow().chunk_data.get_blocki(Self::CHUNK_SIZE_MINUS_ONE.x, y, z));
-                let around_block = around.get_properties();
-                draw = Self::draw_face(block_properties, around_block, Directions::West);
+            else if let Some(ref west) = neighbor_chunks.west.chunk {
+                let temp = blocks_manager.get(west.borrow().chunk_data.get_blocki(Self::CHUNK_SIZE_MINUS_ONE.x, y, z));
+                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::West);
             }
 
             if draw { add_face(&mut vertices, chunk_block, &model.west_vertices); }

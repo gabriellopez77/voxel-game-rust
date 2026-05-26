@@ -37,6 +37,7 @@ pub struct ChunkVertices {
     pub vertices: Vec3,
     pub normal: Vec3,
     pub uv: Vec2,
+    pub flags: u8,
 }
 
 #[derive(Clone, Copy)]
@@ -45,5 +46,4 @@ pub struct BlockModelMesh {
     pub uv: Vec2,
     pub normal: Vec3,
     pub shade: bool,
-    //pub bloom: bool,
 }

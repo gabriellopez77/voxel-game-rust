@@ -11,7 +11,6 @@ const TEXTURE_NORMALIZE_FACTOR: f32 = 16.0;
 
 const ERROR_MODEL: &'static str = "
 {
-	\"format_version\": \"1.21.6\",
 	\"isCompleteBlock\": true,
     \"textures\": {
     \"0\": \"blocks/error_404\"
@@ -47,16 +46,14 @@ pub struct BlockItemModel {
 }
 
 impl BlockItemModel {
-    pub fn new(models_path: &str, path: &str, texture: &Rc<Texture>) -> Self {
+    pub fn new(models_path: &str, path: &str, texture: &Rc<Texture>) -> Result<Self, String> {
         let file_content = match std::fs::read_to_string(path) {
             Ok(content) => content,
-            Err(e) => panic!("Error reading model file: {e}")
+            Err(err) => {
+                println!("Error reading model file: {err}");
+                return Err(err.to_string());
+            }
         };
-
-        let json_info: ModelInfo = serde_json::from_str(&file_content).unwrap_or_else(|err| {
-            println!("Error parsing model file: {err} path: {path}");
-            serde_json::from_str(ERROR_MODEL).unwrap()
-        });
 
         let mut instance = Self {
             nothing_vertices: Vec::new(),
@@ -71,46 +68,82 @@ impl BlockItemModel {
             particle_tex_coords: TexCoords::ZERO,
         };
 
-        instance.read(models_path, json_info, texture);
-
-
-        return instance;
+        match instance.read(models_path, &file_content, texture) {
+            Ok(()) => return Ok(instance),
+            Err(err) => Err(err)
+        }
     }
 
-    fn read(&mut self, models_path: &str, info: ModelInfo, texture: &Rc<Texture>) {
+    pub fn read_error_model(texture: &Rc<Texture>) -> Self {
+        let mut instance = Self {
+            nothing_vertices: Vec::new(),
+            up_vertices: Vec::new(),
+            down_vertices: Vec::new(),
+            south_vertices: Vec::new(),
+            north_vertices: Vec::new(),
+            west_vertices: Vec::new(),
+            east_vertices: Vec::new(),
+
+            icon_tex_coords: TexCoords::ZERO,
+            particle_tex_coords: TexCoords::ZERO,
+        };
+
+        match instance.read("", &ERROR_MODEL, texture) {
+            Ok(()) => return instance,
+            Err(err) => panic!("error to load error model: {}", err.to_string())
+        }
+    }
+
+    fn read(&mut self, models_path: &str, file_content: &str, texture: &Rc<Texture>) -> Result<(), String> {
+        let model_info: ModelInfo = match serde_json::from_str(file_content) {
+            Ok(info) => info,
+            Err(err) => {
+                println!("Error parsing model file: {err}");
+                return Err(err.to_string());
+            }
+        };
+
         let mut parent_info: Option<ModelInfo> = None;
 
         let mut used_textures: HashMap<String, TexCoords> = HashMap::new();
 
         // read texture if model have it
-        if let Some(ref textures_info) = info.textures {
+        if let Some(ref textures_info) = model_info.textures {
             used_textures = HashMap::with_capacity(textures_info.len());
             self.read_textures(&mut used_textures, &textures_info, texture);
         }
 
         // read parent model
-        if let Some(parent_name) = &info.parent {
+        if let Some(parent_name) = &model_info.parent {
             let full_parent_path = format!(r"{models_path}\{parent_name}.json");
 
             let parent_file_content = match std::fs::read_to_string(&full_parent_path) {
                 Ok(content) => content,
-                Err(e) => panic!("Error reading model file: {e}")
+                Err(err) => {
+                    println!("Error reading model file: {err}");
+                    return Err(err.to_string());
+                }
             };
 
-            parent_info = Some(serde_json::from_str::<ModelInfo>(&parent_file_content).unwrap_or_else(|err| {
-                println!("Error parsing model file: {err} path: {full_parent_path}");
-                serde_json::from_str(ERROR_MODEL).unwrap()
-            }));
+            parent_info = match serde_json::from_str::<ModelInfo>(&parent_file_content) {
+                Ok(info) => Some(info),
+                Err(err) => {
+                    println!("Error parsing model file: {err} path: {full_parent_path}");
+                    return Err(err.to_string());
+                }
+            };
 
             if let Some(ref elements) = parent_info.unwrap().elements {
                 self.create_mesh(&elements, &used_textures, texture.get_size());
             }
         }
         else {
-            if let Some(ref elements) = info.elements {
+            if let Some(ref elements) = model_info.elements {
                 self.create_mesh(&elements, &used_textures, texture.get_size());
             }
         }
+
+        return Ok(());
 
     }
 
@@ -150,8 +183,8 @@ impl BlockItemModel {
             }
         }
 
-        if let Some(up_face) = faces_info.get("up") && size.x != 0.0 && size.z != 0.0 {
-            let vertices = self.get_vertices("up");
+        if let Some(face) = faces_info.get("up") && size.x != 0.0 && size.z != 0.0 {
+            let vertices = self.get_vertices(&face.cullface);
 
             let mut vert1 = Vec3::new(0.0, 1.0, 1.0) * size + from;
             let mut vert2 = Vec3::new(1.0, 1.0, 1.0) * size + from;
@@ -163,7 +196,7 @@ impl BlockItemModel {
             let normal3 = Vec3::new(0.0, 1.0, 0.0);
             let normal4 = Vec3::new(0.0, 1.0, 0.0);
 
-            let (tex1, tex2, tex3, tex4) = Self::get_tex_coords(used_textures, &up_face, texture_size);
+            let (tex1, tex2, tex3, tex4) = Self::get_tex_coords(used_textures, &face, texture_size);
 
             if angle != 0.0 {
                 Self::rotate_face(&mut vert1, &mut vert2, &mut vert3, &mut vert4, origin, &rotate_matrix)
@@ -175,8 +208,8 @@ impl BlockItemModel {
             vertices.push(BlockModelMesh { vertices: vert4, uv: tex4, normal: normal4, shade });
         }
 
-        if let Some(down_face) = faces_info.get("down") && size.x != 0.0 && size.z != 0.0 {
-            let vertices = self.get_vertices("down");
+        if let Some(face) = faces_info.get("down") && size.x != 0.0 && size.z != 0.0 {
+            let vertices = self.get_vertices(&face.cullface);
 
             let mut vert1 = Vec3::new(1.0, 0.0, 1.0) * size + from;
             let mut vert2 = Vec3::new(0.0, 0.0, 1.0) * size + from;
@@ -188,7 +221,7 @@ impl BlockItemModel {
             let normal3 = Vec3::new(0.0, -1.0, 0.0);
             let normal4 = Vec3::new(0.0, -1.0, 0.0);
 
-            let (tex1, tex2, tex3, tex4) = Self::get_tex_coords(used_textures, &down_face, texture_size);
+            let (tex1, tex2, tex3, tex4) = Self::get_tex_coords(used_textures, &face, texture_size);
 
             if angle != 0.0 {
                 Self::rotate_face(&mut vert1, &mut vert2, &mut vert3, &mut vert4, origin, &rotate_matrix)
@@ -200,8 +233,8 @@ impl BlockItemModel {
             vertices.push(BlockModelMesh { vertices: vert4, uv: tex4, normal: normal4, shade });
         }
 
-        if let Some(north_face) = faces_info.get("north") && size.y != 0.0 && size.x != 0.0 {
-            let vertices = self.get_vertices("north");
+        if let Some(face) = faces_info.get("north") && size.y != 0.0 && size.x != 0.0 {
+            let vertices = self.get_vertices(&face.cullface);
 
             let mut vert1 = Vec3::new(1.0, 1.0, 0.0) * size + from;
             let mut vert2 = Vec3::new(1.0, 0.0, 0.0) * size + from;
@@ -213,7 +246,7 @@ impl BlockItemModel {
             let normal3 = Vec3::new(0.0, 0.0, -1.0);
             let normal4 = Vec3::new(0.0, 0.0, -1.0);
 
-            let (tex1, tex2, tex3, tex4) = Self::get_tex_coords(used_textures, &north_face, texture_size);
+            let (tex1, tex2, tex3, tex4) = Self::get_tex_coords(used_textures, &face, texture_size);
 
             if angle != 0.0 {
                 Self::rotate_face(&mut vert1, &mut vert2, &mut vert3, &mut vert4, origin, &rotate_matrix)
@@ -225,8 +258,8 @@ impl BlockItemModel {
             vertices.push(BlockModelMesh { vertices: vert4, uv: tex4, normal: normal4, shade });
         }
 
-        if let Some(south_face) = faces_info.get("south") && size.y != 0.0 && size.x != 0.0 {
-            let vertices = self.get_vertices("south");
+        if let Some(face) = faces_info.get("south") && size.y != 0.0 && size.x != 0.0 {
+            let vertices = self.get_vertices(&face.cullface);
 
             let mut vert1 = Vec3::new(0.0, 1.0, 1.0) * size + from;
             let mut vert2 = Vec3::new(0.0, 0.0, 1.0) * size + from;
@@ -238,7 +271,7 @@ impl BlockItemModel {
             let normal3 = Vec3::new(0.0, 0.0, 1.0);
             let normal4 = Vec3::new(0.0, 0.0, 1.0);
 
-            let (tex1, tex2, tex3, tex4) = Self::get_tex_coords(used_textures, &south_face, texture_size);
+            let (tex1, tex2, tex3, tex4) = Self::get_tex_coords(used_textures, &face, texture_size);
 
             if angle != 0.0 {
                 Self::rotate_face(&mut vert1, &mut vert2, &mut vert3, &mut vert4, origin, &rotate_matrix)
@@ -250,8 +283,8 @@ impl BlockItemModel {
             vertices.push(BlockModelMesh { vertices: vert4, uv: tex4, normal: normal4, shade });
         }
 
-        if let Some(west_face) = faces_info.get("west") && size.y != 0.0 && size.z != 0.0 {
-            let vertices = self.get_vertices("west");
+        if let Some(face) = faces_info.get("west") && size.y != 0.0 && size.z != 0.0 {
+            let vertices = self.get_vertices(&face.cullface);
 
             let mut vert1 = Vec3::new(0.0, 1.0, 0.0) * size + from;
             let mut vert2 = Vec3::new(0.0, 0.0, 0.0) * size + from;
@@ -263,7 +296,7 @@ impl BlockItemModel {
             let normal3 = Vec3::new(-1.0, 0.0, 0.0);
             let normal4 = Vec3::new(-1.0, 0.0, 0.0);
 
-            let (tex1, tex2, tex3, tex4) = Self::get_tex_coords(used_textures, &west_face, texture_size);
+            let (tex1, tex2, tex3, tex4) = Self::get_tex_coords(used_textures, &face, texture_size);
 
             if angle != 0.0 {
                 Self::rotate_face(&mut vert1, &mut vert2, &mut vert3, &mut vert4, origin, &rotate_matrix)
@@ -274,8 +307,8 @@ impl BlockItemModel {
             vertices.push(BlockModelMesh { vertices: vert4, uv: tex4, normal: normal4, shade });
         }
 
-        if let Some(east_face) = faces_info.get("east") && size.y != 0.0 && size.z != 0.0 {
-            let vertices = self.get_vertices("east");
+        if let Some(face) = faces_info.get("east") && size.y != 0.0 && size.z != 0.0 {
+            let vertices = self.get_vertices(&face.cullface);
 
             let mut vert1 = Vec3::new(1.0, 1.0, 1.0) * size + from;
             let mut vert2 = Vec3::new(1.0, 0.0, 1.0) * size + from;
@@ -287,7 +320,7 @@ impl BlockItemModel {
             let normal3 = Vec3::new(1.0, 0.0, 0.0);
             let normal4 = Vec3::new(1.0, 0.0, 0.0);
 
-            let (tex1, tex2, tex3, tex4) = Self::get_tex_coords(used_textures, &east_face, texture_size);
+            let (tex1, tex2, tex3, tex4) = Self::get_tex_coords(used_textures, &face, texture_size);
 
             if angle != 0.0 {
                 Self::rotate_face(&mut vert1, &mut vert2, &mut vert3, &mut vert4, origin, &rotate_matrix)
@@ -300,16 +333,22 @@ impl BlockItemModel {
         }
     }
 
-    fn get_vertices(&mut self, face: &str) -> &mut Vec<BlockModelMesh> {
+    fn get_vertices(&mut self, face: &Option<String>) -> &mut Vec<BlockModelMesh> {
         match face {
-            "up" => &mut self.up_vertices,
-            "down" => &mut self.down_vertices,
-            "north" => &mut self.north_vertices,
-            "south" => &mut self.south_vertices,
-            "west" => &mut self.west_vertices,
-            "east" => &mut self.east_vertices,
-            _ => &mut self.nothing_vertices,
+            Some(f) => {
+                match f.as_str() {
+                    "up" => &mut self.up_vertices,
+                    "down" => &mut self.down_vertices,
+                    "north" => &mut self.north_vertices,
+                    "south" => &mut self.south_vertices,
+                    "west" => &mut self.west_vertices,
+                    "east" => &mut self.east_vertices,
+                    _ => &mut self.nothing_vertices,
+                }
+            }
+            None => &mut self.nothing_vertices,
         }
+
     }
 
     fn get_tex_coords(used_textures: &HashMap<String, TexCoords>, face_info: &FaceInfo,

@@ -18,6 +18,11 @@ pub struct BlocksManager {
     pub snow_block: Option<Rc<dyn BlockFunctions>>,
     pub ice_block: Option<Rc<dyn BlockFunctions>>,
     pub water_block: Option<Rc<dyn BlockFunctions>>,
+    pub snow_layer: Option<Rc<dyn BlockFunctions>>,
+    pub short_grass: Option<Rc<dyn BlockFunctions>>,
+    pub red_flower: Option<Rc<dyn BlockFunctions>>,
+    pub yellow_flower: Option<Rc<dyn BlockFunctions>>,
+    pub dead_bush: Option<Rc<dyn BlockFunctions>>,
 }
 
 impl BlocksManager {
@@ -35,6 +40,11 @@ impl BlocksManager {
             snow_block: None,
             ice_block: None,
             water_block: None,
+            snow_layer: None,
+            short_grass: None,
+            red_flower: None,
+            yellow_flower: None,
+            dead_bush: None,
         }
     }
 
@@ -49,6 +59,11 @@ impl BlocksManager {
         self.snow_block = self.add::<SnowBlock>("snow_block", "Snow Block", &resources_manager);
         self.ice_block = self.add::<IceBlock>("ice_block", "Ice Block", &resources_manager);
         self.water_block = self.add::<WaterBlock>("water_block", "Water", &resources_manager);
+        self.snow_layer = self.add::<SnowLayer>("snow_layer", "Snow Layer", &resources_manager);
+        self.short_grass = self.add::<ShortGrass>("short_grass", "Short Grass", &resources_manager);
+        self.red_flower = self.add::<RedFlower>("red_flower", "Red Flower", &resources_manager);
+        self.yellow_flower = self.add::<YellowFlower>("yellow_flower", "Red Flower", &resources_manager);
+        self.dead_bush = self.add::<DeadBush>("dead_bush", "Dead Bush", &resources_manager);
     }
 
     pub fn get(&self, id: u16) -> Rc<dyn BlockFunctions> {

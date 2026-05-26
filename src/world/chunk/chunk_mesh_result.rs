@@ -2,8 +2,8 @@ use crate::{render::{ChunkVertices, chunk_renderer::RendererType}, utils::Object
 
 
 pub struct ChunkMeshResult {
-    pub vertices: [Vec<ChunkVertices>; 2],
-    pub indices: [Vec<u32>; 2],
+    pub vertices: [Vec<ChunkVertices>; RendererType::RENDERS_COUNT],
+    pub indices: [Vec<u32>; RendererType::RENDERS_COUNT],
 }
 
 impl ChunkMeshResult {
@@ -40,7 +40,7 @@ impl ChunkMeshResult {
     }
 
     pub fn gen_indices(&mut self) {
-        for i in 0..2 {
+        for i in 0..RendererType::RENDERS_COUNT {
             let indices = &mut self.indices[i];
             let vertices = &self.vertices[i];
 
@@ -79,6 +79,4 @@ impl ChunkMeshResult {
             indices_pool.insert(indices);
         }
     }
-
-
 }

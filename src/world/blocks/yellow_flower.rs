@@ -1,27 +1,25 @@
-use crate::{render::chunk_renderer::RendererType, world::{blocks::{BlockFunctions, BlockProperties}, items::ItemCreation}};
+use crate::world::{blocks::{BlockFunctions, BlockProperties}, items::ItemCreation};
 
 
-pub struct WaterBlock {
+pub struct YellowFlower {
     properties: BlockProperties
 }
 
-impl BlockFunctions for WaterBlock {
+impl BlockFunctions for YellowFlower {
     fn get_properties(&self) -> &BlockProperties {
         &self.properties
     }
     fn get_properties_mut(&mut self) -> &mut BlockProperties { &mut self.properties }
 }
 
-impl ItemCreation for WaterBlock {
+impl ItemCreation for YellowFlower {
     type ItemType = Self;
 
     fn new(internal_name: &'static str, name: &'static str, id: usize) -> Self {
         let mut properties = BlockProperties::new(internal_name, name, id);
         properties.can_replaced = true;
         properties.is_transparent = true;
-        properties.light_filter = 1;
-        properties.renderer_type = RendererType::Alpha;
-        properties.block_type = super::BlockTypes::Water;
+        properties.light_filter = 0;
 
         Self { properties }
     }

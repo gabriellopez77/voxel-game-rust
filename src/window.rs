@@ -1,6 +1,7 @@
 use glfw::{Context, WindowEvent};
 use crate::inputs;
 use crate::game::Game;
+use crate::render::render_utils;
 
 
 pub struct Window {
@@ -19,6 +20,7 @@ impl Window {
         let (mut window, events) =
             glfw_instance.create_window(width as u32, height as u32, title, glfw::WindowMode::Windowed).unwrap();
 
+        window.set_size_limits(Some(1050), Some(650), None, None);
 
         window.make_current();
 
@@ -49,9 +51,10 @@ impl Window {
 
         unsafe {
             gl::ClearColor(0.0, 0.0, 0.0, 0.0);
-            gl::Enable(gl::DEPTH_TEST);
-            gl::Enable(gl::CULL_FACE);
+            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             gl::CullFace(gl::BACK);
+            render_utils::enable(render_utils::RenderCap::DepthTest);
+            render_utils::enable(render_utils::RenderCap::CullFace);
         }
 
         game.resize(self.width, self.height);

@@ -3,8 +3,7 @@
 use crate::math::Vec2;
 
 
-#[repr(i32)]
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 #[allow(unused)]
 pub enum Keys {
     Space              = 32,
@@ -132,8 +131,7 @@ pub enum Keys {
     LAST_KEY,
 }
 
-#[repr(i32)]
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub enum MouseButton {
     Left = 0,
     Right = 1,

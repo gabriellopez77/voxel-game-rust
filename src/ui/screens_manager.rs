@@ -108,7 +108,6 @@ impl ScreenManager {
     }
 
     pub fn resize(&mut self, width: f32, height: f32) {
-
         // update pixel scale and screen size
         self.pixel_scale = 3.0;
 

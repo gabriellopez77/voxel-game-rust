@@ -1,10 +1,10 @@
 ﻿use fastnoise_lite::{FastNoiseLite, NoiseType};
 
+use rand::RngExt;
 use rand::rngs::ThreadRng;
-use crate::math;
 use crate::math::Vec3i;
 use crate::world::Chunk;
-use crate::world::blocks::{BlocksManager, blocks_manager};
+use crate::world::blocks::BlocksManager;
 use crate::world::chunk::ChunkData;
 
 
@@ -31,8 +31,8 @@ impl WorldGen {
 
     }
 
-    pub fn gen_data(&self, chunk_pos: Vec3i, data: &mut ChunkData, blocks_manager: &BlocksManager) {
-        fn chance(min: i32, max: i32) -> i32 { rand::random_range(min..=max) }
+    pub fn gen_data(&mut self, chunk_pos: Vec3i, data: &mut ChunkData, blocks_manager: &BlocksManager) {
+
         let start_x = chunk_pos.x * Chunk::CHUNK_SIZE.x;
         let start_z = chunk_pos.z * Chunk::CHUNK_SIZE.z;
 
@@ -62,94 +62,96 @@ impl WorldGen {
                 surface_height += (ridge * ridge * ridge * ridge * 11.0) as i32;
 
                 for y in 0..Chunk::CHUNK_SIZE.y {
-                    let current_block = Vec3i::new(x, y, z);
+                    let current_block_index = crate::math::get_index(x, y, z);
 
                     if y == 0 {
-                        data.set_block(current_block, &blocks_manager.bedrock);
+                        data.set_block_index(current_block_index, &blocks_manager.bedrock);
                     }
 
                     // surface features
                     if y > surface_height {
-                        data.set_block(current_block, &blocks_manager.air);
+                        data.set_block_index(current_block_index, &blocks_manager.air);
 
-                        if (y < WATER_HEIGHT) {
-                    //        //if (y == 49) {
-                    //        //    if (chance(0..100) < 2)
-                    //        //        data.set_block(current_block, bLOCKS_manager::LILY_PAD);
-                    //        //}
-                    //        //else
-                                data.set_block(current_block, &blocks_manager.water_block);
+                        if y < WATER_HEIGHT {
+                            //if (y == 49) {
+                            //    if (chance(0..100) < 2)
+                            //        data.set_block_index(current_block_index, bLOCKS_manager::LILY_PAD);
+                            //}
+                            //else
+                                data.set_block_index(current_block_index, &blocks_manager.water_block);
                         }
 
-                    //    if (y == surface_height + 1) {
-                    //        if (y >= 100) {
-                    //            data.set_block(current_block, blocks_manager.SNOW_LAYER);
-                    //        }
-                    //        else if (y >= WATER_HEIGHT + 3 && y <= 81) {
-                    //            if (chance(0, 100) < 20) {
-                    //                data.set_block(current_block, blocks_manager.SHORT_GRASS);
-                    //            }
-                    //            else if (chance(0, 100) < 1) {
-                    //                data.set_block(current_block, blocks_manager.MUSHROOM_BLUE_GROUP);
-                    //            }
+                        if y == surface_height + 1 {
+                            if y >= 100 {
+                                data.set_block_index(current_block_index, &blocks_manager.snow_layer);
+                            }
+                            else if y >= WATER_HEIGHT + 3 && y <= 81 {
+                                if self.chance(0, 100) < 20 {
+                                    data.set_block_index(current_block_index, &blocks_manager.short_grass);
+                                }
+                                //else if self.chance(0, 100) < 1 {
+                                //    data.set_block_index(current_block_index, blocks_manager.MUSHROOM_BLUE_GROUP);
+                                //}
+                                else if self.chance(0, 1000) < 12 {
+                                    data.set_block_index(current_block_index, &blocks_manager.red_flower);
+                                }
+                                else if self.chance(0, 1000) < 12 {
+                                    data.set_block_index(current_block_index, &blocks_manager.yellow_flower);
+                                }
 
-                    //            else if (chance(0, 1000) < 12) {
-                    //                data.set_block(current_block, blocks_manager.RED_FLOWER);
-                    //            }
-                    //            else if (chance(0, 1000) < 12) {
-                    //                data.set_block(current_block, blocks_manager.YELLOW_FLOWER);
-                    //            }
-
-                    //            //else if (chance(0, 1000) < 50) {
-                    //            //    treesPos.Add(currentBlock);
-                    //            //}
-                    //        }
-                    //        else
-                    //        {
-                    //            if (y >= WATER_HEIGHT && y <= WATER_HEIGHT + 3) {
-                    //                if (chance(0, 100) < 2) {
-                    //                    data.set_block(current_block, blocks_manager.DEAD_BUSH);
-                    //                }
-                    //            }
-                    //        }
-                    //    }
+                                //else if self.chance(0, 1000) < 50 {
+                                //    treesPos.Add(currentBlock);
+                                //}
+                            }
+                            else {
+                                if y >= WATER_HEIGHT && y <= WATER_HEIGHT + 3 {
+                                    if self.chance(0, 100) < 2 {
+                                        data.set_block_index(current_block_index, &blocks_manager.dead_bush);
+                                    }
+                                }
+                            }
+                        }
                     }
 //
                     // Ground
                     else {
                         if (surface_height > 80) {
                             if (y == surface_height || y == surface_height - 1 || y == surface_height - 2) && y > 100 {
-                                if chance(0, 100) < 2 { data.set_block(current_block, &blocks_manager.ice_block) }
-                                else {
-                                    data.set_block(current_block, &blocks_manager.snow_block);
+                                if self.chance(0, 100) < 2 {
+                                    data.set_block_index(current_block_index, &blocks_manager.ice_block)
                                 }
+                                else { data.set_block_index(current_block_index, &blocks_manager.snow_block) }
                             }
-                            else if (chance(0, 100) < 20) { data.set_block(current_block, &blocks_manager.cobblestone) }
-                            else { data.set_block(current_block, &blocks_manager.stone) }
+                            else if self.chance(0, 100) < 20 {
+                                data.set_block_index(current_block_index, &blocks_manager.cobblestone)
+                            }
+                            else { data.set_block_index(current_block_index, &blocks_manager.stone) }
                         }
 
                         else if y == surface_height {
                             if surface_height <= WATER_HEIGHT + 1 {
-                                data.set_block(current_block, &blocks_manager.sand);
+                                data.set_block_index(current_block_index, &blocks_manager.sand)
                             }
-                            else {
-                                data.set_block(current_block, &blocks_manager.grass_block);
-                            }
+                            else { data.set_block_index(current_block_index, &blocks_manager.grass_block) }
                         }
 
                         else if y <= WATER_HEIGHT && (y == surface_height - 1 || y == surface_height - 2 || y == surface_height - 3) {
-                            data.set_block(current_block, &blocks_manager.sand);
+                            data.set_block_index(current_block_index, &blocks_manager.sand)
                         }
                         else if y == surface_height - 1 || y == surface_height - 2 || y == surface_height - 3 {
-                            data.set_block(current_block, &blocks_manager.dirt);
+                            data.set_block_index(current_block_index, &blocks_manager.dirt)
                         }
                         else {
-                            data.set_block(current_block, &blocks_manager.stone);
+                            data.set_block_index(current_block_index, &blocks_manager.stone)
                         }
                     }
 
                 }
             }
         }
+    }
+
+    fn chance(&mut self, min: i32, max: i32) -> i32 {
+        self.rand.random_range(min..=max)
     }
 }

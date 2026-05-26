@@ -3,7 +3,7 @@
 use crate::math::{Vec3, Vec3i, self};
 
 use crate::render::chunk_renderer::RendererType;
-use crate::render::{ChunkVertices, Shader, Texture};
+use crate::render::{ChunkVertices, Shader, Texture, render_utils};
 use crate::resources::{BlockItemModel, ResourceManager};
 use crate::utils::ObjectPool;
 use crate::world::blocks::BlocksManager;
@@ -27,12 +27,9 @@ pub struct Planet {
     shader: Option<Rc<RefCell<Shader>>>,
     texture: Option<Rc<Texture>>,
 
-    model: Option<Rc<BlockItemModel>>,
-
     chunk_pool: ObjectPool<Arc<RefCell<Chunk>>>,
-
-    pub chunk_mesh_vertices_pool: ObjectPool<Vec<ChunkVertices>>,
-    pub chunk_mesh_indices_pool: ObjectPool<Vec<u32>>,
+    chunk_mesh_vertices_pool: ObjectPool<Vec<ChunkVertices>>,
+    chunk_mesh_indices_pool: ObjectPool<Vec<u32>>,
 }
 
 impl Planet {
@@ -41,7 +38,7 @@ impl Planet {
             chunks: HashMap::new(),
             world_gen: WorldGen::new(),
 
-            render_distance: 4,
+            render_distance: 14,
 
             last_player_chunk: Vec3i::ZERO,
             change_chunk_logic: true,
@@ -53,10 +50,7 @@ impl Planet {
             shader: None,
             texture: None,
 
-            model: None,
-
             chunk_pool: ObjectPool::new(),
-
             chunk_mesh_vertices_pool: ObjectPool::new(),
             chunk_mesh_indices_pool: ObjectPool::new(),
         }
@@ -65,14 +59,13 @@ impl Planet {
     pub fn start(&mut self, resource_manager: Rc<RefCell<ResourceManager>>) {
         self.shader = Some(resource_manager.borrow().get_shader("chunk").expect("shader not exists"));
         self.texture = Some(resource_manager.borrow().get_texture("blocks").expect("texture not exists"));
-
-        self.model = resource_manager.borrow().get_model("smooth_stone_slab");
     }
 
     pub fn update(&mut self, player_pos: Vec3, blocks_manager: &BlocksManager) {
         let player_chunk = math::get_chunk_pos(player_pos);
 
         if self.last_player_chunk != player_chunk || self.change_chunk_logic {
+        //if self.change_chunk_logic {
             self.ordered_chunks.clear();
             self.remove_chunks_list.clear();
 
@@ -134,7 +127,7 @@ impl Planet {
 
                     };
 
-                    new_chunk.borrow_mut().start(&self.world_gen, blocks_manager);
+                    new_chunk.borrow_mut().start(&mut self.world_gen, blocks_manager);
 
                     self.chunks.insert(new_chunk_pos, new_chunk.clone());
                     self.ordered_chunks.push(new_chunk.clone());
@@ -174,26 +167,38 @@ impl Planet {
             if ch.chunk_data.regen_mesh {
                 let neighbor_chunks = NeighborChunks::new_set(self, ch.position);
 
-                let mut mesh_result = ChunkMeshResult::new(&mut self.chunk_mesh_vertices_pool, &mut self.chunk_mesh_indices_pool);
+                let mut mesh_result = ChunkMeshResult::new(
+                    &mut self.chunk_mesh_vertices_pool,
+                    &mut self.chunk_mesh_indices_pool
+                );
 
                 ch.gen_mesh(&neighbor_chunks, blocks_manager, &mut mesh_result);
 
-                ch.renderers[0].update_mesh(&mesh_result, RendererType::Opaque);
-                ch.renderers[1].update_mesh(&mesh_result, RendererType::Alpha);
+                ch.renderer.update_mesh(&mesh_result);
 
                 ch.chunk_data.regen_mesh = false;
+
+                mesh_result.restore(&mut self.chunk_mesh_vertices_pool, &mut self.chunk_mesh_indices_pool);
             }
 
             self.visible_chunks.push(chunk.clone());
         }
 
+
+        render_utils::disable(render_utils::RenderCap::Blend);
         for ch in &self.visible_chunks {
             ch.borrow().draw(RendererType::Opaque);
         }
 
+
+        render_utils::enable(render_utils::RenderCap::Blend);
         for ch in &self.visible_chunks {
             ch.borrow().draw(RendererType::Alpha);
         }
+
+        render_utils::disable(render_utils::RenderCap::Blend);
+
+
     }
 
     pub fn get_chunk(&self, pos: Vec3i) -> ChunkGetter {

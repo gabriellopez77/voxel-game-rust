@@ -1,21 +1,23 @@
 ﻿use std::{cell::RefCell, rc::Rc, mem::offset_of};
 use crate::math::{Vec3, Vec3i};
 use crate::render::{render_utils, ChunkVertices, Shader, Texture, Vao, vao::VaoBuffers};
-use crate::world::Chunk;
-use crate::world::chunk::ChunkMeshResult;
+use crate::world::{Chunk, chunk::ChunkMeshResult};
 
 
-#[repr(i32)]
 #[derive(Copy, Clone)]
 pub enum RendererType {
     Opaque,
-    Alpha
+    Alpha,
+}
+
+impl RendererType {
+    pub const RENDERS_COUNT: usize = 2;
 }
 
 pub struct ChunkRenderer {
     pub position: Vec3,
 
-    vao: Vao,
+    vaos: [Vao; RendererType::RENDERS_COUNT],
     pub shader: Rc<RefCell<Shader>>,
     pub texture: Rc<Texture>,
 }
@@ -30,7 +32,10 @@ impl ChunkRenderer {
 
         Self {
             position: pos,
-            vao: Vao::new(),
+            vaos: [
+                Vao::new(),
+                Vao::new()
+            ],
             shader,
             texture,
         }
@@ -45,17 +50,24 @@ impl ChunkRenderer {
 
         self.position = pos;
 
-        self.vao = Vao::new();
+        self.vaos = [
+            Vao::new(),
+            Vao::new()
+        ];
         self.shader = shader;
         self.texture = texture;
     }
 
     pub fn erase(&mut self) {
-        self.vao.delete();
+        for vao in &mut self.vaos {
+            vao.delete();
+        }
     }
 
-    pub fn draw(&self) {
-        if self.vao.triangles_count == 0 { return }
+    pub fn draw(&self, render_type: RendererType) {
+        let vao = &self.vaos[render_type as usize];
+
+        if vao.triangles_count == 0 { return }
 
         self.shader.borrow_mut().set_vec3("pos", self.position);
 
@@ -63,32 +75,37 @@ impl ChunkRenderer {
             gl::TRIANGLES,
             &self.shader,
             Some(self.texture.as_ref()),
-            &self.vao,
+            vao,
         );
     }
 
-    pub fn update_mesh(&mut self, mesh_result: &ChunkMeshResult, render_type: RendererType) {
-        let vertices = &mesh_result.vertices[render_type as usize];
-        let indices = &mesh_result.indices[render_type as usize];
+    pub fn update_mesh(&mut self, mesh_result: &ChunkMeshResult) {
+        for i in 0..RendererType::RENDERS_COUNT {
+            let vertices = &mesh_result.vertices[i];
 
-        if vertices.is_empty() { return }
+            if vertices.is_empty() { return }
 
-        if !self.vao.is_generated() {
-            self.vao.gen_vao()
-                .gen_buffer(gl::ELEMENT_ARRAY_BUFFER, VaoBuffers::Ebo)
-                .gen_buffer(gl::ARRAY_BUFFER, VaoBuffers::Vbo);
+            let indices = &mesh_result.indices[i];
+            let vao = &mut self.vaos[i];
 
-            self.vao.buffer_data_from_arr(VaoBuffers::Ebo, &indices, gl::STATIC_DRAW);
+            if !vao.is_generated() {
+                vao.gen_vao()
+                    .gen_buffer(gl::ELEMENT_ARRAY_BUFFER, VaoBuffers::Ebo)
+                    .gen_buffer(gl::ARRAY_BUFFER, VaoBuffers::Vbo);
 
-            self.vao.buffer_data(VaoBuffers::Vbo, size_of::<ChunkVertices>() * vertices.len(), Some(vertices.as_ptr() as *const ()), gl::STATIC_DRAW)
-                .attrib_info(0, 3, gl::FLOAT, offset_of!(ChunkVertices, vertices), false)
-                .attrib_info(1, 3, gl::FLOAT, offset_of!(ChunkVertices, normal), false)
-                .attrib_info(2, 2, gl::FLOAT, offset_of!(ChunkVertices, uv), false)
-                .set_stride(size_of::<ChunkVertices>());
-        }
-        else {
-            self.vao.smart_reallocate_buffer(VaoBuffers::Vbo, &vertices);
-            self.vao.smart_reallocate_buffer(VaoBuffers::Ebo, &indices);
+                vao.buffer_data_from_arr(VaoBuffers::Ebo, &indices, gl::STATIC_DRAW);
+
+                vao.buffer_data(VaoBuffers::Vbo, size_of::<ChunkVertices>() * vertices.len(), Some(vertices.as_ptr() as *const ()), gl::STATIC_DRAW)
+                    .attrib_info(0, 3, gl::FLOAT, offset_of!(ChunkVertices, vertices), false)
+                    .attrib_info(1, 3, gl::FLOAT, offset_of!(ChunkVertices, normal), false)
+                    .attrib_info(2, 2, gl::FLOAT, offset_of!(ChunkVertices, uv), false)
+                    .attrib_info(3, 1, gl::UNSIGNED_BYTE, offset_of!(ChunkVertices, flags), false)
+                    .set_stride(size_of::<ChunkVertices>());
+            }
+            else {
+                vao.smart_reallocate_buffer(VaoBuffers::Ebo, &indices);
+                vao.smart_reallocate_buffer(VaoBuffers::Vbo, &vertices);
+            }
         }
     }
 }

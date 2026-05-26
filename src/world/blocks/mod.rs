@@ -11,19 +11,29 @@ pub mod sand;
 pub mod snow_block;
 pub mod ice_block;
 pub mod water_block;
+pub mod snow_layer;
+pub mod short_grass;
+pub mod red_flower;
+pub mod yellow_flower;
+pub mod dead_bush;
 
 pub use {
     blocks_manager::BlocksManager,
     block_properties::*,
 
-    air::Air,
-    stone::Stone,
-    dirt::Dirt,
-    grass_block::GrassBlock,
-    bedrock::Bedrock,
-    cobblestone::Cobblestone,
-    sand::Sand,
-    snow_block::SnowBlock,
-    ice_block::IceBlock,
-    water_block::WaterBlock,
+    air::*,
+    stone::*,
+    dirt::*,
+    grass_block::*,
+    bedrock::*,
+    cobblestone::*,
+    sand::*,
+    snow_block::*,
+    ice_block::*,
+    water_block::*,
+    snow_layer::*,
+    short_grass::*,
+    red_flower::*,
+    yellow_flower::*,
+    dead_bush::*,
 };
