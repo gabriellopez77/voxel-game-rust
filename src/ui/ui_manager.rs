@@ -13,7 +13,7 @@ use crate::ui::HudScreen;
 use crate::ui::{screen_base::ScreenBase, screens::StartScreen};
 
 
-pub struct ScreenManager {
+pub struct UiManager {
     sprites_renderer: SpritesRenderer<SpritesVertices>,
     text_renderer: SpritesRenderer<TextVertices>,
     ubo: Option<Rc<Ubo>>,
@@ -27,7 +27,7 @@ pub struct ScreenManager {
     screens: HashMap<TypeId, Rc<RefCell<dyn ScreenBase>>>,
 }
 
-impl ScreenManager {
+impl UiManager {
     pub fn new() -> Self {
         Self {
             sprites_renderer: SpritesRenderer::new(),
@@ -125,7 +125,7 @@ impl ScreenManager {
         self.current_screen.as_ref().unwrap().borrow_mut().resize(self.screen_size, self.screen_size / 2.0);
     }
 
-    pub fn update(&self, dt: f32) {
+    pub fn update(&mut self, dt: f32) {
         self.current_screen.as_ref().unwrap().borrow_mut().update(dt);
     }
 

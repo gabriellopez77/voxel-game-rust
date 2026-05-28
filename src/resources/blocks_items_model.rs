@@ -43,6 +43,8 @@ pub struct BlockItemModel {
 
     pub icon_tex_coords: TexCoords,
     pub particle_tex_coords: TexCoords,
+
+    pub ambient_occlusion: bool,
 }
 
 impl BlockItemModel {
@@ -66,6 +68,7 @@ impl BlockItemModel {
 
             icon_tex_coords: TexCoords::ZERO,
             particle_tex_coords: TexCoords::ZERO,
+            ambient_occlusion: false,
         };
 
         match instance.read(models_path, &file_content, texture) {
@@ -86,6 +89,7 @@ impl BlockItemModel {
 
             icon_tex_coords: TexCoords::ZERO,
             particle_tex_coords: TexCoords::ZERO,
+            ambient_occlusion: false,
         };
 
         match instance.read("", &ERROR_MODEL, texture) {
@@ -94,8 +98,8 @@ impl BlockItemModel {
         }
     }
 
-    fn read(&mut self, models_path: &str, file_content: &str, texture: &Rc<Texture>) -> Result<(), String> {
-        let model_info: ModelInfo = match serde_json::from_str(file_content) {
+    fn read(&mut self, models_path: &str, content: &str, texture: &Rc<Texture>) -> Result<(), String> {
+        let model_info: ModelInfo = match serde_json::from_str(content) {
             Ok(info) => info,
             Err(err) => {
                 println!("Error parsing model file: {err}");
@@ -133,7 +137,7 @@ impl BlockItemModel {
                 }
             };
 
-            if let Some(ref elements) = parent_info.unwrap().elements {
+            if let Some(ref elements) = parent_info.as_ref().unwrap().elements {
                 self.create_mesh(&elements, &used_textures, texture.get_size());
             }
         }
@@ -142,6 +146,18 @@ impl BlockItemModel {
                 self.create_mesh(&elements, &used_textures, texture.get_size());
             }
         }
+
+        let mut ambient_occlusion = true;
+
+        if let Some(ref parent) = parent_info && let Some(value) = parent.ambient_occlusion {
+            ambient_occlusion = value;
+        }
+
+        if let Some(value) = model_info.ambient_occlusion {
+            ambient_occlusion = value;
+        }
+
+        self.ambient_occlusion = ambient_occlusion;
 
         return Ok(());
 
@@ -155,28 +171,30 @@ impl BlockItemModel {
 
             let shade = element.shade.unwrap_or_else(|| true);
 
-            self.create_cube(texture_size, used_textures, &element.faces, &element.rotation, from, to, shade);
+            self.create_cube(texture_size,
+                used_textures,
+                &element.faces,
+                &element.rotation,
+                from, to, shade
+            );
         }
     }
 
-    fn create_cube(&mut self, texture_size: Vec2, used_textures: &HashMap<String, TexCoords>, faces_info: &HashMap<String, FaceInfo>,
-                   rotate_info: &Option<RotateInfo>, from: Vec3, to: Vec3, shade: bool) {
+    fn create_cube(&mut self, texture_size: Vec2, used_textures: &HashMap<String, TexCoords>,
+                    faces_info: &HashMap<String, FaceInfo>, rotate_info: &Option<RotateInfo>,
+                    from: Vec3, to: Vec3, shade: bool) {
         let size = to - from;
 
         let mut rotate_matrix = Matrix4::IDENTITY;
         let mut origin = Vec3::ZERO;
         let mut angle = 0.0;
 
-        if let Some(rotation_info) = rotate_info && rotation_info.angle != 0.0 {
-            angle = rotation_info.angle;
+        if let Some(info) = rotate_info && info.angle != 0.0 {
+            angle = info.angle;
 
-            origin = Vec3::new(
-                rotation_info.origin[0],
-                rotation_info.origin[1],
-                rotation_info.origin[2]
-            ) * SCALE;
+            origin = Vec3::new(info.origin[0],info.origin[1],info.origin[2]) * SCALE;
 
-            match rotation_info.axis {
+            match info.axis {
                 'x' => rotate_matrix.rotate(angle, 1.0, 0.0, 0.0),
                 'y' => rotate_matrix.rotate(angle, 0.0, 1.0, 0.0),
                 _ => rotate_matrix.rotate(angle, 0.0, 0.0, 1.0),
@@ -452,6 +470,9 @@ struct ModelInfo {
     item_icon: Option<String>,
     parent: Option<String>,
     textures: Option<HashMap<String, String>>,
+
+    #[serde(rename = "ambientOcclusion")]
+    ambient_occlusion: Option<bool>,
 
     elements: Option<Vec<ElementInfo>>
 }

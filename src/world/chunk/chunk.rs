@@ -1,6 +1,7 @@
-﻿use std::{cell::RefCell, rc::Rc};
+﻿use std::sync::Arc;
+use std::{cell::RefCell, rc::Rc};
 use std::sync::atomic::AtomicI32;
-use crate::math::{Vec2, Vec3, Vec3i};
+use crate::math::{self, Vec2, Vec3, Vec3i};
 use crate::render::chunk_renderer::RendererType;
 use crate::render::{BlockModelMesh, ChunkRenderer, ChunkVertices, Shader, Texture};
 use crate::world::blocks::{BlockProperties, BlockTypes, BlocksManager};
@@ -15,7 +16,8 @@ pub enum Directions {
     North,
     South,
     West,
-    East
+    East,
+    Nothing,
 }
 
 pub struct Chunk {
@@ -78,31 +80,12 @@ impl Chunk {
     pub fn lock(&self) { self.using_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst); }
     pub fn unlock(&self) { self.using_count.fetch_sub(1, std::sync::atomic::Ordering::SeqCst); }
 
-    pub fn gen_mesh(&self, neighbor_chunks: &NeighborChunks, blocks_manager: &BlocksManager,
+    pub fn gen_mesh(chunk: &Chunk, neighbors: &NeighborChunks, blocks_manager: &BlocksManager,
                     mesh_result: &mut ChunkMeshResult) {
-        fn add_face(vertices: &mut Vec<ChunkVertices>, chunk_block: Vec3, model_vertices: &Vec<BlockModelMesh>) {
-            for i in (0..model_vertices.len()).step_by(4) {
-                let vert1 = &model_vertices[i + 0];
-                let vert2 = &model_vertices[i + 1];
-                let vert3 = &model_vertices[i + 2];
-                let vert4 = &model_vertices[i + 3];
-
-                let flag1 = (vert1.shade as u8) << 2;
-			    let flag2 = (vert2.shade as u8) << 2;
-			    let flag3 = (vert3.shade as u8) << 2;
-			    let flag4 = (vert4.shade as u8) << 2;
-
-                vertices.push(ChunkVertices { vertices: vert1.vertices + chunk_block, normal: vert1.normal, uv: vert1.uv, flags: flag1 });
-                vertices.push(ChunkVertices { vertices: vert2.vertices + chunk_block, normal: vert2.normal, uv: vert2.uv, flags: flag2 });
-                vertices.push(ChunkVertices { vertices: vert3.vertices + chunk_block, normal: vert3.normal, uv: vert3.uv, flags: flag3 });
-                vertices.push(ChunkVertices { vertices: vert4.vertices + chunk_block, normal: vert4.normal, uv: vert4.uv, flags: flag4 });
-            }
-        }
-
         for x in 0..Chunk::CHUNK_SIZE.x {
         for y in 0..Chunk::CHUNK_SIZE.y {
         for z in 0..Chunk::CHUNK_SIZE.z {
-            let block_id = self.chunk_data.get_blocki(x, y, z);
+            let block_id = chunk.chunk_data.get_blocki(x, y, z);
 
             // air does not have model
             if block_id == 0 { continue; }
@@ -113,87 +96,126 @@ impl Chunk {
             let block_functions = blocks_manager.get(block_id);
             let block_properties = block_functions.get_properties();
             let model = block_properties.base_properties.get_model();
+            let ambient_occlusion = model.ambient_occlusion;
 
             let mut vertices = mesh_result.get_vertices(block_properties.renderer_type);
 
             // add nothing faces
-            add_face(&mut vertices, chunk_block, &model.nothing_vertices);
+            Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.nothing_vertices, chunk_block, Directions::Nothing, ambient_occlusion);
 
+
+            // up
             if y < Chunk::CHUNK_SIZE_MINUS_ONE.y {
-                let temp = blocks_manager.get(self.chunk_data.get_blocki(x, y + 1, z));
+                let temp = blocks_manager.get(chunk.chunk_data.get_blocki(x, y + 1, z));
                 draw = Self::draw_face(block_properties, temp.get_properties(), Directions::Up);
             }
             else if y == Chunk::CHUNK_SIZE_MINUS_ONE.y { draw = true }
 
-            if draw { add_face(&mut vertices, chunk_block, &model.up_vertices); }
+            if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.up_vertices, chunk_block, Directions::Up, ambient_occlusion); }
             draw = false;
 
 
+            // down
             if y > 0 {
-                let temp = blocks_manager.get(self.chunk_data.get_blocki(x, y - 1, z));
+                let temp = blocks_manager.get(chunk.chunk_data.get_blocki(x, y - 1, z));
                 draw = Self::draw_face(block_properties, temp.get_properties(), Directions::Down);
             }
 
-            if draw { add_face(&mut vertices, chunk_block, &model.down_vertices); }
+            if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.down_vertices, chunk_block, Directions::Down, ambient_occlusion); }
             draw = false;
 
 
+            // south
             if z < Chunk::CHUNK_SIZE_MINUS_ONE.z {
-                let temp = blocks_manager.get(self.chunk_data.get_blocki(x, y, z + 1));
+                let temp = blocks_manager.get(chunk.chunk_data.get_blocki(x, y, z + 1));
                 draw = Self::draw_face(block_properties, temp.get_properties(), Directions::South);
             }
-            else if let Some(ref south) = neighbor_chunks.south.chunk {
+            else if let Some(ref south) = neighbors.south.chunk {
                 let temp = blocks_manager.get(south.borrow().chunk_data.get_blocki(x, y, 0));
                 draw = Self::draw_face(block_properties, temp.get_properties(), Directions::South);
             }
 
-            if draw { add_face(&mut vertices, chunk_block, &model.south_vertices); }
+            if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.south_vertices, chunk_block, Directions::South, ambient_occlusion); }
             draw = false;
 
 
+            // north
             if z > 0 {
-                let temp = blocks_manager.get(self.chunk_data.get_blocki(x, y, z - 1));
+                let temp = blocks_manager.get(chunk.chunk_data.get_blocki(x, y, z - 1));
                 draw = Self::draw_face(block_properties, temp.get_properties(), Directions::North);
             }
-            else if let Some(ref north) = neighbor_chunks.north.chunk {
+            else if let Some(ref north) = neighbors.north.chunk {
                 let temp = blocks_manager.get(north.borrow().chunk_data.get_blocki(x, y, Self::CHUNK_SIZE_MINUS_ONE.z));
                 draw = Self::draw_face(block_properties, temp.get_properties(), Directions::North);
             }
 
-            if draw { add_face(&mut vertices, chunk_block, &model.north_vertices); }
+            if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.north_vertices, chunk_block, Directions::North, ambient_occlusion); }
             draw = false;
 
 
             // east
             if x < Chunk::CHUNK_SIZE_MINUS_ONE.x {
-                let temp = blocks_manager.get(self.chunk_data.get_blocki(x + 1, y, z));
+                let temp = blocks_manager.get(chunk.chunk_data.get_blocki(x + 1, y, z));
                 draw = Self::draw_face(block_properties, temp.get_properties(), Directions::East);
             }
-            else if let Some(ref east) = neighbor_chunks.east.chunk {
+            else if let Some(ref east) = neighbors.east.chunk {
                 let temp = blocks_manager.get(east.borrow().chunk_data.get_blocki(0, y, z));
                 draw = Self::draw_face(block_properties, temp.get_properties(), Directions::East);
             }
 
-            if draw { add_face(&mut vertices, chunk_block, &model.east_vertices); }
+            if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.east_vertices, chunk_block, Directions::East, ambient_occlusion); }
             draw = false;
 
 
             // west
             if x > 0 {
-                let temp = blocks_manager.get(self.chunk_data.get_blocki(x - 1, y, z));
+                let temp = blocks_manager.get(chunk.chunk_data.get_blocki(x - 1, y, z));
                 draw = Self::draw_face(block_properties, temp.get_properties(), Directions::West);
             }
-            else if let Some(ref west) = neighbor_chunks.west.chunk {
+            else if let Some(ref west) = neighbors.west.chunk {
                 let temp = blocks_manager.get(west.borrow().chunk_data.get_blocki(Self::CHUNK_SIZE_MINUS_ONE.x, y, z));
                 draw = Self::draw_face(block_properties, temp.get_properties(), Directions::West);
             }
 
-            if draw { add_face(&mut vertices, chunk_block, &model.west_vertices); }
+            if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.west_vertices, chunk_block, Directions::West, ambient_occlusion); }
         }
         }
         }
 
         mesh_result.gen_indices();
+    }
+
+    fn add_face(chunk: &Chunk, blocks_manager: &BlocksManager, neighbors: &NeighborChunks,
+                vertices: &mut Vec<ChunkVertices>, model_vertices: &Vec<BlockModelMesh>, chunk_block: Vec3,
+                dir: Directions, ambient_occlusion: bool) {
+        for i in (0..model_vertices.len()).step_by(4) {
+            let vert1 = &model_vertices[i + 0];
+            let vert2 = &model_vertices[i + 1];
+            let vert3 = &model_vertices[i + 2];
+            let vert4 = &model_vertices[i + 3];
+
+            let mut ao_level1: u8 = 3;
+			let mut ao_level2: u8 = 3;
+			let mut ao_level3: u8 = 3;
+			let mut ao_level4: u8 = 3;
+
+			if ambient_occlusion && dir != Directions::Nothing {
+                ao_level1 = Self::get_ao_level(&chunk, blocks_manager, neighbors, chunk_block.as_vec3i(), vert1.vertices, dir, 1);
+                ao_level2 = Self::get_ao_level(&chunk, blocks_manager, neighbors, chunk_block.as_vec3i(), vert2.vertices, dir, 2);
+                ao_level3 = Self::get_ao_level(&chunk, blocks_manager, neighbors, chunk_block.as_vec3i(), vert3.vertices, dir, 3);
+                ao_level4 = Self::get_ao_level(&chunk, blocks_manager, neighbors, chunk_block.as_vec3i(), vert4.vertices, dir, 4);
+			}
+
+            let flag1 = ao_level1 | ((vert1.shade as u8) << 2);
+            let flag2 = ao_level2 | ((vert2.shade as u8) << 2);
+            let flag3 = ao_level3 | ((vert3.shade as u8) << 2);
+            let flag4 = ao_level4 | ((vert4.shade as u8) << 2);
+
+            vertices.push(ChunkVertices { vertices: vert1.vertices + chunk_block, normal: vert1.normal, uv: vert1.uv, flags: flag1 });
+            vertices.push(ChunkVertices { vertices: vert2.vertices + chunk_block, normal: vert2.normal, uv: vert2.uv, flags: flag2 });
+            vertices.push(ChunkVertices { vertices: vert3.vertices + chunk_block, normal: vert3.normal, uv: vert3.uv, flags: flag3 });
+            vertices.push(ChunkVertices { vertices: vert4.vertices + chunk_block, normal: vert4.normal, uv: vert4.uv, flags: flag4 });
+        }
     }
 
     fn draw_face(current: &BlockProperties, around: &BlockProperties, dir: Directions) -> bool {
@@ -224,5 +246,225 @@ impl Chunk {
 	    if !current.is_transparent && around.is_transparent { return true }
 
 	    return false;
+    }
+
+    fn get_ao_level(chunk: &Chunk, blocks_manager: &BlocksManager, neighbors: &NeighborChunks,
+                    chunk_block: Vec3i, face_pos: Vec3, dir: Directions, vertex: u8) -> u8 {
+        let chunk_pos = { chunk.position };
+        let chunk_data = { &chunk.chunk_data };
+
+   	    let get_ao = |dx: f32, dy: f32, dz: f32| -> u8 {
+            let ndx = (if dx < 0.0 { dx.ceil() } else { dx.floor() }).clamp(-1.0, 1.0) as i32;
+            let ndy = (if dy < 0.0 { dy.ceil() } else { dy.floor() }).clamp(-1.0, 1.0) as i32;
+            let ndz = (if dz < 0.0 { dz.ceil() } else { dz.floor() }).clamp(-1.0, 1.0) as i32;
+
+      		// block in same chunk
+		    if chunk_block.x >= 1 && chunk_block.x <= 14 && chunk_block.z >= 1 && chunk_block.z <= 14 {
+			    let new_chunk_block = chunk_block + Vec3i::new(ndx, ndy, ndz);
+
+			    if new_chunk_block.y > Self::CHUNK_SIZE_MINUS_ONE.y || new_chunk_block.y < 0 {
+				    return 0;
+				}
+
+			    return !blocks_manager.get(chunk_data.get_block(new_chunk_block)).get_properties().is_transparent as u8;
+		    }
+
+
+		    // in another chunk
+		    let global_block = (chunk_pos * Self::CHUNK_SIZE) + chunk_block + Vec3i::new(ndx, ndy, ndz);
+
+		    if global_block.y > Self::CHUNK_SIZE_MINUS_ONE.y || global_block.y < 0 {
+			    return 0;
+			}
+
+		    let other_chunk_pos = math::get_chunk_pos(global_block.as_vec3());
+		    let other_chunk_block = math::get_chunk_block(other_chunk_pos, global_block);
+
+            enum Tee<'a> {
+                Same(&'a Chunk),
+                Other(Option<&'a Arc<RefCell<Chunk>>>)
+            }
+
+			let mut ch = Tee::Same(chunk);
+
+            if other_chunk_pos != chunk_pos {
+                // around chunks
+                if other_chunk_pos      == Vec3i::new(chunk_pos.x, 0, chunk_pos.z - 1) { ch = Tee::Other(neighbors.north.chunk.as_ref()) }
+                else if other_chunk_pos == Vec3i::new(chunk_pos.x, 0, chunk_pos.z + 1) { ch = Tee::Other(neighbors.south.chunk.as_ref()) }
+                else if other_chunk_pos == Vec3i::new(chunk_pos.x - 1, 0, chunk_pos.z) { ch = Tee::Other(neighbors.west.chunk.as_ref()) }
+                else if other_chunk_pos == Vec3i::new(chunk_pos.x + 1, 0, chunk_pos.z) { ch = Tee::Other(neighbors.east.chunk.as_ref()) }
+
+                // corner chunks
+                else if other_chunk_pos == Vec3i::new(chunk_pos.x - 1, 0, chunk_pos.z - 1) { ch = Tee::Other(neighbors.northwest.chunk.as_ref()) }
+                else if other_chunk_pos == Vec3i::new(chunk_pos.x + 1, 0, chunk_pos.z - 1) { ch = Tee::Other(neighbors.northeast.chunk.as_ref()) }
+                else if other_chunk_pos == Vec3i::new(chunk_pos.x - 1, 0, chunk_pos.z + 1) { ch = Tee::Other(neighbors.southwest.chunk.as_ref()) }
+                else if other_chunk_pos == Vec3i::new(chunk_pos.x + 1, 0, chunk_pos.z + 1) { ch = Tee::Other(neighbors.southeast.chunk.as_ref()) }
+            }
+
+            match ch {
+                Tee::Same(c) => return !blocks_manager.get(c.chunk_data.get_block(other_chunk_block)).get_properties().is_transparent as u8,
+                Tee::Other(o) if let Some(c) = o => {
+                    return !blocks_manager.get(c.borrow().chunk_data.get_block(other_chunk_block)).get_properties().is_transparent as u8
+                }
+                _ => {}
+            }
+
+			return 0;
+        };
+
+   	    let mut ao_level: u8 = 3;
+
+	    if chunk_block.y > Self::CHUNK_SIZE_MINUS_ONE.y || chunk_block.y < 0 {
+		    return ao_level;
+		}
+
+
+        if dir == Directions::Up {
+            ao_level -= get_ao(0.0, face_pos.y, 0.0);
+
+            if vertex == 1 {
+                ao_level -= get_ao(-1.0 + face_pos.x, face_pos.y, 0.0);
+                if ao_level > 1 { ao_level -= get_ao(0.0, face_pos.y, face_pos.z) }
+                if ao_level > 2 { ao_level -= get_ao(-1.0 + face_pos.x, face_pos.y, face_pos.z) }
+            }
+            else if vertex == 2 {
+                ao_level -= get_ao(0.0, face_pos.y, face_pos.z);
+                if ao_level > 1 { ao_level -= get_ao(face_pos.x, face_pos.y, 0.0) }
+                if ao_level > 2 { ao_level -= get_ao(face_pos.x, face_pos.y, face_pos.z) }
+            }
+            else if vertex == 3 {
+                ao_level -= get_ao(face_pos.x, face_pos.y, 0.0);
+                if ao_level > 1 { ao_level -= get_ao(0.0, face_pos.y, -1.0 + face_pos.z) }
+                if ao_level > 2 { ao_level -= get_ao(face_pos.x, face_pos.y, -1.0 + face_pos.z) }
+            }
+            else {
+                ao_level -= get_ao(0.0, face_pos.y, -1.0 + face_pos.z);
+                if ao_level > 1 { ao_level -= get_ao(-1.0 + face_pos.x, face_pos.y, 0.0) }
+                if ao_level > 2 { ao_level -= get_ao(-1.0 + face_pos.x, face_pos.y, -1.0 + face_pos.z) }
+            }
+        }
+        else if dir == Directions::Down {
+            ao_level -= get_ao(0.0, -1.0 + face_pos.y, 0.0);
+
+            if vertex == 2 {
+                ao_level -= get_ao(-1.0 + face_pos.x, -1.0 + face_pos.y, 0.0);
+                if ao_level > 1 { ao_level -= get_ao(0.0, -1.0 + face_pos.y, face_pos.z) }
+                if ao_level > 2 { ao_level -= get_ao(-1.0 + face_pos.x, -1.0 + face_pos.y, face_pos.z) }
+            }
+            else if vertex == 1 {
+                ao_level -= get_ao(0.0, -1.0 + face_pos.y, face_pos.z);
+                if ao_level > 1 { ao_level -= get_ao(face_pos.x, -1.0 + face_pos.y, 0.0) }
+                if ao_level > 2 { ao_level -= get_ao(face_pos.x, -1.0 + face_pos.y, face_pos.z) }
+            }
+            else if vertex == 4 {
+                ao_level -= get_ao(face_pos.x, -1.0 + face_pos.y, 0.0);
+                if ao_level > 1 { ao_level -= get_ao(0.0, -1.0 + face_pos.y, -1.0 + face_pos.z) }
+                if ao_level > 2 { ao_level -= get_ao(face_pos.x, -1.0 + face_pos.y, -1.0 + face_pos.z) }
+            }
+            else {
+                ao_level -= get_ao(0.0, -1.0 + face_pos.y, -1.0 + face_pos.z);
+                if ao_level > 1 { ao_level -= get_ao(-1.0 + face_pos.x, -1.0 + face_pos.y, 0.0) }
+                if ao_level > 2 { ao_level -= get_ao(-1.0 + face_pos.x, -1.0 + face_pos.y, -1.0 + face_pos.z) }
+            }
+        }
+        else if dir == Directions::South {
+            ao_level -= get_ao(0.0, 0.0, face_pos.z);
+
+            if vertex == 1 {
+                ao_level -= get_ao(-1.0 + face_pos.x, 0.0, face_pos.z);
+                if ao_level > 1 { ao_level -= get_ao(0.0, face_pos.y, face_pos.z) }
+                if ao_level > 2 { ao_level -= get_ao(-1.0 + face_pos.x, face_pos.y, face_pos.z) }
+            }
+            else if vertex == 2 {
+                ao_level -= get_ao(-1.0 + face_pos.x, 0.0, face_pos.z);
+                if ao_level > 1 { ao_level -= get_ao(0.0, -1.0 + face_pos.y, face_pos.z) }
+                if ao_level > 2 { ao_level -= get_ao(-1.0 + face_pos.x, -1.0 + face_pos.y, face_pos.z) }
+            }
+            else if vertex == 3 {
+                ao_level -= get_ao(0.0, -1.0 + face_pos.y, face_pos.z);
+                if ao_level > 1 { ao_level -= get_ao(face_pos.x, 0.0, face_pos.z) }
+                if ao_level > 2 { ao_level -= get_ao(face_pos.x, -1.0 + face_pos.y, face_pos.z) }
+            }
+            else {
+                ao_level -= get_ao(0.0, face_pos.y, face_pos.z);
+                if ao_level > 1 { ao_level -= get_ao(face_pos.x, 0.0, face_pos.z) }
+                if ao_level > 2 { ao_level -= get_ao(face_pos.x, face_pos.y, face_pos.z) }
+            }
+        }
+        else if dir == Directions::North {
+            ao_level -= get_ao(0.0, 0.0, -1.0 + face_pos.z);
+
+            if vertex == 4 {
+                ao_level -= get_ao(-1.0 + face_pos.x, 0.0, -1.0 + face_pos.z);
+                if ao_level > 1 { ao_level -= get_ao(0.0, face_pos.y, -1.0 + face_pos.z) }
+                if ao_level > 2 { ao_level -= get_ao(-1.0 + face_pos.x, face_pos.y, -1.0 + face_pos.z) }
+            }
+            else if vertex == 3 {
+                ao_level -= get_ao(-1.0 + face_pos.x, 0.0, -1.0 + face_pos.z);
+                if ao_level > 1 { ao_level -= get_ao(0.0, -1.0 + face_pos.y, -1.0 + face_pos.z) }
+                if ao_level > 2 { ao_level -= get_ao(-1.0 + face_pos.x, -1.0 + face_pos.y, -1.0 + face_pos.z) }
+            }
+            else if vertex == 2 {
+                ao_level -= get_ao(0.0, -1.0 + face_pos.y, -1.0 + face_pos.z);
+                if ao_level > 1 { ao_level -= get_ao(face_pos.x, 0.0, -1.0 + face_pos.z) }
+                if ao_level > 2 { ao_level -= get_ao(face_pos.x, -1.0 + face_pos.y, -1.0 + face_pos.z) }
+            }
+            else {
+                ao_level -= get_ao(0.0, face_pos.y, -1.0 + face_pos.z);
+                if ao_level > 1 { ao_level -= get_ao(face_pos.x, 0.0, -1.0 + face_pos.z) }
+                if ao_level > 2 { ao_level -= get_ao(face_pos.x, face_pos.y, -1.0 + face_pos.z) }
+            }
+        }
+        else if dir == Directions::West {
+            ao_level -= get_ao(-1.0 + face_pos.x, 0.0, 0.0);
+
+            if vertex == 1 {
+                ao_level -= get_ao(-1.0 + face_pos.x, face_pos.y, 0.0);
+                if ao_level > 1 { ao_level -= get_ao(-1.0 + face_pos.x, 0.0, -1.0 + face_pos.z) }
+                if ao_level > 2 { ao_level -= get_ao(-1.0 + face_pos.x, face_pos.y, -1.0 + face_pos.z) }
+            }
+            else if vertex == 2 {
+                ao_level -= get_ao(-1.0 + face_pos.x, 0.0, -1.0 + face_pos.z);
+                if ao_level > 1 { ao_level -= get_ao(-1.0 + face_pos.x, -1.0 + face_pos.y, 0.0) }
+                if ao_level > 2 { ao_level -= get_ao(-1.0 + face_pos.x, -1.0 + face_pos.y, -1.0 + face_pos.z) }
+            }
+            else if vertex == 3 {
+                ao_level -= get_ao(-1.0 + face_pos.x, -1.0 + face_pos.y, 0.0);
+                if ao_level > 1 { ao_level -= get_ao(-1.0 + face_pos.x, 0.0, face_pos.z) }
+                if ao_level > 2 { ao_level -= get_ao(-1.0 + face_pos.x, -1.0 + face_pos.y, face_pos.z) }
+            }
+            else {
+                ao_level -= get_ao(-1.0 + face_pos.x, face_pos.y, 0.0);
+                if ao_level > 1 { ao_level -= get_ao(-1.0 + face_pos.x, 0.0, face_pos.z) }
+                if ao_level > 2 { ao_level -= get_ao(-1.0 + face_pos.x, face_pos.y, face_pos.z) }
+            }
+        }
+        else if dir == Directions::East {
+            ao_level -= get_ao(face_pos.x, 0.0, 0.0);
+
+            if vertex == 4 {
+                ao_level -= get_ao(face_pos.x, face_pos.y, 0.0);
+                if ao_level > 1 { ao_level -= get_ao(face_pos.x, 0.0, -1.0 + face_pos.z) }
+                if ao_level > 2 { ao_level -= get_ao(face_pos.x, face_pos.y, -1.0 + face_pos.z) }
+            }
+            else if vertex == 3 {
+                ao_level -= get_ao(face_pos.x, 0.0, -1.0 + face_pos.z);
+                if ao_level > 1 { ao_level -= get_ao(face_pos.x, -1.0 + face_pos.y, 0.0) }
+                if ao_level > 2 { ao_level -= get_ao(face_pos.x, -1.0 + face_pos.y, -1.0 + face_pos.z) }
+            }
+            else if vertex == 2 {
+                ao_level -= get_ao(face_pos.x, -1.0 + face_pos.y, 0.0);
+                if ao_level > 1 { ao_level -= get_ao(face_pos.x, 0.0, face_pos.z) }
+                if ao_level > 2 { ao_level -= get_ao(face_pos.x, -1.0 + face_pos.y, face_pos.z) }
+            }
+            else {
+                ao_level -= get_ao(face_pos.x, face_pos.y, 0.0);
+                if ao_level > 1 { ao_level -= get_ao(face_pos.x, 0.0, face_pos.z) }
+                if ao_level > 2 { ao_level -= get_ao(face_pos.x, face_pos.y, face_pos.z) }
+            }
+        }
+
+        return ao_level;
+
     }
 }

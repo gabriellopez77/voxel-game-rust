@@ -1,6 +1,6 @@
 use std::ops::{Add, Mul, Div, Sub, AddAssign, MulAssign, DivAssign, SubAssign};
 
-use crate::math::Vec4;
+use crate::math::{Vec3i, Vec4};
 
 
 #[repr(C)]
@@ -21,6 +21,15 @@ impl Vec3 {
 
     pub fn as_ptr(&self) -> *const f32 { &self.x }
 
+    pub fn as_vec3i(&self) -> Vec3i {
+        Vec3i {
+            x: self.x as i32,
+            y: self.y as i32,
+            z: self.z as i32,
+        }
+    }
+
+
     pub fn dot(&self, other: Self) -> f32 {
         let temp = *self * other;
 
@@ -40,7 +49,7 @@ impl Vec3 {
             z: self.x * other.y - self.y * other.x
         }
     }
-    
+
     pub fn length(&self) -> f32 { (self.x * self.x) + (self.y * self.y) + (self.z * self.z).sqrt() }
 }
 

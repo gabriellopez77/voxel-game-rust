@@ -32,20 +32,20 @@ impl ChunkData {
         self.blocks_data[index]
     }
 
-    pub fn set_blocki(&mut self, x: i32, y: i32, z: i32, block: &Option<Rc<dyn BlockFunctions>>) {
+    pub fn set_blocki(&mut self, x: i32, y: i32, z: i32, block: &Rc<dyn BlockFunctions>) {
         let index = math::get_index(x, y, z);
         self.set_block_index(index, block);
     }
 
-    pub fn set_block(&mut self, chunk_block: Vec3i, block: &Option<Rc<dyn BlockFunctions>>) {
+    pub fn set_block(&mut self, chunk_block: Vec3i, block: &Rc<dyn BlockFunctions>) {
         let index = math::get_index(chunk_block.x, chunk_block.y, chunk_block.z);
         self.set_block_index(index, block);
     }
 
-    pub fn set_block_index(&mut self, index: usize, block: &Option<Rc<dyn BlockFunctions>>) {
+    pub fn set_block_index(&mut self, index: usize, block: &Rc<dyn BlockFunctions>) {
         let current_block = &mut self.blocks_data[index];
 
-        let id = block.as_ref().unwrap().get_base().id;
+        let id = block.get_base().id;
 
         self.regen_mesh |= *current_block != id;
 

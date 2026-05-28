@@ -15,7 +15,7 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn init(width: i32, height: i32, title: &str) -> (Self, glfw::GlfwReceiver<(f64, glfw::WindowEvent)>) {
+    pub fn init(width: i32, height: i32, title: &str) -> (Self, glfw::GlfwReceiver<(f64, WindowEvent)>) {
         let mut glfw_instance = glfw::init(|error, description| glfw::fail_on_errors(error, description)).unwrap();
         let (mut window, events) =
             glfw_instance.create_window(width as u32, height as u32, title, glfw::WindowMode::Windowed).unwrap();
@@ -46,7 +46,7 @@ impl Window {
         }, events);
     }
 
-    pub fn run(&mut self, game: &mut Game, events: &glfw::GlfwReceiver<(f64, glfw::WindowEvent)>) {
+    pub fn run(&mut self, game: &mut Game, events: &glfw::GlfwReceiver<(f64, WindowEvent)>) {
         game.start();
 
         unsafe {
@@ -61,8 +61,10 @@ impl Window {
 
 
         while !self.window.should_close() {
+            // update keyboard and mouse inupts
             inputs::new_frame();
 
+            // poll window events
             self.glfw_instance.poll_events();
 
             for (_, event) in glfw::flush_messages(&events) {

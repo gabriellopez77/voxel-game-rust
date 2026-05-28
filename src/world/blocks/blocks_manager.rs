@@ -8,80 +8,64 @@ use crate::world::items::*;
 pub struct BlocksManager {
     blocks: Vec<Rc<dyn BlockFunctions>>,
 
-    pub air: Option<Rc<dyn BlockFunctions>>,
-    pub dirt: Option<Rc<dyn BlockFunctions>>,
-    pub stone: Option<Rc<dyn BlockFunctions>>,
-    pub grass_block: Option<Rc<dyn BlockFunctions>>,
-    pub bedrock: Option<Rc<dyn BlockFunctions>>,
-    pub cobblestone: Option<Rc<dyn BlockFunctions>>,
-    pub sand: Option<Rc<dyn BlockFunctions>>,
-    pub snow_block: Option<Rc<dyn BlockFunctions>>,
-    pub ice_block: Option<Rc<dyn BlockFunctions>>,
-    pub water_block: Option<Rc<dyn BlockFunctions>>,
-    pub snow_layer: Option<Rc<dyn BlockFunctions>>,
-    pub short_grass: Option<Rc<dyn BlockFunctions>>,
-    pub red_flower: Option<Rc<dyn BlockFunctions>>,
-    pub yellow_flower: Option<Rc<dyn BlockFunctions>>,
-    pub dead_bush: Option<Rc<dyn BlockFunctions>>,
+    pub air: Rc<dyn BlockFunctions>,
+    pub dirt: Rc<dyn BlockFunctions>,
+    pub stone: Rc<dyn BlockFunctions>,
+    pub grass_block: Rc<dyn BlockFunctions>,
+    pub bedrock: Rc<dyn BlockFunctions>,
+    pub cobblestone: Rc<dyn BlockFunctions>,
+    pub sand: Rc<dyn BlockFunctions>,
+    pub snow_block: Rc<dyn BlockFunctions>,
+    pub ice_block: Rc<dyn BlockFunctions>,
+    pub water_block: Rc<dyn BlockFunctions>,
+    pub snow_layer: Rc<dyn BlockFunctions>,
+    pub short_grass: Rc<dyn BlockFunctions>,
+    pub red_flower: Rc<dyn BlockFunctions>,
+    pub yellow_flower: Rc<dyn BlockFunctions>,
+    pub dead_bush: Rc<dyn BlockFunctions>,
 }
 
 impl BlocksManager {
-    pub fn new() -> Self {
+    pub fn new(resources_manager: &Rc<RefCell<ResourceManager>>) -> Self {
+        let mut blocks: Vec<Rc<dyn BlockFunctions>> = Vec::new();
+
         Self {
-            blocks: Vec::new(),
+            air: Self::add::<Air>("air", "AIR", &resources_manager, &mut blocks),
+            dirt: Self::add::<Dirt>("dirt", "Dirt", &resources_manager, &mut blocks),
+            stone: Self::add::<Stone>("stone", "Stone", &resources_manager, &mut blocks),
+            grass_block: Self::add::<GrassBlock>("grass_block", "Grass Block", &resources_manager, &mut blocks),
+            bedrock: Self::add::<Bedrock>("bedrock", "Bedrock", &resources_manager, &mut blocks),
+            cobblestone: Self::add::<Cobblestone>("cobblestone", "Cobblestone", &resources_manager, &mut blocks),
+            sand: Self::add::<Sand>("sand", "Sand", &resources_manager, &mut blocks),
+            snow_block: Self::add::<SnowBlock>("snow_block", "Snow Block", &resources_manager, &mut blocks),
+            ice_block: Self::add::<IceBlock>("ice_block", "Ice Block", &resources_manager, &mut blocks),
+            water_block: Self::add::<WaterBlock>("water_block", "Water", &resources_manager, &mut blocks),
+            snow_layer: Self::add::<SnowLayer>("snow_layer", "Snow Layer", &resources_manager, &mut blocks),
+            short_grass: Self::add::<ShortGrass>("short_grass", "Short Grass", &resources_manager, &mut blocks),
+            red_flower: Self::add::<RedFlower>("red_flower", "Red Flower", &resources_manager, &mut blocks),
+            yellow_flower: Self::add::<YellowFlower>("yellow_flower", "Red Flower", &resources_manager, &mut blocks),
+            dead_bush: Self::add::<DeadBush>("dead_bush", "Dead Bush", &resources_manager, &mut blocks),
 
-            air: None,
-            dirt: None,
-            stone: None,
-            grass_block: None,
-            bedrock: None,
-            cobblestone: None,
-            sand: None,
-            snow_block: None,
-            ice_block: None,
-            water_block: None,
-            snow_layer: None,
-            short_grass: None,
-            red_flower: None,
-            yellow_flower: None,
-            dead_bush: None,
+            blocks,
         }
-    }
-
-    pub fn start(&mut self, resources_manager: &Rc<RefCell<ResourceManager>>) {
-        self.air = self.add::<Air>("air", "AIR", &resources_manager);
-        self.dirt = self.add::<Dirt>("dirt", "Dirt", &resources_manager);
-        self.stone = self.add::<Stone>("stone", "Stone", &resources_manager);
-        self.grass_block = self.add::<GrassBlock>("grass_block", "Grass Block", &resources_manager);
-        self.bedrock = self.add::<Bedrock>("bedrock", "Bedrock", &resources_manager);
-        self.cobblestone = self.add::<Cobblestone>("cobblestone", "Cobblestone", &resources_manager);
-        self.sand = self.add::<Sand>("sand", "Sand", &resources_manager);
-        self.snow_block = self.add::<SnowBlock>("snow_block", "Snow Block", &resources_manager);
-        self.ice_block = self.add::<IceBlock>("ice_block", "Ice Block", &resources_manager);
-        self.water_block = self.add::<WaterBlock>("water_block", "Water", &resources_manager);
-        self.snow_layer = self.add::<SnowLayer>("snow_layer", "Snow Layer", &resources_manager);
-        self.short_grass = self.add::<ShortGrass>("short_grass", "Short Grass", &resources_manager);
-        self.red_flower = self.add::<RedFlower>("red_flower", "Red Flower", &resources_manager);
-        self.yellow_flower = self.add::<YellowFlower>("yellow_flower", "Red Flower", &resources_manager);
-        self.dead_bush = self.add::<DeadBush>("dead_bush", "Dead Bush", &resources_manager);
     }
 
     pub fn get(&self, id: u16) -> Rc<dyn BlockFunctions> {
          self.blocks[id as usize].clone()
     }
 
-    fn add<T>(&mut self, internal_name: &'static str, name: &'static str,
-        resources_manager: &Rc<RefCell<ResourceManager>>) -> Option<Rc<dyn BlockFunctions>>
+    fn add<T>(internal_name: &'static str, name: &'static str,
+        resources_manager: &Rc<RefCell<ResourceManager>>, blocks: &mut Vec<Rc<dyn BlockFunctions>>) -> Rc<dyn BlockFunctions>
     where
         T: ItemCreation<ItemType: BlockFunctions>,
         for<'a> T::ItemType: 'a,
     {
-        let mut block = T::new(internal_name, name, self.blocks.len());
+        let mut block = T::new(internal_name, name, blocks.len());
         block.get_base_mut().load_model(&resources_manager);
 
         let block_rc: Rc<T::ItemType> = Rc::from(block);
-        self.blocks.push(block_rc.clone());
+        blocks.push(block_rc.clone());
 
-        return Some(block_rc);
+        return block_rc;
     }
 }

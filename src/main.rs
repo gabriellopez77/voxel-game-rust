@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-
 use crate::utils::FastString;
 
 mod render;

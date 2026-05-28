@@ -21,7 +21,9 @@ uniform vec3 pos;
 
 out vec3 Normal;
 out vec2 TexCoords;
+
 flat out int Shade;
+out float AoLevel;
 
 void main() {
     gl_Position = camProj * camView * vec4(aVertex + pos, 1.f);
@@ -29,6 +31,7 @@ void main() {
    	// flags and Ao level
 	int flagsValue = int(aFlags);
     Shade = (flagsValue & SHADE_FLAG) >> 2;
+    AoLevel = ((flagsValue & AO_LEVEL_FLAG) >> 0) / 3.f;
 
     Normal = aNormal;
     TexCoords = aTexCoords;

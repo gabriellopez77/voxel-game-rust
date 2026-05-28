@@ -36,6 +36,8 @@ pub struct Camera {
     projection_view_matrix: Matrix4,
 
     frustum_planes: [Plane; 6],
+
+    last_mouse_pos: Vec2,
 }
 
 impl Camera {
@@ -52,7 +54,9 @@ impl Camera {
             projection_matrix: Matrix4::ZERO,
             projection_view_matrix: Matrix4::ZERO,
 
-            frustum_planes: [Plane{normal: Vec3::ZERO, d: 0.0}; 6]
+            frustum_planes: [Plane{normal: Vec3::ZERO, d: 0.0}; 6],
+
+            last_mouse_pos: Vec2::ZERO,
         }
     }
 
@@ -63,8 +67,8 @@ impl Camera {
     pub fn update(&mut self, new_pos: Vec3) {
         if self.position != new_pos {
             self.view_changed = true;
-
         }
+
         self.position = new_pos;
 
         self.process_rotation();
@@ -83,7 +87,7 @@ impl Camera {
     pub fn resize(&mut self, width: f32, height: f32) {
         self.view_changed = true;
 
-        self.projection_matrix = Matrix4::perspective(80.0, width / height, 0.1, 1000.0);
+        self.projection_matrix = Matrix4::perspective(70.0, width / height, 0.1, 1000.0);
         self.ubo.as_ref().unwrap().update("camProj", self.projection_matrix.as_ptr());
     }
 
@@ -95,14 +99,14 @@ impl Camera {
         );
 
         for plane in &self.frustum_planes {
-            let nVertex = Vec3::new(
+            let n = Vec3::new(
                 if plane.normal.x >= 0.0 { visual_chunk_pos.x + Chunk::CHUNK_SIZEF.x } else { visual_chunk_pos.x },
                 if plane.normal.y >= 0.0 { Chunk::CHUNK_SIZEF.y } else { visual_chunk_pos.y },
                 if plane.normal.z >= 0.0 { visual_chunk_pos.z + Chunk::CHUNK_SIZEF.z } else { visual_chunk_pos.z }
             );
 
             // completely outside frustum
-            if plane.distance(nVertex) < 0.0 { return false }
+            if plane.distance(n) < 0.0 { return false }
         }
 
         return true;
@@ -111,9 +115,10 @@ impl Camera {
     fn process_rotation(&mut self) {
         let last_rotate = self.rot;
 
-        const SENSITIVYTY: f32 = 0.7;
+        const SENSITIVYTY: f32 = 0.2;
 
-        let delta = inputs::get_mouse_delta() * SENSITIVYTY;
+        let delta = (inputs::get_mouse_pos() - self.last_mouse_pos) * SENSITIVYTY;
+        self.last_mouse_pos = inputs::get_mouse_pos();
 
         self.rot.x += delta.x;
         self.rot.y -= delta.y;

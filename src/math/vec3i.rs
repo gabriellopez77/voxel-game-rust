@@ -1,6 +1,8 @@
 ﻿use std::ops::{Add, Mul, Div, Sub, AddAssign, MulAssign, DivAssign, SubAssign};
 use std::hash::*;
 
+use crate::math::Vec3;
+
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq)]
@@ -17,6 +19,14 @@ impl Vec3i {
     pub fn from1f(value: i32) -> Self { Self { x: value, y: value, z: value } }
 
     pub fn as_ptr(&self) -> *const i32 { &self.x }
+
+    pub fn as_vec3(&self) -> Vec3 {
+        Vec3 {
+            x: self.x as f32,
+            y: self.y as f32,
+            z: self.z as f32,
+        }
+    }
 }
 
 impl Hash for Vec3i {

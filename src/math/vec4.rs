@@ -18,14 +18,13 @@ impl Vec4 {
     pub fn from1(value: f32) -> Self { Self { x: value, y: value, z: value, w: value } }
     pub fn from3(vec: Vec3, value: f32) -> Self { Self { x: vec.x, y: vec.y, z: vec.z, w: value } }
 
+    pub fn as_ptr(&self) -> *const f32 { &self.x }
+
     pub fn dot(left: Vec4, right: Vec4) -> f32 {
         let temp = left * right;
 
         return temp.x + temp.y + temp.z + temp.w;
-
     }
-
-    pub fn as_ptr(&self) -> *const f32 { &self.x }
 }
 
 

@@ -18,6 +18,7 @@ impl<T: Copy> SpritesRenderer<T> {
     pub fn new() -> Self {
         Self {
             buffer: Vec::new(),
+
             shader: None,
             texture: None,
             vao: Vao::new()

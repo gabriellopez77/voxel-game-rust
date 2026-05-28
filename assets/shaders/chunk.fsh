@@ -4,7 +4,9 @@ uniform sampler2D myTexture;
 
 in vec3 Normal;
 in vec2 TexCoords;
+
 flat in int Shade;
+in float AoLevel;
 
 out vec4 outColor;
 
@@ -28,5 +30,5 @@ void main() {
         shadeFace = min(1.0, (light0 + light1) * LIGHT_POWER + AMBIENT_LIGHT_POWER);
     }
 
-    outColor = vec4(tex.rgb * shadeFace, tex.a);
+    outColor = vec4(tex.rgb * (shadeFace * AoLevel), tex.a);
 }

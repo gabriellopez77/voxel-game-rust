@@ -7,7 +7,7 @@ use crate::render::{ChunkVertices, Shader, Texture, render_utils};
 use crate::resources::{BlockItemModel, ResourceManager};
 use crate::utils::ObjectPool;
 use crate::world::blocks::BlocksManager;
-use crate::world::chunk::{ChunkGetter, ChunkMeshResult, NeighborChunks};
+use crate::world::chunk::{ChunkGetter, ChunkMeshResult, NeighborChunks, neighbor_chunks};
 use crate::world::{Chunk, WorldGen, player::Camera};
 
 
@@ -38,7 +38,7 @@ impl Planet {
             chunks: HashMap::new(),
             world_gen: WorldGen::new(),
 
-            render_distance: 14,
+            render_distance: 4,
 
             last_player_chunk: Vec3i::ZERO,
             change_chunk_logic: true,
@@ -103,7 +103,7 @@ impl Planet {
 
                     if distance >= self.render_distance || self.chunks.contains_key(&new_chunk_pos) { continue; }
 
-                    let neighbor_chunks = NeighborChunks::new_set(self, new_chunk_pos);
+                    let neighbor_chunks = NeighborChunks::new_set(self, new_chunk_pos, false);
                     self.regen_neighbor_chunks(&neighbor_chunks);
 
 
@@ -165,14 +165,15 @@ impl Planet {
             }
 
             if ch.chunk_data.regen_mesh {
-                let neighbor_chunks = NeighborChunks::new_set(self, ch.position);
+                let neighbor_chunks = NeighborChunks::new_set(self, ch.position, true);
 
                 let mut mesh_result = ChunkMeshResult::new(
                     &mut self.chunk_mesh_vertices_pool,
                     &mut self.chunk_mesh_indices_pool
                 );
 
-                ch.gen_mesh(&neighbor_chunks, blocks_manager, &mut mesh_result);
+
+                Chunk::gen_mesh(&*ch, &neighbor_chunks, blocks_manager, &mut mesh_result);
 
                 ch.renderer.update_mesh(&mesh_result);
 
@@ -212,9 +213,9 @@ impl Planet {
     pub fn get_chunk_int(&self, x: i32, y: i32, z: i32) -> ChunkGetter { self.get_chunk(Vec3i::new(x, y, z))}
 
     fn regen_neighbor_chunks(&self, neighbor_chunks: &NeighborChunks) {
-        if neighbor_chunks.north.exists() { neighbor_chunks.north.get().borrow_mut().chunk_data.regen_mesh = true }
-        if neighbor_chunks.south.exists() { neighbor_chunks.south.get().borrow_mut().chunk_data.regen_mesh = true }
-        if neighbor_chunks.west.exists() { neighbor_chunks.west.get().borrow_mut().chunk_data.regen_mesh = true }
-        if neighbor_chunks.east.exists() { neighbor_chunks.east.get().borrow_mut().chunk_data.regen_mesh = true }
+        if let Some(ref north) = neighbor_chunks.north.chunk { north.borrow_mut().chunk_data.regen_mesh = true }
+        if let Some(ref south) = neighbor_chunks.south.chunk { south.borrow_mut().chunk_data.regen_mesh = true }
+        if let Some(ref west) = neighbor_chunks.west.chunk { west.borrow_mut().chunk_data.regen_mesh = true }
+        if let Some(ref east) = neighbor_chunks.east.chunk { east.borrow_mut().chunk_data.regen_mesh = true }
     }
 }

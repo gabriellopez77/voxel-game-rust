@@ -39,6 +39,12 @@ impl WorldGen {
         const SURFACE_HEIGHT:i32 = 40;
         const WATER_HEIGHT:i32 = 45;
 
+        // set bedrock
+        for x in 0..Chunk::CHUNK_SIZE.x {
+            for z in 0..Chunk::CHUNK_SIZE.z {
+                data.set_block(Vec3i::new(x, 0, z), &blocks_manager.bedrock);
+            }
+        }
 
         for x in 0..Chunk::CHUNK_SIZE.x {
             for z in 0..Chunk::CHUNK_SIZE.z {
@@ -64,14 +70,9 @@ impl WorldGen {
                 for y in 0..Chunk::CHUNK_SIZE.y {
                     let current_block_index = crate::math::get_index(x, y, z);
 
-                    if y == 0 {
-                        data.set_block_index(current_block_index, &blocks_manager.bedrock);
-                    }
 
                     // surface features
                     if y > surface_height {
-                        data.set_block_index(current_block_index, &blocks_manager.air);
-
                         if y < WATER_HEIGHT {
                             //if (y == 49) {
                             //    if (chance(0..100) < 2)

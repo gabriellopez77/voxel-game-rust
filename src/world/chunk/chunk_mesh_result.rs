@@ -8,29 +8,15 @@ pub struct ChunkMeshResult {
 
 impl ChunkMeshResult {
     pub fn new(vertices_pool: &mut ObjectPool<Vec<ChunkVertices>>, indices_pool: &mut ObjectPool<Vec<u32>>) -> Self {
-        fn get_vertices(pool: &mut ObjectPool<Vec<ChunkVertices>>) -> Vec<ChunkVertices> {
-            match pool.get() {
-                Some(x) => x,
-                None => Vec::new()
-            }
-        }
-
-        fn get_indices(pool: &mut ObjectPool<Vec<u32>>) -> Vec<u32> {
-            match pool.get() {
-                Some(x) => x,
-                None => Vec::new()
-            }
-        }
-
         Self {
             vertices: [
-                get_vertices(vertices_pool),
-                get_vertices(vertices_pool),
+                vertices_pool.get().unwrap_or_else(|| Vec::new()),
+                vertices_pool.get().unwrap_or_else(|| Vec::new()),
             ],
 
             indices: [
-                get_indices(indices_pool),
-                get_indices(indices_pool),
+                indices_pool.get().unwrap_or_else(|| Vec::new()),
+                indices_pool.get().unwrap_or_else(|| Vec::new()),
             ],
         }
     }
