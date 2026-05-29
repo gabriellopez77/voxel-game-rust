@@ -41,9 +41,7 @@ fn add_image(root: &mut Box<Node>, image_info: &image::DynamicImage, atlas_pixel
             Some(x) => x,
             None => &image_info.to_rgba8()
         };
-
-        //let data = image_info.to_rgba8().into_raw();
-        //write_image(data.as_raw(), rect, atlas_pixels, atlas_width);
+        
         write_image(&data, rect, atlas_pixels, atlas_width);
 
         return Some(rect);

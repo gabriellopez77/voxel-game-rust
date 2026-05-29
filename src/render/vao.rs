@@ -90,14 +90,14 @@ impl Vao {
     }
 
     pub fn buffer_data_from_arr<T>(&mut self, vao_buffer: VaoBuffers, data: &[T], usage: GLenum) -> &Vao {
-        return self.buffer_data(vao_buffer, size_of_val(data), Some(data.as_ptr() as *const ()), usage);
+        return self.buffer_data(vao_buffer, size_of_val(data), Some(data.as_ptr() as *const std::ffi::c_void), usage);
     }
 
-    pub fn buffer_data(&mut self, buffer: VaoBuffers, size: usize, data: Option<*const ()>, usage: GLenum) -> &Vao {
+    pub fn buffer_data(&mut self, buffer: VaoBuffers, size: usize, data: Option<*const std::ffi::c_void>, usage: GLenum) -> &Vao {
         let buffer_info = &mut self.buffers[buffer as usize];
 
         let data_ptr = match data {
-            Some(data) => data as *const std::ffi::c_void,
+            Some(data) => data,
             _ => std::ptr::null(),
         };
 
@@ -121,10 +121,18 @@ impl Vao {
     }
 
     pub fn update_buffer<T: Copy>(&mut self, buffer: VaoBuffers, arr: &Vec<T>) {
+        let buffer_info = &mut self.buffers[buffer as usize];
+
+        let size= (arr.len() * size_of::<T>()) as isize;
+
+        if size >= buffer_info.size as isize {
+            panic!("data size out of buffer bounds! buffer size: {}, data size: {}", buffer_info.size, size)
+        }
+
         unsafe {
             gl::NamedBufferSubData(
-                self.buffers[buffer as usize].id,
-                0, (arr.len() * size_of::<T>()) as isize,
+                buffer_info.id,
+                0, size,
                 arr.as_ptr() as *const std::ffi::c_void
             )
         }
@@ -158,7 +166,7 @@ impl Vao {
             gl::VertexArrayAttribBinding(vao, index, self.binding_index);
             gl::VertexArrayAttribFormat(vao, index, size, attrib_type, gl::FALSE, offset as u32);
             if instance {
-                gl::VertexArrayBindingDivisor(vao, index, 1)
+                gl::VertexArrayBindingDivisor(vao, self.binding_index, 1)
             }
         }
 

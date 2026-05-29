@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ffi::{c_char, CStr, CString};
 
-use crate::math::{Vec3, Matrix4};
+use crate::math::{Vec3, Matrix4, Vec2};
 use crate::render::render_utils;
 
 
@@ -75,6 +75,14 @@ impl Shader {
         let loc = self.get_or_add_uniform(uniform);
 
         unsafe {gl::ProgramUniform3f(self.id, loc, vec.x, vec.y, vec.z)}
+    }
+
+    pub fn set_vec2(&mut self, uniform: &'static str, vec: Vec2) {
+        if self.id == 0 { return }
+
+        let loc = self.get_or_add_uniform(uniform);
+
+        unsafe {gl::ProgramUniform2f(self.id, loc, vec.x, vec.y)}
     }
 
     pub fn bind(&self) {

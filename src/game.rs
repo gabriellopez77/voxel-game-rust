@@ -3,13 +3,14 @@ use crate::{inputs, window};
 use crate::resources::ResourceManager;
 use crate::ui::UiManager;
 use crate::window::Window;
-use crate::world::{Player, Planet, blocks::BlocksManager, sky::Sky};
+use crate::world::{Player, Planet, blocks::BlocksManager, sky::Sky, sky::Clouds};
 
 
 pub struct Game {
     player: Player,
     planet: Planet,
     sky: Sky,
+    clouds: Clouds,
 
     ui_manager: UiManager,
     resources_manager: Rc<RefCell<ResourceManager>>,
@@ -24,6 +25,7 @@ impl Game {
             player: Player::new(),
             planet: Planet::new(),
             sky: Sky::new(),
+            clouds: Clouds::new(),
 
             ui_manager: UiManager::new(),
             resources_manager: Rc::new(RefCell::new(ResourceManager::new())),
@@ -42,7 +44,8 @@ impl Game {
         self.planet.start(self.resources_manager.clone());
 
         self.sky.start(self.resources_manager.clone());
-        
+        self.clouds.start(self.resources_manager.clone());
+
         //let now = std::time::Instant::now();
 
         //println!("{}", now.elapsed().as_micros());
@@ -59,6 +62,7 @@ impl Game {
         if !self.paused {
             self.player.update(dt);
             self.sky.update();
+            self.clouds.update(self.player.camera.position, self.planet.render_distance);
             self.planet.update(self.player.camera.position, &self.blocks_manager.as_ref().unwrap());
         }
 
@@ -67,6 +71,7 @@ impl Game {
 
     pub fn render(&mut self) {
         self.sky.draw();
+        self.clouds.draw();
         self.planet.draw(&self.player.camera, &self.blocks_manager.as_ref().unwrap());
 
         self.player.camera.view_changed = false;

@@ -95,7 +95,7 @@ impl ChunkRenderer {
 
                 vao.buffer_data_from_arr(VaoBuffers::Ebo, &indices, gl::STATIC_DRAW);
 
-                vao.buffer_data(VaoBuffers::Vbo, size_of::<ChunkVertices>() * vertices.len(), Some(vertices.as_ptr() as *const ()), gl::STATIC_DRAW)
+                vao.buffer_data_from_arr(VaoBuffers::Vbo, &vertices, gl::STATIC_DRAW)
                     .attrib_info(0, 3, gl::FLOAT, offset_of!(ChunkVertices, vertices), false)
                     .attrib_info(1, 3, gl::FLOAT, offset_of!(ChunkVertices, normal), false)
                     .attrib_info(2, 2, gl::FLOAT, offset_of!(ChunkVertices, uv), false)

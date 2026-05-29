@@ -6,6 +6,7 @@ use std::{
     rc::Rc,
     cell::RefCell
 };
+use image::{DynamicImage, ImageResult};
 use crate::math::{Matrix4, Vec3};
 use crate::render::{Shader, Texture, Ubo};
 use crate::resources::{BlockItemModel, FontInfo};
@@ -15,7 +16,6 @@ pub struct ResourceManager {
     shader_path: String,
     textures_path: String,
     models_path: String,
-    assets_path: String,
 
     textures: HashMap<&'static str, Rc<Texture>>,
     shaders: HashMap<&'static str, Rc<RefCell<Shader>>>,
@@ -26,13 +26,13 @@ pub struct ResourceManager {
 
 impl ResourceManager {
     pub fn new() -> Self {
-        let assets_path = std::env::current_dir().unwrap().display().to_string();
+        let project_path: &'static str = env!("CARGO_MANIFEST_DIR");
 
         Self {
-            shader_path: format!(r"{assets_path}\assets\shaders"),
-            textures_path: format!(r"{assets_path}\assets\textures"),
-            models_path: format!(r"{assets_path}\assets\models"),
-            assets_path,
+            shader_path: format!(r"{project_path}\assets\shaders"),
+            textures_path: format!(r"{project_path}\assets\textures"),
+            models_path: format!(r"{project_path}\assets\models"),
+
 
             textures: HashMap::new(),
             shaders: HashMap::new(),
@@ -116,6 +116,7 @@ impl ResourceManager {
         self.read_shader("chunk");
         self.read_shader("ui/text");
         self.read_shader("skyDome");
+        self.read_shader("clouds");
     }
 
     pub fn get_ubo(&self, name: &str) -> Option<Rc<Ubo>> {
@@ -157,6 +158,10 @@ impl ResourceManager {
 
         // is guaranteed that contains the 'error_404' texture coords
         return self.models.get("error_404").unwrap().clone();
+    }
+
+    pub fn read_texture(&self, relative_path: &str) -> DynamicImage {
+        image::open(format!(r"{}\{relative_path}", self.textures_path)).expect("Failed to load texture")
     }
 
     fn read_shader(&mut self, name: &'static str) {
@@ -214,14 +219,22 @@ pub fn get_files_in_directory(path: &str) -> Vec<PathBuf> {
 
 
     for file in dir {
-        files_path.push(file.unwrap().path());
+        let path = match file {
+            Ok(f) => f.path(),
+            Err(err) => panic!("Error to read Dir: {}", err.to_string()),
+        };
+        files_path.push(path);
     }
 
     return files_path;
 }
 
 pub fn get_filtered_files_in_directory(path: &str, filter: &str) -> Vec<PathBuf> {
-    let dir = std::fs::read_dir(path).expect("Error to read Dir");
+    let dir = match std::fs::read_dir(path) {
+        Ok(d) => d,
+        Err(err) => panic!("Error to read Dir: '{path}': {}", err.to_string()),
+    };
+    
     let mut files_path: Vec<PathBuf> = vec!();
 
     for file in dir {

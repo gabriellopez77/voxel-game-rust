@@ -15,7 +15,7 @@ pub struct Planet {
     chunks: HashMap<Vec3i, Arc<RefCell<Chunk>>>,
     world_gen: WorldGen,
 
-    render_distance: i32,
+    pub render_distance: i32,
 
     last_player_chunk: Vec3i,
     change_chunk_logic: bool,
