@@ -52,7 +52,7 @@ impl Game {
     }
 
     pub fn update(&mut self, dt: f32, window: &mut Window) {
-        if inputs::is_key_pressed(inputs::Keys::Escape) {
+        if inputs::key_pressed(inputs::Keys::Escape) {
             self.paused = !self.paused;
 
             if self.paused { window.set_cursor(glfw::CursorMode::Normal) }

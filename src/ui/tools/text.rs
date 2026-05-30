@@ -2,6 +2,7 @@ use std::rc::Rc;
 use crate::{math::{Color3b, Vec2, Vec2i16}, render::{self, SpritesRenderer, TextVertices}, ui::tools::UiElement};
 use crate::resources::FontInfo;
 
+
 enum TextTypes {
     String(String),
     Str(&'static str),
@@ -14,6 +15,20 @@ impl TextTypes {
             TextTypes::String(value) => value.as_str(),
             TextTypes::Str(value) => value,
             TextTypes::None => panic!("text not set!")
+        }
+    }
+
+    pub fn to_string(&self) -> &String {
+        match self {
+            TextTypes::String(value) => value,
+            _ => panic!("value is not string")
+        }
+    }
+
+    pub fn to_string_mut(&mut self) -> &mut String {
+        match self {
+            TextTypes::String(value) => value,
+            _ => panic!("value is not string")
         }
     }
 }
@@ -36,7 +51,8 @@ pub struct Text {
 impl UiElement for Text {
     fn get_pos(&self) -> Vec2 { self.position }
     fn set_pos(&mut self, x: f32, y: f32) {
-
+        self.position = Vec2::new(x, y);
+        self.pos_modified = true;
     }
 
     fn get_size(&self) -> Vec2 { self.size }
@@ -67,6 +83,11 @@ impl Text {
         self.font_info = Some(font);
     }
 
+    pub fn set_color(&mut self, color: Color3b) {
+        self.color = color;
+        self.color_modified = true;
+    }
+    
     pub fn set_text(&mut self, text: &'static str) {
         self.text = TextTypes::Str(text);
         self.update_mesh();
@@ -76,10 +97,10 @@ impl Text {
         self.text = TextTypes::String(text);
         self.update_mesh();
     }
-
-    pub fn set_color(&mut self, color: Color3b) {
-        self.color = color;
-        self.color_modified = true;
+    
+    pub fn set_text_i32(&mut self, value: i32) {
+        use std::fmt::Write;
+        write!(self.text.to_string_mut(), "{value}").unwrap();
     }
 
     pub fn draw(&mut self, renderer: &mut SpritesRenderer<TextVertices>) {
@@ -90,7 +111,7 @@ impl Text {
 
             let pos = Vec2i16::new(self.position.x as i16, self.position.y as i16);
 
-            for i in 0..self.buffer.len() as usize {
+            for i in 0..self.buffer.len() {
                 self.buffer[i].position = pos;
             }
         }
@@ -98,7 +119,7 @@ impl Text {
         if self.color_modified {
             self.color_modified = false;
 
-            for i in 0..self.buffer.len() as usize {
+            for i in 0..self.buffer.len() {
                 self.buffer[i].color = self.color;
             }
         }

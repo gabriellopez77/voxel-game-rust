@@ -1,62 +1,35 @@
-﻿use std::{rc::Rc, cell::RefCell};
-
-use crate::math::{Color3b, Color4b, Vec2};
-use crate::render::{SpritesRenderer, SpritesVertices, TextVertices};
-use crate::resources::{ResourceManager, TexCoords};
-use crate::ui::{ScreenBase, tools::{Sprite, UiElement}};
-use crate::ui::tools::Text;
+﻿use crate::render::UiRenderer;
+use crate::resources::ResourceManager;
+use crate::ui::screen_base::ScreenInfo;
+use crate::ui::ScreenBase;
 
 
 pub struct StartScreen {
-    screen_size: Vec2,
-    screen_center: Vec2,
-    started: bool,
+    
 }
 
 impl ScreenBase for StartScreen {
-    fn start(&mut self, resource_manager: Rc<RefCell<ResourceManager>>) {
+    fn start(&mut self, resource_manager: &ResourceManager, args: &ScreenInfo) {
 
     }
 
-    fn update(&mut self, dt: f32) {
+    fn update(&mut self, dt: f32, args: &ScreenInfo) {
 
     }
 
-    fn draw(&mut self, sprite_renderer: &mut SpritesRenderer<SpritesVertices>, text_renderer: &mut SpritesRenderer<TextVertices>) {
+    fn draw(&mut self, renderer: &mut UiRenderer) {
 
     }
 
-    fn resize(&mut self, screen_size: Vec2, screen_center: Vec2) {
+    fn resize(&mut self, args: &ScreenInfo) {
 
-    }
-
-    fn change_logic(&mut self, screen_size: Vec2, resource_manager: Rc<RefCell<ResourceManager>>) {
-        if !self.started {
-            self.started = true;
-            self.screen_size = screen_size;
-            self.screen_center = screen_size / 2.0;
-            self.start(resource_manager.clone());
-
-            // not resize if screen size in zero
-            if screen_size != Vec2::ZERO {
-                self.resize(screen_size, self.screen_center);
-            }
-        }
-
-        if self.screen_size != screen_size {
-            self.screen_size = screen_size;
-            self.screen_center = screen_size / 2.0;
-            self.resize(screen_size, self.screen_center);
-        }
     }
 }
 
 impl StartScreen {
     pub fn new() -> Self {
         Self {
-            screen_size: Vec2::ZERO,
-            screen_center: Vec2::ZERO,
-            started: false,
+            
         }
     }
 }

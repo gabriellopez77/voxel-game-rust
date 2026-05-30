@@ -2,37 +2,33 @@ use std::{
     any::TypeId,
     cell::RefCell,
     collections::HashMap,
-    mem::offset_of,
     rc::Rc,
 };
 
-use crate::math::{self, Vec2, Matrix4};
-use crate::render::{sprites_renderer, SPRITES_VERTICES, SPRITES_INDICES, SpritesRenderer, SpritesVertices, TextVertices, Ubo, Vao, vao::VaoBuffers};
+use crate::math::Vec2;
+use crate::render::UiRenderer;
 use crate::resources::ResourceManager;
-use crate::ui::HudScreen;
-use crate::ui::{screen_base::ScreenBase, screens::StartScreen};
+use crate::ui::{ScreenBase, screen_base::ScreenInfo, StartScreen, HudScreen};
+
+type MutRc<T> = Rc<RefCell<T>>;
 
 
 pub struct UiManager {
-    sprites_renderer: SpritesRenderer<SpritesVertices>,
-    text_renderer: SpritesRenderer<TextVertices>,
-    ubo: Option<Rc<Ubo>>,
+    ui_renderer: UiRenderer,
 
     resource_manager: Option<Rc<RefCell<ResourceManager>>>,
 
     pixel_scale: f32,
     screen_size: Vec2,
 
-    current_screen: Option<Rc<RefCell<dyn ScreenBase>>>,
-    screens: HashMap<TypeId, Rc<RefCell<dyn ScreenBase>>>,
+    current_screen: Option<MutRc<ScreenInfo>>,
+    screens: HashMap<TypeId, MutRc<ScreenInfo>>,
 }
 
 impl UiManager {
     pub fn new() -> Self {
         Self {
-            sprites_renderer: SpritesRenderer::new(),
-            text_renderer: SpritesRenderer::new(),
-            ubo: None,
+            ui_renderer: UiRenderer::new(),
 
             resource_manager: None,
 
@@ -45,64 +41,11 @@ impl UiManager {
     }
 
     pub fn start(&mut self, resource_manager: Rc<RefCell<ResourceManager>>) {
-        let mut sprites_vao = Vao::new();
-        sprites_vao.gen_vao()
-            .gen_buffer(gl::ELEMENT_ARRAY_BUFFER, VaoBuffers::Ebo)
-            .gen_buffer(gl::ARRAY_BUFFER, VaoBuffers::Vbo)
-            .gen_buffer(gl::ARRAY_BUFFER, VaoBuffers::Instance);
-
-        sprites_vao.buffer_data_from_arr(VaoBuffers::Ebo, &SPRITES_INDICES, gl::STATIC_DRAW);
-
-        sprites_vao.buffer_data_from_arr(VaoBuffers::Vbo, &SPRITES_VERTICES, gl::STATIC_DRAW)
-            .attrib_info(0, 4, gl::FLOAT, 0, false)
-            .set_stride(4 * size_of::<f32>());
-
-        sprites_vao.buffer_data(VaoBuffers::Instance, size_of::<SpritesVertices>() * sprites_renderer::MAX_SPRITES, None, gl::DYNAMIC_DRAW)
-            .attrib_info(1, 2, gl::SHORT, offset_of!(SpritesVertices, position), true)
-            .attrib_info(2, 2, gl::SHORT, offset_of!(SpritesVertices, size), true)
-            .attrib_info(3, 4, gl::FLOAT, offset_of!(SpritesVertices, uv), true)
-            .attrib_info(4, 4, gl::UNSIGNED_BYTE, offset_of!(SpritesVertices, color), true)
-            .set_stride(size_of::<SpritesVertices>());
-
-
-        self.sprites_renderer.start(
-            sprites_vao,
-            resource_manager.borrow().get_shader("ui/sprites"),
-            resource_manager.borrow().get_texture("ui")
-        );
-
-        let mut text_vao = Vao::new();
-        text_vao.gen_vao()
-            .gen_buffer(gl::ELEMENT_ARRAY_BUFFER, VaoBuffers::Ebo)
-            .gen_buffer(gl::ARRAY_BUFFER, VaoBuffers::Vbo)
-            .gen_buffer(gl::ARRAY_BUFFER, VaoBuffers::Instance);
-
-        text_vao.buffer_data_from_arr(VaoBuffers::Ebo, &SPRITES_INDICES, gl::STATIC_DRAW);
-
-        text_vao.buffer_data_from_arr(VaoBuffers::Vbo, &SPRITES_VERTICES, gl::STATIC_DRAW)
-            .attrib_info(0, 4, gl::FLOAT, 0, false)
-            .set_stride(4 * size_of::<f32>());
-
-        text_vao.buffer_data(VaoBuffers::Instance, size_of::<TextVertices>() * sprites_renderer::MAX_SPRITES, None, gl::DYNAMIC_DRAW)
-            .attrib_info(1, 2, gl::SHORT, offset_of!(TextVertices, position), true)
-            .attrib_info(2, 2, gl::UNSIGNED_BYTE, offset_of!(TextVertices, size), true)
-            .attrib_info(3, 4, gl::FLOAT, offset_of!(TextVertices, uv), true)
-            .attrib_info(4, 2, gl::SHORT, offset_of!(TextVertices, advance), true)
-            .attrib_info(5, 4, gl::UNSIGNED_BYTE, offset_of!(TextVertices, color), true)
-            .set_stride(size_of::<TextVertices>());
-
-        self.text_renderer.start(
-            text_vao,
-            resource_manager.borrow().get_shader("ui/text"),
-            resource_manager.borrow().get_texture("fonts")
-        );
-
+        self.ui_renderer.start(&resource_manager.borrow());
         self.resource_manager = Some(resource_manager.clone());
 
-        self.ubo = resource_manager.borrow().get_ubo("globalData");
-
-        self.screens.insert(TypeId::of::<StartScreen>(), Rc::new(RefCell::new(StartScreen::new())));
-        self.screens.insert(TypeId::of::<HudScreen>(), Rc::new(RefCell::new(HudScreen::new())));
+        self.add(HudScreen::new());
+        self.add(StartScreen::new());
 
         self.change::<HudScreen>();
     }
@@ -115,34 +58,75 @@ impl UiManager {
         if width >= 2200.0 || height >= 1200.0 { self.pixel_scale = 4.0 }
         if width >= 2800.0 || height >= 1800.0 { self.pixel_scale = 6.0 }
 
-        self.screen_size = Vec2 { x: width, y: height } / self.pixel_scale;
+        self.screen_size = Vec2::new(width, height) / self.pixel_scale;
 
-        let projection = Matrix4::orthographic(0.0, width, height, 0.0);
 
-        self.ubo.as_ref().unwrap().update("uiProj", projection.as_ptr() as *const ());
-        self.ubo.as_ref().unwrap().update("uiPixelScale", &self.pixel_scale);
+        self.ui_renderer.resize(width, height, self.pixel_scale);
 
-        self.current_screen.as_ref().unwrap().borrow_mut().resize(self.screen_size, self.screen_size / 2.0);
+        let info = self.get_current_screen_info();
+        info.borrow_mut().screen_size = self.screen_size;
+        info.borrow_mut().screen_center = self.screen_size / 2.0;
+        self.get_current_screen().borrow_mut().resize(&info.borrow());
     }
 
     pub fn update(&mut self, dt: f32) {
-        self.current_screen.as_ref().unwrap().borrow_mut().update(dt);
+        let info = self.get_current_screen_info();
+        self.get_current_screen().borrow_mut().update(dt, &info.borrow());
     }
 
     pub fn draw(&mut self) {
-        self.current_screen.as_ref().unwrap().borrow_mut().draw(&mut self.sprites_renderer, &mut self.text_renderer);
+        self.get_current_screen().borrow_mut().draw(&mut self.ui_renderer);
 
-        self.sprites_renderer.draw();
-        self.text_renderer.draw();
+        self.ui_renderer.draw();
     }
 
-    pub fn change<T: ScreenBase>(&mut self)
-    where for<'a> T: 'a
+    pub fn change<T>(&mut self)
+    where
+        T: ScreenBase,
+        for<'a> T: 'a
     {
-        let new_screen_id = TypeId::of::<T>();
-        let new_screen = self.screens[&new_screen_id].clone();
+        let new_screen = self.screens[&TypeId::of::<T>()].clone();
 
-        new_screen.borrow_mut().change_logic(self.screen_size, self.resource_manager.as_ref().unwrap().clone());
+        Self::change_logic(self.screen_size, &new_screen, &self.resource_manager.as_ref().unwrap().borrow());
         self.current_screen = Some(new_screen);
+    }
+
+    fn change_logic(screen_size: Vec2, screen_info: &MutRc<ScreenInfo>, resource_manager: &ResourceManager) {
+        let info = &mut screen_info.borrow_mut();
+
+        if !info.started {
+            info.started = true;
+            info.screen_size = screen_size;
+            info.screen_center = screen_size / 2.0;
+            info.screen.borrow_mut().start(resource_manager, &info);
+
+            // not resize if screen size in zero
+            if screen_size != Vec2::ZERO {
+                info.screen.borrow_mut().resize(&info);
+            }
+        }
+
+        if info.screen_size != screen_size {
+            info.screen_size = screen_size;
+            info.screen_center = screen_size / 2.0;
+            info.screen.borrow_mut().resize(&info);
+        }
+    }
+
+    pub fn add<T>(&mut self, screen: T)
+    where
+        T: ScreenBase,
+        for<'a> T: 'a
+    {
+        let screen_info = ScreenInfo::new(Rc::new(RefCell::new(screen)));
+        self.screens.insert(TypeId::of::<T>(), Rc::new(RefCell::new(screen_info)));
+    }
+
+    pub fn get_current_screen(&self) -> MutRc<dyn ScreenBase> {
+        self.current_screen.as_ref().unwrap().borrow_mut().screen.clone()
+    }
+
+    pub fn get_current_screen_info(&self) -> MutRc<ScreenInfo> {
+        self.current_screen.as_ref().unwrap().clone()
     }
 }

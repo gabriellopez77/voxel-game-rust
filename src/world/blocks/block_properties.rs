@@ -41,7 +41,7 @@ impl BlockProperties {
             light_emission: 0,
             block_type: BlockTypes::Default,
             renderer_type: RendererType::Opaque,
-            base_properties: ItemBaseProperties::new(internal_name, name, TexCoords::ZERO, Some(index as u32), None)
+            base_properties: ItemBaseProperties::new(internal_name, name, TexCoords::DEFAULT, Some(index as u32), None)
         }
     }
 }
