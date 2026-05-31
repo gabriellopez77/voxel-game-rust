@@ -90,8 +90,8 @@ impl ChunkRenderer {
 
             if !vao.is_generated() {
                 vao.gen_vao()
-                    .gen_buffer(gl::ELEMENT_ARRAY_BUFFER, VaoBuffers::Ebo)
-                    .gen_buffer(gl::ARRAY_BUFFER, VaoBuffers::Vbo);
+                    .gen_buffer(VaoBuffers::Ebo)
+                    .gen_buffer(VaoBuffers::Vbo);
 
                 vao.buffer_data_from_arr(VaoBuffers::Ebo, &indices, gl::STATIC_DRAW);
 

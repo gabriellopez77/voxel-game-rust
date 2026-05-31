@@ -1,9 +1,9 @@
 use crate::math::Vec2;
 use crate::render::UiRenderer;
 use crate::resources::TexCoords;
-use crate::ui::tools::inventory::SlotData;
-use crate::ui::tools::{Sprite, UiElement};
+use crate::ui::tools::{Sprite, UiElement, inventory::SlotData};
 use crate::world::player::EntityInventory;
+
 
 pub struct ItemSlot {
     position: Vec2,

@@ -1,49 +1,64 @@
 use std::array;
 use crate::{math::Vec2, resources::ResourceManager, ui::{ScreenBase, tools::{Sprite, UiElement}}};
 use crate::render::UiRenderer;
-use crate::ui::screen_base::ScreenInfo;
+use crate::ui::ScreenUpdateArgs;
 use crate::ui::tools::elements_grid::Alignment;
 use crate::ui::tools::{ElementsGrid, inventory::ItemSlot};
 use crate::world::player::entitiy_inventory::PLAYER_HOTBAR_SLOTS_COUNT;
-
+use crate::world::player::EntityInventory;
 
 pub struct HudScreen {
     crosshair: Sprite,
 
+    hotbar_selected_slot: Sprite,
     hotbar_slots: [ItemSlot; PLAYER_HOTBAR_SLOTS_COUNT],
     hotbar_grid: ElementsGrid,
 }
 
 impl ScreenBase for HudScreen {
-    fn start(&mut self, resource_manager: &ResourceManager, args: &ScreenInfo) {
-        self.crosshair.set_texture(resource_manager.get_texture("ui").unwrap().get_coords("crosshair"));
+    fn start(&mut self, resources: &ResourceManager, args: &ScreenUpdateArgs) {
+        self.crosshair.set_texture_from_atlas(resources,"crosshair");
         self.crosshair.set_size(16.0, 16.0);
+        
+        self.hotbar_selected_slot.set_texture_from_atlas(resources, "hotbar_selected_slot");
+        self.hotbar_selected_slot.set_size(24.0, 24.0);
 
         for i in 0..self.hotbar_slots.len() {
             let slot = &mut self.hotbar_slots[i];
 
-            slot.start(i as i32, resource_manager.get_texture("ui").unwrap().get_coords("hotbar_slot"));
+            slot.start(i as i32, resources.get_texture("ui").unwrap().get_coords("hotbar_slot"));
             slot.set_size(20.0, 20.0);
-
 
             self.hotbar_grid.add(slot);
         }
+
+        self.hotbar_grid.update();
     }
 
-    fn update(&mut self, dt: f32, args: &ScreenInfo) {
+    fn update(&mut self, dt: f32, args: &ScreenUpdateArgs) {
+        // update selected hotbar slot position
+        let selected_hotbar_index = args.game.player.get_selected_hotbar_index();
+        self.hotbar_selected_slot.set_center(&self.hotbar_slots[selected_hotbar_index as usize]);
+
+        // update hotbar item slot
+        for slot in &mut self.hotbar_slots {
+            slot.update(&args.game.player);
+        }
+        
         self.hotbar_grid.update();
     }
 
     fn draw(&mut self, renderer: &mut UiRenderer) {
         self.crosshair.draw(&mut renderer.sprites);
 
+        self.hotbar_selected_slot.draw(&mut renderer.sprites);
         for slot in &mut self.hotbar_slots {
             slot.draw(renderer);
         }
     }
 
-    fn resize(&mut self, args: &ScreenInfo) {
-        self.crosshair.set_posv(args.screen_center - self.crosshair.get_size());
+    fn resize(&mut self, args: &ScreenUpdateArgs) {
+        self.crosshair.set_posv(args.screen_center - self.crosshair.get_size() / 2.0);
 
         let hotbar_grid_size = self.hotbar_grid.get_size();
         self.hotbar_grid.set_pos(
@@ -58,6 +73,7 @@ impl HudScreen {
         Self {
             crosshair: Sprite::new(),
 
+            hotbar_selected_slot: Sprite::new(),
             hotbar_slots: array::from_fn(|_| ItemSlot::new()),
             hotbar_grid: ElementsGrid::new(PLAYER_HOTBAR_SLOTS_COUNT, Alignment::Horizontal, 9, 2.0),
         }

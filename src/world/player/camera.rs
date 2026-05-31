@@ -60,8 +60,8 @@ impl Camera {
         }
     }
 
-    pub fn start(&mut self, resources_manager: Rc<RefCell<ResourceManager>>) {
-        self.ubo = resources_manager.borrow().get_ubo("globalData");
+    pub fn start(&mut self, resources: &ResourceManager) {
+        self.ubo = resources.get_ubo("globalData");
     }
 
     pub fn update(&mut self, new_pos: Vec3) {

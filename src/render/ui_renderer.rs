@@ -32,9 +32,9 @@ impl UiRenderer {
     pub fn start(&mut self, resource_manager: &ResourceManager) {
         let mut sprites_vao = Vao::new();
         sprites_vao.gen_vao()
-            .gen_buffer(gl::ELEMENT_ARRAY_BUFFER, VaoBuffers::Ebo)
-            .gen_buffer(gl::ARRAY_BUFFER, VaoBuffers::Vbo)
-            .gen_buffer(gl::ARRAY_BUFFER, VaoBuffers::Instance);
+            .gen_buffer(VaoBuffers::Ebo)
+            .gen_buffer(VaoBuffers::Vbo)
+            .gen_buffer(VaoBuffers::Instance);
 
         sprites_vao.buffer_data_from_arr(VaoBuffers::Ebo, &SPRITES_INDICES, gl::STATIC_DRAW);
 
@@ -57,9 +57,9 @@ impl UiRenderer {
 
         let mut text_vao = Vao::new();
         text_vao.gen_vao()
-            .gen_buffer(gl::ELEMENT_ARRAY_BUFFER, VaoBuffers::Ebo)
-            .gen_buffer(gl::ARRAY_BUFFER, VaoBuffers::Vbo)
-            .gen_buffer(gl::ARRAY_BUFFER, VaoBuffers::Instance);
+            .gen_buffer(VaoBuffers::Ebo)
+            .gen_buffer(VaoBuffers::Vbo)
+            .gen_buffer(VaoBuffers::Instance);
 
         text_vao.buffer_data_from_arr(VaoBuffers::Ebo, &SPRITES_INDICES, gl::STATIC_DRAW);
 

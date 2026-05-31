@@ -130,7 +130,7 @@ impl Chunk {
                 let temp = blocks_manager.get(chunk.chunk_data.get_blocki(x, y, z + 1));
                 draw = Self::draw_face(block_properties, temp.get_properties(), Directions::South);
             }
-            else if let Some(ref south) = neighbors.south.chunk {
+            else if let Some(ref south) = neighbors.south {
                 let temp = blocks_manager.get(south.borrow().chunk_data.get_blocki(x, y, 0));
                 draw = Self::draw_face(block_properties, temp.get_properties(), Directions::South);
             }
@@ -144,7 +144,7 @@ impl Chunk {
                 let temp = blocks_manager.get(chunk.chunk_data.get_blocki(x, y, z - 1));
                 draw = Self::draw_face(block_properties, temp.get_properties(), Directions::North);
             }
-            else if let Some(ref north) = neighbors.north.chunk {
+            else if let Some(ref north) = neighbors.north {
                 let temp = blocks_manager.get(north.borrow().chunk_data.get_blocki(x, y, Self::CHUNK_SIZE_MINUS_ONE.z));
                 draw = Self::draw_face(block_properties, temp.get_properties(), Directions::North);
             }
@@ -158,7 +158,7 @@ impl Chunk {
                 let temp = blocks_manager.get(chunk.chunk_data.get_blocki(x + 1, y, z));
                 draw = Self::draw_face(block_properties, temp.get_properties(), Directions::East);
             }
-            else if let Some(ref east) = neighbors.east.chunk {
+            else if let Some(ref east) = neighbors.east {
                 let temp = blocks_manager.get(east.borrow().chunk_data.get_blocki(0, y, z));
                 draw = Self::draw_face(block_properties, temp.get_properties(), Directions::East);
             }
@@ -172,7 +172,7 @@ impl Chunk {
                 let temp = blocks_manager.get(chunk.chunk_data.get_blocki(x - 1, y, z));
                 draw = Self::draw_face(block_properties, temp.get_properties(), Directions::West);
             }
-            else if let Some(ref west) = neighbors.west.chunk {
+            else if let Some(ref west) = neighbors.west {
                 let temp = blocks_manager.get(west.borrow().chunk_data.get_blocki(Self::CHUNK_SIZE_MINUS_ONE.x, y, z));
                 draw = Self::draw_face(block_properties, temp.get_properties(), Directions::West);
             }
@@ -278,7 +278,7 @@ impl Chunk {
 			}
 
 		    let other_chunk_pos = math::get_chunk_pos(global_block.as_vec3());
-		    let other_chunk_block = math::get_chunk_block(other_chunk_pos, global_block);
+		    let other_chunk_block = math::get_chunk_block(other_chunk_pos, global_block.as_vec3());
 
             enum Tee<'a> {
                 Same(&'a Chunk),
@@ -289,16 +289,16 @@ impl Chunk {
 
             if other_chunk_pos != chunk_pos {
                 // around chunks
-                if other_chunk_pos      == Vec3i::new(chunk_pos.x, 0, chunk_pos.z - 1) { ch = Tee::Other(neighbors.north.chunk.as_ref()) }
-                else if other_chunk_pos == Vec3i::new(chunk_pos.x, 0, chunk_pos.z + 1) { ch = Tee::Other(neighbors.south.chunk.as_ref()) }
-                else if other_chunk_pos == Vec3i::new(chunk_pos.x - 1, 0, chunk_pos.z) { ch = Tee::Other(neighbors.west.chunk.as_ref()) }
-                else if other_chunk_pos == Vec3i::new(chunk_pos.x + 1, 0, chunk_pos.z) { ch = Tee::Other(neighbors.east.chunk.as_ref()) }
+                if other_chunk_pos      == Vec3i::new(chunk_pos.x, 0, chunk_pos.z - 1) { ch = Tee::Other(neighbors.north.as_ref()) }
+                else if other_chunk_pos == Vec3i::new(chunk_pos.x, 0, chunk_pos.z + 1) { ch = Tee::Other(neighbors.south.as_ref()) }
+                else if other_chunk_pos == Vec3i::new(chunk_pos.x - 1, 0, chunk_pos.z) { ch = Tee::Other(neighbors.west.as_ref()) }
+                else if other_chunk_pos == Vec3i::new(chunk_pos.x + 1, 0, chunk_pos.z) { ch = Tee::Other(neighbors.east.as_ref()) }
 
                 // corner chunks
-                else if other_chunk_pos == Vec3i::new(chunk_pos.x - 1, 0, chunk_pos.z - 1) { ch = Tee::Other(neighbors.northwest.chunk.as_ref()) }
-                else if other_chunk_pos == Vec3i::new(chunk_pos.x + 1, 0, chunk_pos.z - 1) { ch = Tee::Other(neighbors.northeast.chunk.as_ref()) }
-                else if other_chunk_pos == Vec3i::new(chunk_pos.x - 1, 0, chunk_pos.z + 1) { ch = Tee::Other(neighbors.southwest.chunk.as_ref()) }
-                else if other_chunk_pos == Vec3i::new(chunk_pos.x + 1, 0, chunk_pos.z + 1) { ch = Tee::Other(neighbors.southeast.chunk.as_ref()) }
+                else if other_chunk_pos == Vec3i::new(chunk_pos.x - 1, 0, chunk_pos.z - 1) { ch = Tee::Other(neighbors.northwest.as_ref()) }
+                else if other_chunk_pos == Vec3i::new(chunk_pos.x + 1, 0, chunk_pos.z - 1) { ch = Tee::Other(neighbors.northeast.as_ref()) }
+                else if other_chunk_pos == Vec3i::new(chunk_pos.x - 1, 0, chunk_pos.z + 1) { ch = Tee::Other(neighbors.southwest.as_ref()) }
+                else if other_chunk_pos == Vec3i::new(chunk_pos.x + 1, 0, chunk_pos.z + 1) { ch = Tee::Other(neighbors.southeast.as_ref()) }
             }
 
             match ch {

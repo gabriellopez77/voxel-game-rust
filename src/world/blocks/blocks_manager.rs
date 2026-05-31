@@ -1,33 +1,33 @@
 use std::{rc::Rc, cell::RefCell};
-
+use std::ptr::NonNull;
 use crate::resources::ResourceManager;
 use crate::world::blocks::*;
 use crate::world::items::*;
 
 
 pub struct BlocksManager {
-    blocks: Vec<Rc<dyn BlockFunctions>>,
+    blocks: Vec<BlocksWrapper>,
 
-    pub air: Rc<dyn BlockFunctions>,
-    pub dirt: Rc<dyn BlockFunctions>,
-    pub stone: Rc<dyn BlockFunctions>,
-    pub grass_block: Rc<dyn BlockFunctions>,
-    pub bedrock: Rc<dyn BlockFunctions>,
-    pub cobblestone: Rc<dyn BlockFunctions>,
-    pub sand: Rc<dyn BlockFunctions>,
-    pub snow_block: Rc<dyn BlockFunctions>,
-    pub ice_block: Rc<dyn BlockFunctions>,
-    pub water_block: Rc<dyn BlockFunctions>,
-    pub snow_layer: Rc<dyn BlockFunctions>,
-    pub short_grass: Rc<dyn BlockFunctions>,
-    pub red_flower: Rc<dyn BlockFunctions>,
-    pub yellow_flower: Rc<dyn BlockFunctions>,
-    pub dead_bush: Rc<dyn BlockFunctions>,
+    pub air: Box<dyn BlockFunctions>,
+    pub dirt: Box<dyn BlockFunctions>,
+    pub stone: Box<dyn BlockFunctions>,
+    pub grass_block: Box<dyn BlockFunctions>,
+    pub bedrock: Box<dyn BlockFunctions>,
+    pub cobblestone: Box<dyn BlockFunctions>,
+    pub sand: Box<dyn BlockFunctions>,
+    pub snow_block: Box<dyn BlockFunctions>,
+    pub ice_block: Box<dyn BlockFunctions>,
+    pub water_block: Box<dyn BlockFunctions>,
+    pub snow_layer: Box<dyn BlockFunctions>,
+    pub short_grass: Box<dyn BlockFunctions>,
+    pub red_flower: Box<dyn BlockFunctions>,
+    pub yellow_flower: Box<dyn BlockFunctions>,
+    pub dead_bush: Box<dyn BlockFunctions>,
 }
 
 impl BlocksManager {
     pub fn new(resources_manager: &Rc<RefCell<ResourceManager>>) -> Self {
-        let mut blocks: Vec<Rc<dyn BlockFunctions>> = Vec::new();
+        let mut blocks: Vec<BlocksWrapper> = Vec::new();
 
         Self {
             air: Self::add::<Air>("air", "AIR", &resources_manager, &mut blocks),
@@ -50,12 +50,12 @@ impl BlocksManager {
         }
     }
 
-    pub fn get(&self, id: u16) -> Rc<dyn BlockFunctions> {
-         self.blocks[id as usize].clone()
+    pub fn get(&self, id: u16) -> BlocksWrapper {
+         self.blocks[id as usize]
     }
 
     fn add<T>(internal_name: &'static str, name: &'static str,
-        resources_manager: &Rc<RefCell<ResourceManager>>, blocks: &mut Vec<Rc<dyn BlockFunctions>>) -> Rc<dyn BlockFunctions>
+        resources_manager: &Rc<RefCell<ResourceManager>>, blocks: &mut Vec<BlocksWrapper>) -> Box<dyn BlockFunctions>
     where
         T: ItemCreation<ItemType: BlockFunctions>,
         for<'a> T::ItemType: 'a,
@@ -63,9 +63,9 @@ impl BlocksManager {
         let mut block = T::new(internal_name, name, blocks.len());
         block.get_base_mut().load_model(&resources_manager);
 
-        let block_rc: Rc<T::ItemType> = Rc::from(block);
-        blocks.push(block_rc.clone());
+        let block_box: Box<T::ItemType> = Box::new(block);
+        blocks.push(BlocksWrapper::new(block_box.as_ref()));
 
-        return block_rc;
+        return block_box;
     }
 }

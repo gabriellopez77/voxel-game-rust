@@ -5,7 +5,6 @@ use crate::render::render_utils;
 
 #[derive(Copy, Clone)]
 struct BufferInfo {
-    buffer_type: GLenum,
     id: u32,
     size: u32,
     binding_index: u32
@@ -35,7 +34,7 @@ impl Vao {
             id: 0,
             binding_index: 0,
             binding_buffer: VaoBuffers::Vbo,
-            buffers: [BufferInfo{ buffer_type: 0, id: 0, size: 0, binding_index: 0 }; 3]
+            buffers: [BufferInfo{ id: 0, size: 0, binding_index: 0 }; 3]
         }
     }
 
@@ -71,12 +70,11 @@ impl Vao {
         render_utils::bind_vao(self.id);
     }
 
-    pub fn gen_buffer(&mut self, buffer_type: GLenum, vao_buffer: VaoBuffers) -> &mut Vao {
+    pub fn gen_buffer(&mut self, vao_buffer: VaoBuffers) -> &mut Vao {
         let mut buffer_id: u32 = 0;
         unsafe {gl::CreateBuffers(1, &mut buffer_id) }
 
-        self.buffers[vao_buffer as usize] = BufferInfo{
-            buffer_type: buffer_type,
+        self.buffers[vao_buffer as usize] = BufferInfo {
             id: buffer_id,
             size: 0,
             binding_index: self.binding_index
@@ -121,7 +119,7 @@ impl Vao {
     }
 
     pub fn update_buffer<T: Copy>(&mut self, buffer: VaoBuffers, arr: &Vec<T>) {
-        let buffer_info = &mut self.buffers[buffer as usize];
+        let buffer_info = &self.buffers[buffer as usize];
 
         let size= (arr.len() * size_of::<T>()) as isize;
 
@@ -139,7 +137,7 @@ impl Vao {
     }
 
     pub fn smart_reallocate_buffer<T>(&mut self, buffer: VaoBuffers, data: &Vec<T>) {
-        let buffer_info = self.buffers[buffer as usize];
+        let buffer_info = &self.buffers[buffer as usize];
         let data_size = (data.len() * size_of::<T>()) as isize;
         let data_ptr = data.as_ptr() as *const std::ffi::c_void;
 

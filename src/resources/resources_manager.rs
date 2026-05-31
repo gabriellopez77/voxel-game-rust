@@ -1,12 +1,11 @@
 ﻿use std::f32;
-use std::ops::Add;
 use std::{
     path::PathBuf,
     collections::HashMap,
     rc::Rc,
     cell::RefCell
 };
-use image::{DynamicImage, ImageResult};
+use image::DynamicImage;
 use crate::math::{Matrix4, Vec3};
 use crate::render::{Shader, Texture, Ubo};
 use crate::resources::{BlockItemModel, FontInfo};
@@ -117,6 +116,7 @@ impl ResourceManager {
         self.read_shader("ui/text");
         self.read_shader("skyDome");
         self.read_shader("clouds");
+        self.read_shader("selection_box");
     }
 
     pub fn get_ubo(&self, name: &str) -> Option<Rc<Ubo>> {

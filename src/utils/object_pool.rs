@@ -9,8 +9,6 @@ impl<T> ObjectPool<T> {
         }
     }
 
-    pub fn count(&self) -> usize { self.objects.len() }
-
     pub fn get(&mut self) -> Option<T> {
         if self.objects.len() == 0 { return None }
 

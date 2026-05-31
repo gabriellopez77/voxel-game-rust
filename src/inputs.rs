@@ -160,7 +160,7 @@ pub fn roll_event(event: &WindowEvent) {
                 LAST_MOUSE_POS = MOUSE_POS;
                 MOUSE_POS = Vec2::new(*x as f32, *y as f32);
             }
-            WindowEvent::Scroll(x, y) => {
+            WindowEvent::Scroll(_, y) => {
                 MOUSE_SCROLL_DELTA = *  y as i32;
             }
             _ => {}
@@ -183,10 +183,10 @@ pub fn new_frame() {
 
 pub fn get_mouse_scroll() -> i32 { unsafe { MOUSE_SCROLL_DELTA } }
 
-pub fn key_down(key: Keys) -> bool { unsafe { KEYS[key as usize] && LAST_KEYS[key as usize] } }
+pub fn key_down(key: Keys) -> bool { unsafe { KEYS[key as usize] } }
 pub fn key_pressed(key: Keys) -> bool { unsafe { KEYS[key as usize] && !LAST_KEYS[key as usize] } }
 pub fn key_release(key: Keys) -> bool { unsafe { !KEYS[key as usize] && LAST_KEYS[key as usize] } }
 
-pub fn mouse_button_down(button: MouseButton) -> bool { unsafe {  KEYS[button as usize] && LAST_KEYS[button as usize] } }
-pub fn mouse_button_pressed(button: MouseButton) -> bool { unsafe {  KEYS[button as usize] && !LAST_KEYS[button as usize] } }
+pub fn mouse_button_down(button: MouseButton) -> bool { unsafe { KEYS[button as usize] } }
+pub fn mouse_button_pressed(button: MouseButton) -> bool { unsafe { KEYS[button as usize] && !LAST_KEYS[button as usize] } }
 pub fn mouse_button_release(button: MouseButton) -> bool { unsafe { !KEYS[button as usize] && LAST_KEYS[button as usize] } }

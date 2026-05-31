@@ -1,6 +1,8 @@
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{math::Vec3, render::{Shader, Ubo, Vao, render_utils}, resources::{ResourceManager, resources_manager}};
+use crate::render::vao::VaoBuffers;
+
 
 pub struct Sky {
     shader: Option<Rc<RefCell<Shader>>>,
@@ -22,12 +24,12 @@ impl Sky {
         let mut vao = Vao::new();
 
         vao.gen_vao()
-            .gen_buffer(gl::ELEMENT_ARRAY_BUFFER, crate::render::vao::VaoBuffers::Ebo)
-            .gen_buffer(gl::ARRAY_BUFFER, crate::render::vao::VaoBuffers::Vbo);
+            .gen_buffer(VaoBuffers::Ebo)
+            .gen_buffer(VaoBuffers::Vbo);
 
-        vao.buffer_data_from_arr(crate::render::vao::VaoBuffers::Ebo, &indices, gl::STATIC_DRAW);
+        vao.buffer_data_from_arr(VaoBuffers::Ebo, &indices, gl::STATIC_DRAW);
 
-        vao.buffer_data_from_arr(crate::render::vao::VaoBuffers::Vbo, &vertices, gl::STATIC_DRAW)
+        vao.buffer_data_from_arr(VaoBuffers::Vbo, &vertices, gl::STATIC_DRAW)
             .attrib_info(0, 3, gl::FLOAT, 0, false)
             .set_stride(size_of::<Vec3>());
 

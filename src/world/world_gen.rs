@@ -55,7 +55,7 @@ impl WorldGen {
                 let mut ridge = 0.0f32;
                 let mut p = 1.0f32;
 
-                for i in 0..6 {
+                for _ in 0..6 {
                     let h = self.noise.get_noise_2d(
                         noise_x as f32 * p / 8.0,
                         noise_z as f32 * p / 10.0

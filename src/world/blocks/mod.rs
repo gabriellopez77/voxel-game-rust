@@ -16,10 +16,12 @@ pub mod short_grass;
 pub mod red_flower;
 pub mod yellow_flower;
 pub mod dead_bush;
+pub mod blocks_wrapper;
 
 pub use {
     blocks_manager::BlocksManager,
     block_properties::*,
+    blocks_wrapper::BlocksWrapper,
 
     air::*,
     stone::*,

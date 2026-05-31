@@ -1,18 +1,18 @@
 use std::{cell::RefCell, sync::Arc};
 
-use crate::{math::Vec3i, world::{Chunk, Planet, chunk::{ChunkGetter, neighbor_chunks}}};
+use crate::{math::Vec3i, world::{Chunk, Planet}};
 
 
 pub struct NeighborChunks {
-    pub north: ChunkGetter,
-    pub south: ChunkGetter,
-    pub west: ChunkGetter,
-    pub east: ChunkGetter,
+    pub north: Option<Arc<RefCell<Chunk>>>,
+    pub south: Option<Arc<RefCell<Chunk>>>,
+    pub west: Option<Arc<RefCell<Chunk>>>,
+    pub east: Option<Arc<RefCell<Chunk>>>,
 
-    pub northwest: ChunkGetter,
-    pub northeast: ChunkGetter,
-    pub southwest: ChunkGetter,
-    pub southeast: ChunkGetter,
+    pub northwest: Option<Arc<RefCell<Chunk>>>,
+    pub northeast: Option<Arc<RefCell<Chunk>>>,
+    pub southwest: Option<Arc<RefCell<Chunk>>>,
+    pub southeast: Option<Arc<RefCell<Chunk>>>,
 
     chunk_pos: Vec3i,
     first_time: bool,
@@ -22,15 +22,15 @@ pub struct NeighborChunks {
 impl NeighborChunks {
     pub fn new() -> Self {
         Self {
-            north: ChunkGetter::new(None),
-            south: ChunkGetter::new(None),
-            west: ChunkGetter::new(None),
-            east: ChunkGetter::new(None),
+            north: None,
+            south: None,
+            west: None,
+            east: None,
 
-            northwest: ChunkGetter::new(None),
-            northeast: ChunkGetter::new(None),
-            southwest: ChunkGetter::new(None),
-            southeast: ChunkGetter::new(None),
+            northwest: None,
+            northeast: None,
+            southwest: None,
+            southeast: None,
 
             chunk_pos: Vec3i::ZERO,
             first_time: true,
@@ -58,10 +58,10 @@ impl NeighborChunks {
             self.west = planet.get_chunk_int(pos.x - 1, pos.y, pos.z);
             self.east = planet.get_chunk_int(pos.x + 1, pos.y, pos.z);
 
-            if let Some(ref north) = self.north.chunk { north.borrow().lock() }
-            if let Some(ref south) = self.south.chunk { south.borrow().lock() }
-            if let Some(ref west) = self.west.chunk { west.borrow().lock() }
-            if let Some(ref east) = self.east.chunk { east.borrow().lock() }
+            if let Some(ref north) = self.north { north.borrow().lock() }
+            if let Some(ref south) = self.south { south.borrow().lock() }
+            if let Some(ref west) = self.west { west.borrow().lock() }
+            if let Some(ref east) = self.east { east.borrow().lock() }
 
             if corners {
                 self.northwest = planet.get_chunk_int(pos.x - 1, pos.y, pos.z - 1);
@@ -69,10 +69,10 @@ impl NeighborChunks {
                 self.southwest = planet.get_chunk_int(pos.x - 1, pos.y, pos.z + 1);
                 self.southeast = planet.get_chunk_int(pos.x + 1, pos.y, pos.z + 1);
 
-                if let Some(ref northwest) = self.northwest.chunk { northwest.borrow().lock() }
-                if let Some(ref northeast) = self.northeast.chunk { northeast.borrow().lock() }
-                if let Some(ref southwest) = self.southwest.chunk { southwest.borrow().lock() }
-                if let Some(ref southeast) = self.southeast.chunk { southeast.borrow().lock() }
+                if let Some(ref northwest) = self.northwest { northwest.borrow().lock() }
+                if let Some(ref northeast) = self.northeast { northeast.borrow().lock() }
+                if let Some(ref southwest) = self.southwest { southwest.borrow().lock() }
+                if let Some(ref southeast) = self.southeast { southeast.borrow().lock() }
             }
         }
 
@@ -82,15 +82,15 @@ impl NeighborChunks {
     pub fn dispose(&mut self) {
         if self.disposable { return }
 
-        if let Some(ref north) = self.north.chunk { north.borrow().unlock() }
-        if let Some(ref south) = self.south.chunk { south.borrow().unlock() }
-        if let Some(ref west) = self.west.chunk { west.borrow().unlock() }
-        if let Some(ref east) = self.east.chunk { east.borrow().unlock() }
+        if let Some(ref north) = self.north { north.borrow().unlock() }
+        if let Some(ref south) = self.south { south.borrow().unlock() }
+        if let Some(ref west) = self.west { west.borrow().unlock() }
+        if let Some(ref east) = self.east { east.borrow().unlock() }
 
-        if let Some(ref northwest) = self.northwest.chunk { northwest.borrow().unlock() }
-        if let Some(ref northeast) = self.northeast.chunk { northeast.borrow().unlock() }
-        if let Some(ref southwest) = self.southwest.chunk { southwest.borrow().unlock() }
-        if let Some(ref southeast) = self.southeast.chunk { southeast.borrow().unlock() }
+        if let Some(ref northwest) = self.northwest { northwest.borrow().unlock() }
+        if let Some(ref northeast) = self.northeast { northeast.borrow().unlock() }
+        if let Some(ref southwest) = self.southwest { southwest.borrow().unlock() }
+        if let Some(ref southeast) = self.southeast { southeast.borrow().unlock() }
 
         self.disposable = true;
     }

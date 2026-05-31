@@ -21,6 +21,11 @@ impl ItemStack {
     pub fn is_empty(&self) -> bool { self.count == 0 }
     pub fn get_count(&self) -> i32 { self.count }
     
+    pub fn set(&mut self, item: Rc<ItemBaseProperties>, count: i32) {
+        self.item = Some(item);
+        self.count = count;
+    }
+    
     pub fn get_item(&self) -> &Rc<ItemBaseProperties> {
         if let Some(item) = &self.item {
             return item;

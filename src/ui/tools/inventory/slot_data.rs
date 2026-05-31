@@ -67,18 +67,19 @@ impl SlotData {
         self.visible = true;
         self.count_text_visible = false;
 
-        let slot_count = slot.get_count();
+        let item_count = slot.get_count();
 
-        if self.last_count != slot_count {
-            self.count_text_visible = slot_count > 1;
+        // avoids update text chars mesh in every frame
+        if self.last_count != item_count && item_count > 1 {
+            self.count_text_visible = true;
 
-            self.count_text.set_text_i32(slot_count);
+            self.count_text.set_text_i32(item_count);
             self.count_text.set_posv(self.count_text.get_center(self));
         }
 
         self.icon.set_texture(slot.get_item().icon);
 
-        self.last_count = slot_count;
+        self.last_count = item_count;
     }
 
     pub fn draw(&mut self, renderer: &mut UiRenderer) {

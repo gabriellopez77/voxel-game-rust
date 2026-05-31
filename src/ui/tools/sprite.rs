@@ -1,6 +1,6 @@
 ﻿use crate::math::{Color4b, Vec2, Vec2i16, Vec4};
 use crate::render::{SpritesRenderer, SpritesVertices, sprites_renderer};
-use crate::resources::TexCoords;
+use crate::resources::{ResourceManager, TexCoords};
 use crate::ui::tools::ui_element::UiElement;
 
 
@@ -31,6 +31,9 @@ impl Sprite {
     }
 
     pub fn set_texture(&mut self, uv: TexCoords) { self.uv = uv }
+    pub fn set_texture_from_atlas(&mut self, resource_manager: &ResourceManager, name: &str) {
+        self.uv = resource_manager.get_texture("ui").unwrap().get_coords(name);
+    }
 
     pub fn draw(&self, renderer: &mut SpritesRenderer<SpritesVertices>) {
         if renderer.buffer_len() >= sprites_renderer::MAX_SPRITES { return }

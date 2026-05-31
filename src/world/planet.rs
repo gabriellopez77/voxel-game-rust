@@ -172,8 +172,10 @@ impl Planet {
                     &mut self.chunk_mesh_indices_pool
                 );
 
+                //let now = std::time::Instant::now();
 
                 Chunk::gen_mesh(&*ch, &neighbor_chunks, blocks_manager, &mut mesh_result);
+                //println!("{}", now.elapsed().as_micros());
 
                 ch.renderer.update_mesh(&mesh_result);
 
@@ -202,20 +204,20 @@ impl Planet {
 
     }
 
-    pub fn get_chunk(&self, pos: Vec3i) -> ChunkGetter {
+    pub fn get_chunk(&self, pos: Vec3i) -> Option<Arc<RefCell<Chunk>>> {
         if let Some(chunk) = self.chunks.get(&pos) {
-            return ChunkGetter::new(Some(chunk.clone()));
+            return Some(chunk.clone());
         }
 
-        return ChunkGetter::NOTHING;
+        return None;
     }
 
-    pub fn get_chunk_int(&self, x: i32, y: i32, z: i32) -> ChunkGetter { self.get_chunk(Vec3i::new(x, y, z))}
+    pub fn get_chunk_int(&self, x: i32, y: i32, z: i32) -> Option<Arc<RefCell<Chunk>>> { self.get_chunk(Vec3i::new(x, y, z))}
 
     fn regen_neighbor_chunks(&self, neighbor_chunks: &NeighborChunks) {
-        if let Some(ref north) = neighbor_chunks.north.chunk { north.borrow_mut().chunk_data.regen_mesh = true }
-        if let Some(ref south) = neighbor_chunks.south.chunk { south.borrow_mut().chunk_data.regen_mesh = true }
-        if let Some(ref west) = neighbor_chunks.west.chunk { west.borrow_mut().chunk_data.regen_mesh = true }
-        if let Some(ref east) = neighbor_chunks.east.chunk { east.borrow_mut().chunk_data.regen_mesh = true }
+        if let Some(ref north) = neighbor_chunks.north { north.borrow_mut().chunk_data.regen_mesh = true }
+        if let Some(ref south) = neighbor_chunks.south { south.borrow_mut().chunk_data.regen_mesh = true }
+        if let Some(ref west) = neighbor_chunks.west { west.borrow_mut().chunk_data.regen_mesh = true }
+        if let Some(ref east) = neighbor_chunks.east { east.borrow_mut().chunk_data.regen_mesh = true }
     }
 }

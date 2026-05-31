@@ -5,6 +5,6 @@ pub mod tools;
 
 pub use {
     ui_manager::UiManager,
-    screen_base::ScreenBase,
+    screen_base::*,
     screens::*,
 };

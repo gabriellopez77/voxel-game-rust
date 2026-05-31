@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::math::{Color4b, Vec2, Vec2i, Vec3};
-use crate::render::{Shader, Vao};
+use crate::render::{Shader, Vao, CUBE_INDICES, CUBE_VERTICES};
 use crate::render::vao::VaoBuffers;
 use crate::resources::ResourceManager;
 use crate::world::Chunk;
@@ -46,65 +46,17 @@ impl Clouds {
     }
 
     pub fn start(&mut self, resource_manager: Rc<RefCell<ResourceManager>>) {
-        let indices: [u32; 36] = [
-            0,  1,  3,  1,  2,  3,
-            4,  5,  7,  5,  6,  7,
-            8,  9,  11, 9,  10, 11,
-            12, 13, 15, 13, 14, 15,
-            16, 17, 19, 17, 18, 19,
-            20, 21, 23, 21, 22, 23,
-        ];
-
-        // vertices, normal
-        let vertices: [i8; 144] = [
-            // up
-            1, 1, 0,   0, 1, 0,
-            0, 1, 0,   0, 1, 0,
-            0, 1, 1,   0, 1, 0,
-            1, 1, 1,   0, 1, 0,
-
-            // down
-            1, 0, 1,   0, -1, 0,
-            0, 0, 1,   0, -1, 0,
-            0, 0, 0,   0, -1, 0,
-            1, 0, 0,   0, -1, 0,
-
-            // south
-            0, 1, 1,   0, 0, 1,
-            0, 0, 1,   0, 0, 1,
-            1, 0, 1,   0, 0, 1,
-            1, 1, 1,   0, 0, 1,
-
-            // north
-            1, 1, 0,   0, 0, -1,
-            1, 0, 0,   0, 0, -1,
-            0, 0, 0,   0, 0, -1,
-            0, 1, 0,   0, 0, -1,
-
-            // west
-            0, 1, 0,  -1, 0, 0,
-            0, 0, 0,  -1, 0, 0,
-            0, 0, 1,  -1, 0, 0,
-            0, 1, 1,  -1, 0, 0,
-
-            // east
-            1, 1, 1,   1, 0, 0,
-            1, 0, 1,   1, 0, 0,
-            1, 0, 0,   1, 0, 0,
-            1, 1, 0,   1, 0, 0,
-        ];
-
         self.shader = resource_manager.borrow().get_shader("clouds");
         
         let mut vao = Vao::new();
         vao.gen_vao()
-           .gen_buffer(gl::ELEMENT_ARRAY_BUFFER, VaoBuffers::Ebo)
-           .gen_buffer(gl::ARRAY_BUFFER, VaoBuffers::Vbo)
-           .gen_buffer(gl::ARRAY_BUFFER, VaoBuffers::Instance);
+           .gen_buffer(VaoBuffers::Ebo)
+           .gen_buffer(VaoBuffers::Vbo)
+           .gen_buffer(VaoBuffers::Instance);
 
-        vao.buffer_data_from_arr(VaoBuffers::Ebo, &indices, gl::STATIC_DRAW);
+        vao.buffer_data_from_arr(VaoBuffers::Ebo, &CUBE_INDICES, gl::STATIC_DRAW);
 
-        vao.buffer_data_from_arr(VaoBuffers::Vbo, &vertices, gl::STATIC_DRAW)
+        vao.buffer_data_from_arr(VaoBuffers::Vbo, &CUBE_VERTICES, gl::STATIC_DRAW)
            .attrib_info(0, 3, gl::BYTE, 0, false)
            .attrib_info(1, 3, gl::BYTE, 3 * size_of::<i8>(), false)
            .set_stride(6 * size_of::<i8>());
@@ -161,7 +113,7 @@ impl Clouds {
 
 
                 // if pixel is not transparent then draw it
-                if (color_middle[Self::get_pixel_index(norm_x, norm_z)].a != 0) {
+                if color_middle[Self::get_pixel_index(norm_x, norm_z)].a != 0 {
                     self.instance_buffer.push(Vec2::new(x as f32, z as f32) * Self::CLOUDS_SIZE as f32 * Self::SLICE_SIZE as f32);
                 }
             }

@@ -30,11 +30,11 @@ pub fn get_chunk_posi(global_coords: Vec3i) -> Vec3i {
     }
 }
 
-pub fn get_chunk_block(chunk_pos: Vec3i, global_coords: Vec3i) -> Vec3i {
+pub fn get_chunk_block(chunk_pos: Vec3i, global_coords: Vec3) -> Vec3i {
     Vec3i {
-        x: -(chunk_pos.x * Chunk::CHUNK_SIZE.x - global_coords.x),
-        y: -(chunk_pos.y * Chunk::CHUNK_SIZE.y - global_coords.y),
-        z: -(chunk_pos.z * Chunk::CHUNK_SIZE.z - global_coords.z)
+        x: -(chunk_pos.x * Chunk::CHUNK_SIZE.x - global_coords.x.floor() as i32),
+        y: -(chunk_pos.y * Chunk::CHUNK_SIZE.y - global_coords.y.floor() as i32),
+        z: -(chunk_pos.z * Chunk::CHUNK_SIZE.z - global_coords.z.floor() as i32)
     }
 }
 

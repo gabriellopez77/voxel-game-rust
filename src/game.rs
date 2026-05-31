@@ -7,12 +7,12 @@ use crate::world::{Player, Planet, blocks::BlocksManager, sky::Sky, sky::Clouds}
 
 
 pub struct Game {
-    player: Player,
+    pub player: Player,
     planet: Planet,
     sky: Sky,
     clouds: Clouds,
 
-    ui_manager: UiManager,
+    ui_manager: Rc<RefCell<UiManager>>,
     resources_manager: Rc<RefCell<ResourceManager>>,
     blocks_manager: Option<BlocksManager>,
 
@@ -27,7 +27,7 @@ impl Game {
             sky: Sky::new(),
             clouds: Clouds::new(),
 
-            ui_manager: UiManager::new(),
+            ui_manager: Rc::new(RefCell::new(UiManager::new())),
             resources_manager: Rc::new(RefCell::new(ResourceManager::new())),
             blocks_manager: None,
 
@@ -37,10 +37,10 @@ impl Game {
 
     pub fn start(&mut self) {
         self.resources_manager.borrow_mut().start();
-        self.ui_manager.start(self.resources_manager.clone());
+        self.ui_manager.borrow_mut().start(self.resources_manager.clone(), self);
         self.blocks_manager = Some(BlocksManager::new(&self.resources_manager));
 
-        self.player.start(self.resources_manager.clone());
+        self.player.start(&self.resources_manager.borrow());
         self.planet.start(self.resources_manager.clone());
 
         self.sky.start(self.resources_manager.clone());
@@ -60,26 +60,31 @@ impl Game {
         }
 
         if !self.paused {
-            self.player.update(dt);
             self.sky.update();
             self.clouds.update(self.player.camera.position, self.planet.render_distance);
+
+            self.player.update(dt, &self.planet, &self.blocks_manager.as_ref().unwrap());
             self.planet.update(self.player.camera.position, &self.blocks_manager.as_ref().unwrap());
         }
 
-        self.ui_manager.update(dt);
+        self.ui_manager.clone().borrow_mut().update(dt, self);
     }
 
     pub fn render(&mut self) {
         self.sky.draw();
         self.clouds.draw();
+        
         self.planet.draw(&self.player.camera, &self.blocks_manager.as_ref().unwrap());
 
+        self.player.selection_box.draw();
+
+
         self.player.camera.view_changed = false;
-        self.ui_manager.draw();
+        self.ui_manager.clone().borrow_mut().draw();
     }
 
-    pub fn resize(&mut self, width: i32, height: i32) {
-        self.ui_manager.resize(width as f32, height as f32);
-        self.player.camera.resize(width as f32, height as f32)
+    pub fn resize(&mut self, width: f32, height: f32) {
+        self.ui_manager.clone().borrow_mut().resize(width, height, self);
+        self.player.camera.resize(width, height)
     }
 }

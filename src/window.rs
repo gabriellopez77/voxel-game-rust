@@ -2,7 +2,7 @@ use glfw::{Context, WindowEvent};
 use crate::inputs;
 use crate::game::Game;
 use crate::render::render_utils;
-
+use crate::ui::UiManager;
 
 pub struct Window {
     glfw_instance: glfw::Glfw,
@@ -46,9 +46,7 @@ impl Window {
         }, events);
     }
 
-    pub fn run(&mut self, game: &mut Game, events: &glfw::GlfwReceiver<(f64, WindowEvent)>) {
-        game.start();
-
+    pub fn run(&mut self, events: &glfw::GlfwReceiver<(f64, WindowEvent)>) {
         unsafe {
             gl::ClearColor(0.0, 0.0, 0.0, 0.0);
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
@@ -56,8 +54,12 @@ impl Window {
             render_utils::enable(render_utils::RenderCap::DepthTest);
             render_utils::enable(render_utils::RenderCap::CullFace);
         }
+        
+        let mut game = Game::new();
+        //let mut ui_manager = UiManager::new();
+        game.start();
 
-        game.resize(self.width, self.height);
+        game.resize(self.width as f32, self.height as f32);
 
 
         while !self.window.should_close() {
@@ -68,7 +70,7 @@ impl Window {
             self.glfw_instance.poll_events();
 
             for (_, event) in glfw::flush_messages(&events) {
-                self.roll_events(event, game);
+                self.roll_events(event, &mut game);
             }
 
             // calculate delta time
@@ -113,7 +115,7 @@ impl Window {
             self.height = height;
 
 
-            game.resize(width, height);
+            game.resize(width as f32, height as f32);
         }
     }
 }
