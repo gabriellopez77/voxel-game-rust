@@ -24,13 +24,6 @@ impl TextTypes {
             _ => panic!("value is not string")
         }
     }
-
-    pub fn to_string_mut(&mut self) -> &mut String {
-        match self {
-            TextTypes::String(value) => value,
-            _ => panic!("value is not string")
-        }
-    }
 }
 
 pub struct Text {
@@ -66,7 +59,7 @@ impl Text {
         Self {
             position: Vec2::ZERO,
             size: Vec2::ZERO,
-            color: Color3b::ZERO,
+            color: Color3b::WHITE,
 
             text: TextTypes::None,
 
@@ -100,7 +93,13 @@ impl Text {
     
     pub fn set_text_i32(&mut self, value: i32) {
         use std::fmt::Write;
-        write!(self.text.to_string_mut(), "{value}").unwrap();
+
+        match self.text {
+            TextTypes::String(ref mut string) => write!(string, "{value}").unwrap(),
+            _ => self.text = TextTypes::String(value.to_string()),
+        }
+
+        self.update_mesh();
     }
 
     pub fn draw(&mut self, renderer: &mut SpritesRenderer<TextVertices>) {
@@ -133,14 +132,14 @@ impl Text {
     fn update_mesh(&mut self) {
         let mut advance_x: i16 = 0;
         let mut advance_y: i16 = 8;
-        let mut max_advance_x = advance_x;
+        let mut max_advance_x = 0;
 
 
         self.buffer.clear();
         self.color_modified = false;
         self.pos_modified = false;
 
-        let font_info = self.font_info.as_ref().unwrap();
+        let font_info = self.font_info.as_ref().expect("Text font not set!");
 
         for ch in self.text.get().chars() {
             // breakline
@@ -158,7 +157,7 @@ impl Text {
                 position: Vec2i16::new(pos.x as i16, pos.y as i16),
                 size: char_info.size,
                 uv: char_info.uv,
-                advance: Vec2i16::new(advance_x, advance_y),
+                advance: Vec2i16::new(advance_x, advance_y - 8),
                 color: self.color
             };
 
@@ -167,6 +166,6 @@ impl Text {
             max_advance_x = max_advance_x.max(advance_x);
         }
 
-        self.set_size(max_advance_x as f32, advance_y as f32);
+        self.size = Vec2::new((max_advance_x - 1) as f32, (advance_y - 1) as f32);
     }
 }

@@ -32,7 +32,6 @@ impl WorldGen {
     }
 
     pub fn gen_data(&mut self, chunk_pos: Vec3i, data: &mut ChunkData, blocks_manager: &BlocksManager) {
-
         let start_x = chunk_pos.x * Chunk::CHUNK_SIZE.x;
         let start_z = chunk_pos.z * Chunk::CHUNK_SIZE.z;
 
@@ -42,7 +41,7 @@ impl WorldGen {
         // set bedrock
         for x in 0..Chunk::CHUNK_SIZE.x {
             for z in 0..Chunk::CHUNK_SIZE.z {
-                data.set_block(Vec3i::new(x, 0, z), &blocks_manager.bedrock);
+                data.set_block(Vec3i::new(x, 0, z), &blocks_manager.bedrock.get_properties(0));
             }
         }
 
@@ -79,25 +78,25 @@ impl WorldGen {
                             //        data.set_block_index(current_block_index, bLOCKS_manager::LILY_PAD);
                             //}
                             //else
-                                data.set_block_index(current_block_index, &blocks_manager.water_block);
+                                data.set_block_index(current_block_index, blocks_manager.water_block.get_properties(0))
                         }
 
                         if y == surface_height + 1 {
                             if y >= 100 {
-                                data.set_block_index(current_block_index, &blocks_manager.snow_layer);
+                                data.set_block_index(current_block_index, blocks_manager.snow_layer.get_properties(0))
                             }
                             else if y >= WATER_HEIGHT + 3 && y <= 81 {
                                 if self.chance(0, 100) < 20 {
-                                    data.set_block_index(current_block_index, &blocks_manager.short_grass);
+                                    data.set_block_index(current_block_index, blocks_manager.short_grass.get_properties(0))
                                 }
                                 //else if self.chance(0, 100) < 1 {
-                                //    data.set_block_index(current_block_index, blocks_manager.MUSHROOM_BLUE_GROUP);
+                                //    data.set_block_index(current_block_index, blocks_manager.MUSHROOM_BLUE_GROUP), 0;
                                 //}
                                 else if self.chance(0, 1000) < 12 {
-                                    data.set_block_index(current_block_index, &blocks_manager.red_flower);
+                                    data.set_block_index(current_block_index, blocks_manager.red_flower.get_properties(0))
                                 }
                                 else if self.chance(0, 1000) < 12 {
-                                    data.set_block_index(current_block_index, &blocks_manager.yellow_flower);
+                                    data.set_block_index(current_block_index, blocks_manager.yellow_flower.get_properties(0))
                                 }
 
                                 //else if self.chance(0, 1000) < 50 {
@@ -107,7 +106,7 @@ impl WorldGen {
                             else {
                                 if y >= WATER_HEIGHT && y <= WATER_HEIGHT + 3 {
                                     if self.chance(0, 100) < 2 {
-                                        data.set_block_index(current_block_index, &blocks_manager.dead_bush);
+                                        data.set_block_index(current_block_index, blocks_manager.dead_bush.get_properties(0))
                                     }
                                 }
                             }
@@ -119,31 +118,31 @@ impl WorldGen {
                         if (surface_height > 80) {
                             if (y == surface_height || y == surface_height - 1 || y == surface_height - 2) && y > 100 {
                                 if self.chance(0, 100) < 2 {
-                                    data.set_block_index(current_block_index, &blocks_manager.ice_block)
+                                    data.set_block_index(current_block_index, blocks_manager.ice_block.get_properties(0))
                                 }
-                                else { data.set_block_index(current_block_index, &blocks_manager.snow_block) }
+                                else { data.set_block_index(current_block_index, blocks_manager.snow_block.get_properties(0)) }
                             }
                             else if self.chance(0, 100) < 20 {
-                                data.set_block_index(current_block_index, &blocks_manager.cobblestone)
+                                data.set_block_index(current_block_index, blocks_manager.cobblestone.get_properties(0))
                             }
-                            else { data.set_block_index(current_block_index, &blocks_manager.stone) }
+                            else { data.set_block_index(current_block_index, blocks_manager.stone.get_properties(0)) }
                         }
 
                         else if y == surface_height {
                             if surface_height <= WATER_HEIGHT + 1 {
-                                data.set_block_index(current_block_index, &blocks_manager.sand)
+                                data.set_block_index(current_block_index, blocks_manager.sand.get_properties(0))
                             }
-                            else { data.set_block_index(current_block_index, &blocks_manager.grass_block) }
+                            else { data.set_block_index(current_block_index, blocks_manager.grass_block.get_properties(0)) }
                         }
 
                         else if y <= WATER_HEIGHT && (y == surface_height - 1 || y == surface_height - 2 || y == surface_height - 3) {
-                            data.set_block_index(current_block_index, &blocks_manager.sand)
+                            data.set_block_index(current_block_index, blocks_manager.sand.get_properties(0))
                         }
                         else if y == surface_height - 1 || y == surface_height - 2 || y == surface_height - 3 {
-                            data.set_block_index(current_block_index, &blocks_manager.dirt)
+                            data.set_block_index(current_block_index, blocks_manager.dirt.get_properties(0))
                         }
                         else {
-                            data.set_block_index(current_block_index, &blocks_manager.stone)
+                            data.set_block_index(current_block_index, blocks_manager.stone.get_properties(0))
                         }
                     }
 

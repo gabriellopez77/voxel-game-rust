@@ -1,6 +1,7 @@
+use std::rc::Rc;
 use crate::math::Vec2;
 use crate::render::UiRenderer;
-use crate::resources::TexCoords;
+use crate::resources::{FontInfo, TexCoords};
 use crate::ui::tools::{Sprite, UiElement, inventory::SlotData};
 use crate::world::player::EntityInventory;
 
@@ -43,9 +44,9 @@ impl ItemSlot {
         }
     }
 
-    pub fn start(&mut self, slot_index: i32, tex_coords: TexCoords) {
+    pub fn start(&mut self, slot_index: i32, tex_coords: TexCoords, text_font: Rc<FontInfo>) {
         self.background.set_texture(tex_coords);
-        self.slot_data.start(slot_index);
+        self.slot_data.start(slot_index, text_font);
     }
 
     pub fn update(&mut self, inventory: &dyn EntityInventory) {

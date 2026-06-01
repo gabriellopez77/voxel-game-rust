@@ -26,7 +26,7 @@ impl ScreenBase for HudScreen {
         for i in 0..self.hotbar_slots.len() {
             let slot = &mut self.hotbar_slots[i];
 
-            slot.start(i as i32, resources.get_texture("ui").unwrap().get_coords("hotbar_slot"));
+            slot.start(i as i32, resources.get_texture("ui").unwrap().get_coords("hotbar_slot"), resources.get_font("default").unwrap());
             slot.set_size(20.0, 20.0);
 
             self.hotbar_grid.add(slot);

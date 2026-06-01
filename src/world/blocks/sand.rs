@@ -1,26 +1,27 @@
-use crate::world::{blocks::{BlockFunctions, BlockProperties}, items::ItemCreation};
+use crate::{resources::ResourceManager, world::{blocks::{BlockFunctions, BlockProperties}, items::ItemCreation}};
 
 
 pub struct Sand {
-    properties: BlockProperties
+    properties: Vec<BlockProperties>
 }
 
 impl BlockFunctions for Sand {
-    fn get_properties(&self) -> &BlockProperties {
-        &self.properties
+    fn get_properties(&self, state: u8) -> &BlockProperties {
+        &self.properties[state as usize]
     }
-    fn get_properties_mut(&mut self) -> &mut BlockProperties { &mut self.properties }
 }
 
 impl ItemCreation for Sand {
     type ItemType = Self;
 
-    fn new(internal_name: &'static str, name: &'static str, id: usize) -> Self {
-        let mut properties = BlockProperties::new(internal_name, name, id);
+    fn new(internal_name: &'static str, name: &'static str, id: usize, resources: &ResourceManager) -> Self {
+        let mut properties = BlockProperties::new(internal_name, name, resources.get_model(internal_name), id, 0);
         properties.can_replaced = false;
         properties.is_transparent = false;
         properties.light_filter = 15;
 
-        Self { properties }
+        Self {
+            properties: vec![properties],
+        }
     }
 }

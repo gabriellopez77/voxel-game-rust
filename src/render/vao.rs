@@ -163,6 +163,7 @@ impl Vao {
             gl::EnableVertexArrayAttrib(vao, index);
             gl::VertexArrayAttribBinding(vao, index, self.binding_index);
             gl::VertexArrayAttribFormat(vao, index, size, attrib_type, gl::FALSE, offset as u32);
+
             if instance {
                 gl::VertexArrayBindingDivisor(vao, self.binding_index, 1)
             }

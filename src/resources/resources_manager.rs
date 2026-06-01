@@ -73,7 +73,7 @@ impl ResourceManager {
             path.clear();
             path.push_str(&self.textures_path);
             path.push_str(r"\fonts\default_font.json");
-            self.fonts.insert("default_font", Rc::new(FontInfo::create_from_file(&path, "default_font", self.textures["fonts"].clone())));
+            self.fonts.insert("default", Rc::new(FontInfo::create_from_file(&path, "default_font", self.textures["fonts"].clone())));
         }
 
         // load models

@@ -108,14 +108,13 @@ impl Window {
     }
 
     fn resize_callback(&mut self, game: &mut Game, width: i32, height: i32) {
-        unsafe {
-            gl::Viewport(0, 0, width, height);
+        unsafe { gl::Viewport(0, 0, width, height) };
+        
+        self.width = width;
+        self.height = height;
 
-            self.width = width;
-            self.height = height;
 
-
-            game.resize(width as f32, height as f32);
-        }
+        game.resize(width as f32, height as f32);
+        
     }
 }

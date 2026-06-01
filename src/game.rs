@@ -40,7 +40,7 @@ impl Game {
         self.ui_manager.borrow_mut().start(self.resources_manager.clone(), self);
         self.blocks_manager = Some(BlocksManager::new(&self.resources_manager));
 
-        self.player.start(&self.resources_manager.borrow());
+        self.player.start(&self.resources_manager.borrow(), &self.blocks_manager.as_ref().unwrap());
         self.planet.start(self.resources_manager.clone());
 
         self.sky.start(self.resources_manager.clone());

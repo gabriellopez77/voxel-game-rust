@@ -1,6 +1,7 @@
 use std::ptr::NonNull;
 use crate::math::Vec2;
 use crate::ui::tools::UiElement;
+use crate::utils::SafePtr;
 
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -13,7 +14,7 @@ pub struct ElementsGrid {
     position: Vec2,
     size: Vec2,
 
-    elements: Vec<NonNull<dyn UiElement>>,
+    elements: Vec<SafePtr<dyn UiElement>>,
 
     /// elements alignment
     pub alignment: Alignment,
@@ -53,7 +54,7 @@ impl ElementsGrid {
     }
 
     pub fn add<>(&mut self, element: *mut dyn UiElement) {
-        self.elements.push(NonNull::new(element).expect("element is null"));
+        self.elements.push(SafePtr::new(element));
     }
 
     pub fn update(&mut self) {
@@ -82,10 +83,10 @@ impl ElementsGrid {
                 slice_max_offset_size = self.get_slice_max_offset(i);
             }
 
-            let element = &mut self.elements[i];
+            let mut element = &mut self.elements[i];
 
-            unsafe { element.as_mut().set_posv(start + offset) };
-            let element_size = unsafe { element.as_ref().get_size() };
+            element.set_posv(start + offset);
+            let element_size = element.get_size();
 
             if self.alignment == Alignment::Horizontal {
                 offset.x += element_size.x + self.spacing;
@@ -94,7 +95,7 @@ impl ElementsGrid {
                 offset.y += element_size.y + self.spacing;
             }
 
-            let element_final = unsafe { element.as_ref().get_final() };
+            let element_final = element.get_final();
             max_size.x = f32::max(max_size.x, element_final.x - start.x);
             max_size.y = f32::max(max_size.y, element_final.y - start.y);
         }
@@ -113,8 +114,7 @@ impl ElementsGrid {
         }
 
         for i in start_index..end {
-            // SAFETY: ptr always is valid
-            let element_size = unsafe { self.elements[i].as_ref().get_size() };
+            let element_size = self.elements[i].get_size();
             
             max.x = f32::max(max.x, element_size.x);
             max.y = f32::max(max.y, element_size.y);

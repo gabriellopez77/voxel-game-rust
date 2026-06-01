@@ -6,6 +6,7 @@ use crate::render::render_utils::RenderCap;
 use crate::render::vao::VaoBuffers;
 use crate::resources::ResourceManager;
 
+
 pub struct SelectionBox {
     shader: Option<Rc<RefCell<Shader>>>,
     vao: Vao,

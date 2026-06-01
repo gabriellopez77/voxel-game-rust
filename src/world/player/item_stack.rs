@@ -1,19 +1,21 @@
-use std::rc::Rc;
+use std::sync::Arc;
+use gl::NONE;
 use crate::world::items::ItemBaseProperties;
 
 
 pub struct ItemStack {
-    item: Option<Rc<ItemBaseProperties>>,
+    item: Option<Arc<ItemBaseProperties>>,
     count: i32,
 }
 
 impl ItemStack {
-    const MAX_STACK_COUNT: i32 = 64;
+    pub const MAX_STACK_COUNT: i32 = 64;
+    pub const EMPTY: ItemStack = ItemStack { item: None, count: 0 };
 
-    pub fn new() -> Self {
+    pub fn new(item: Arc<ItemBaseProperties>, count: i32) -> Self {
         Self {
-            item: None,
-            count: 0,
+            item: Some(item),
+            count,
         }
     }
 
@@ -21,12 +23,12 @@ impl ItemStack {
     pub fn is_empty(&self) -> bool { self.count == 0 }
     pub fn get_count(&self) -> i32 { self.count }
     
-    pub fn set(&mut self, item: Rc<ItemBaseProperties>, count: i32) {
+    pub fn set(&mut self, item: Arc<ItemBaseProperties>, count: i32) {
         self.item = Some(item);
         self.count = count;
     }
     
-    pub fn get_item(&self) -> &Rc<ItemBaseProperties> {
+    pub fn get_item(&self) -> &Arc<ItemBaseProperties> {
         if let Some(item) = &self.item {
             return item;
         }

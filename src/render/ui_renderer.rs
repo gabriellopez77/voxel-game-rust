@@ -80,16 +80,42 @@ impl UiRenderer {
             resource_manager.get_texture("fonts")
         );
 
+        let mut icons_vao = Vao::new();
+        icons_vao.gen_vao()
+            .gen_buffer(VaoBuffers::Ebo)
+            .gen_buffer(VaoBuffers::Vbo)
+            .gen_buffer(VaoBuffers::Instance);
+
+        icons_vao.buffer_data_from_arr(VaoBuffers::Ebo, &SPRITES_INDICES, gl::STATIC_DRAW);
+
+        icons_vao.buffer_data_from_arr(VaoBuffers::Vbo, &SPRITES_VERTICES, gl::STATIC_DRAW)
+            .attrib_info(0, 4, gl::FLOAT, 0, false)
+            .set_stride(4 * size_of::<f32>());
+
+        icons_vao.buffer_data(VaoBuffers::Instance, size_of::<SpritesVertices>() * sprites_renderer::MAX_SPRITES, None, gl::DYNAMIC_DRAW)
+            .attrib_info(1, 2, gl::SHORT, offset_of!(SpritesVertices, position), true)
+            .attrib_info(2, 2, gl::SHORT, offset_of!(SpritesVertices, size), true)
+            .attrib_info(3, 4, gl::FLOAT, offset_of!(SpritesVertices, uv), true)
+            .attrib_info(4, 4, gl::UNSIGNED_BYTE, offset_of!(SpritesVertices, color), true)
+            .set_stride(size_of::<SpritesVertices>());
+
+
+        self.icons.start(icons_vao,
+                           resource_manager.get_shader("ui/sprites"),
+                           resource_manager.get_texture("blocks")
+        );
         
         self.ubo = resource_manager.get_ubo("globalData");
     }
 
     pub fn draw(&mut self) {
+        render_utils::disable(RenderCap::DepthTest);
         render_utils::enable(RenderCap::Blend);
         self.sprites.draw();
-        self.text.draw();
         self.icons.draw();
+        self.text.draw();
         render_utils::disable(RenderCap::Blend);
+        render_utils::enable(RenderCap::DepthTest);
     }
 
     pub fn resize(&mut self, width: f32, height: f32, pixel_scale: f32) {

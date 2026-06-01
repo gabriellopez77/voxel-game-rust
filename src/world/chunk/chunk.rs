@@ -82,23 +82,32 @@ impl Chunk {
 
     pub fn gen_mesh(chunk: &Chunk, neighbors: &NeighborChunks, blocks_manager: &BlocksManager,
                     mesh_result: &mut ChunkMeshResult) {
+
+        let mut last_block_info = chunk.chunk_data.get_block_infoi(0, 0, 0);
+        let mut block_functions = blocks_manager.get(last_block_info.id);
+        let mut block_properties = block_functions.get_properties(last_block_info.state);
+        let mut model = &block_properties.base_properties.model;
+        let mut ambient_occlusion = model.ambient_occlusion;
+
         for x in 0..Chunk::CHUNK_SIZE.x {
         for y in 0..Chunk::CHUNK_SIZE.y {
         for z in 0..Chunk::CHUNK_SIZE.z {
-            let block_id = chunk.chunk_data.get_blocki(x, y, z);
+            let block_info = chunk.chunk_data.get_block_infoi(x, y, z);
 
             // air does not have model
-            if block_id == 0 { continue; }
+            if block_info.id == 0 { continue; }
+
+            if last_block_info.id != block_info.id || last_block_info.state != block_info.state {
+                block_functions = blocks_manager.get(block_info.id);
+                block_properties = block_functions.get_properties(block_info.state);
+                model = &block_properties.base_properties.model;
+                ambient_occlusion = model.ambient_occlusion;
+            }
+            last_block_info = block_info;
 
             let chunk_block = Vec3{x: x as f32, y: y as f32, z: z as f32};
-            let mut draw = false;
-
-            let block_functions = blocks_manager.get(block_id);
-            let block_properties = block_functions.get_properties();
-            let model = block_properties.base_properties.get_model();
-            let ambient_occlusion = model.ambient_occlusion;
-
             let mut vertices = mesh_result.get_vertices(block_properties.renderer_type);
+            let mut draw = false;
 
             // add nothing faces
             Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.nothing_vertices, chunk_block, Directions::Nothing, ambient_occlusion);
@@ -106,8 +115,8 @@ impl Chunk {
 
             // up
             if y < Chunk::CHUNK_SIZE_MINUS_ONE.y {
-                let temp = blocks_manager.get(chunk.chunk_data.get_blocki(x, y + 1, z));
-                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::Up);
+                let temp = blocks_manager.get_properties_from_block_info(chunk.chunk_data.get_block_infoi(x, y + 1, z));
+                draw = Self::draw_face(block_properties, temp, Directions::Up);
             }
             else if y == Chunk::CHUNK_SIZE_MINUS_ONE.y { draw = true }
 
@@ -117,8 +126,8 @@ impl Chunk {
 
             // down
             if y > 0 {
-                let temp = blocks_manager.get(chunk.chunk_data.get_blocki(x, y - 1, z));
-                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::Down);
+                let temp = blocks_manager.get_properties_from_block_info(chunk.chunk_data.get_block_infoi(x, y - 1, z));
+                draw = Self::draw_face(block_properties, temp, Directions::Down);
             }
 
             if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.down_vertices, chunk_block, Directions::Down, ambient_occlusion); }
@@ -127,12 +136,12 @@ impl Chunk {
 
             // south
             if z < Chunk::CHUNK_SIZE_MINUS_ONE.z {
-                let temp = blocks_manager.get(chunk.chunk_data.get_blocki(x, y, z + 1));
-                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::South);
+                let temp = blocks_manager.get_properties_from_block_info(chunk.chunk_data.get_block_infoi(x, y, z + 1));
+                draw = Self::draw_face(block_properties, temp, Directions::South);
             }
             else if let Some(ref south) = neighbors.south {
-                let temp = blocks_manager.get(south.borrow().chunk_data.get_blocki(x, y, 0));
-                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::South);
+                let temp = blocks_manager.get_properties_from_block_info(south.borrow().chunk_data.get_block_infoi(x, y, 0));
+                draw = Self::draw_face(block_properties, temp, Directions::South);
             }
 
             if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.south_vertices, chunk_block, Directions::South, ambient_occlusion); }
@@ -141,12 +150,12 @@ impl Chunk {
 
             // north
             if z > 0 {
-                let temp = blocks_manager.get(chunk.chunk_data.get_blocki(x, y, z - 1));
-                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::North);
+                let temp = blocks_manager.get_properties_from_block_info(chunk.chunk_data.get_block_infoi(x, y, z - 1));
+                draw = Self::draw_face(block_properties, temp, Directions::North);
             }
             else if let Some(ref north) = neighbors.north {
-                let temp = blocks_manager.get(north.borrow().chunk_data.get_blocki(x, y, Self::CHUNK_SIZE_MINUS_ONE.z));
-                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::North);
+                let temp = blocks_manager.get_properties_from_block_info(north.borrow().chunk_data.get_block_infoi(x, y, Self::CHUNK_SIZE_MINUS_ONE.z));
+                draw = Self::draw_face(block_properties, temp, Directions::North);
             }
 
             if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.north_vertices, chunk_block, Directions::North, ambient_occlusion); }
@@ -155,12 +164,12 @@ impl Chunk {
 
             // east
             if x < Chunk::CHUNK_SIZE_MINUS_ONE.x {
-                let temp = blocks_manager.get(chunk.chunk_data.get_blocki(x + 1, y, z));
-                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::East);
+                let temp = blocks_manager.get_properties_from_block_info(chunk.chunk_data.get_block_infoi(x + 1, y, z));
+                draw = Self::draw_face(block_properties, temp, Directions::East);
             }
             else if let Some(ref east) = neighbors.east {
-                let temp = blocks_manager.get(east.borrow().chunk_data.get_blocki(0, y, z));
-                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::East);
+                let temp = blocks_manager.get_properties_from_block_info(east.borrow().chunk_data.get_block_infoi(0, y, z));
+                draw = Self::draw_face(block_properties, temp, Directions::East);
             }
 
             if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.east_vertices, chunk_block, Directions::East, ambient_occlusion); }
@@ -169,12 +178,12 @@ impl Chunk {
 
             // west
             if x > 0 {
-                let temp = blocks_manager.get(chunk.chunk_data.get_blocki(x - 1, y, z));
-                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::West);
+                let temp = blocks_manager.get_properties_from_block_info(chunk.chunk_data.get_block_infoi(x - 1, y, z));
+                draw = Self::draw_face(block_properties, temp, Directions::West);
             }
             else if let Some(ref west) = neighbors.west {
-                let temp = blocks_manager.get(west.borrow().chunk_data.get_blocki(Self::CHUNK_SIZE_MINUS_ONE.x, y, z));
-                draw = Self::draw_face(block_properties, temp.get_properties(), Directions::West);
+                let temp = blocks_manager.get_properties_from_block_info(west.borrow().chunk_data.get_block_infoi(Self::CHUNK_SIZE_MINUS_ONE.x, y, z));
+                draw = Self::draw_face(block_properties, temp, Directions::West);
             }
 
             if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.west_vertices, chunk_block, Directions::West, ambient_occlusion); }
@@ -200,10 +209,11 @@ impl Chunk {
 			let mut ao_level4: u8 = 3;
 
 			if ambient_occlusion && dir != Directions::Nothing {
-                ao_level1 = Self::get_ao_level(&chunk, blocks_manager, neighbors, chunk_block.as_vec3i(), vert1.vertices, dir, 1);
-                ao_level2 = Self::get_ao_level(&chunk, blocks_manager, neighbors, chunk_block.as_vec3i(), vert2.vertices, dir, 2);
-                ao_level3 = Self::get_ao_level(&chunk, blocks_manager, neighbors, chunk_block.as_vec3i(), vert3.vertices, dir, 3);
-                ao_level4 = Self::get_ao_level(&chunk, blocks_manager, neighbors, chunk_block.as_vec3i(), vert4.vertices, dir, 4);
+			    let chunk_block = chunk_block.as_vec3i();
+                ao_level1 = Self::get_ao_level(&chunk, blocks_manager, neighbors, chunk_block, vert1.vertices, dir, 1);
+                ao_level2 = Self::get_ao_level(&chunk, blocks_manager, neighbors, chunk_block, vert2.vertices, dir, 2);
+                ao_level3 = Self::get_ao_level(&chunk, blocks_manager, neighbors, chunk_block, vert3.vertices, dir, 3);
+                ao_level4 = Self::get_ao_level(&chunk, blocks_manager, neighbors, chunk_block, vert4.vertices, dir, 4);
 			}
 
             let flag1 = ao_level1 | ((vert1.shade as u8) << 2);
@@ -266,7 +276,9 @@ impl Chunk {
 				    return 0;
 				}
 
-			    return !blocks_manager.get(chunk_data.get_block(new_chunk_block)).get_properties().is_transparent as u8;
+				let block_info = chunk_data.get_block_info(new_chunk_block);
+
+			    return !blocks_manager.get(block_info.id).get_properties(block_info.state).is_transparent as u8;
 		    }
 
 
@@ -301,15 +313,18 @@ impl Chunk {
                 else if other_chunk_pos == Vec3i::new(chunk_pos.x + 1, 0, chunk_pos.z + 1) { ch = Tee::Other(neighbors.southeast.as_ref()) }
             }
 
-            match ch {
-                Tee::Same(c) => return !blocks_manager.get(c.chunk_data.get_block(other_chunk_block)).get_properties().is_transparent as u8,
-                Tee::Other(o) if let Some(c) = o => {
-                    return !blocks_manager.get(c.borrow().chunk_data.get_block(other_chunk_block)).get_properties().is_transparent as u8
-                }
-                _ => {}
-            }
 
-			return 0;
+            match ch {
+                Tee::Same(c) => {
+                    let block_info = c.chunk_data.get_block_info(other_chunk_block);
+                    return !blocks_manager.get(block_info.id).get_properties(block_info.state).is_transparent as u8;
+                }
+                Tee::Other(o) if let Some(c) = o => {
+                    let block_info = c.borrow().chunk_data.get_block_info(other_chunk_block);
+                    return !blocks_manager.get(block_info.id).get_properties(block_info.state).is_transparent as u8;
+                }
+                _ => return 0
+            }
         };
 
    	    let mut ao_level: u8 = 3;

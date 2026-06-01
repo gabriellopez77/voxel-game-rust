@@ -172,10 +172,10 @@ impl Planet {
                     &mut self.chunk_mesh_indices_pool
                 );
 
-                //let now = std::time::Instant::now();
+                let now = std::time::Instant::now();
 
                 Chunk::gen_mesh(&*ch, &neighbor_chunks, blocks_manager, &mut mesh_result);
-                //println!("{}", now.elapsed().as_micros());
+                println!("{}", now.elapsed().as_micros());
 
                 ch.renderer.update_mesh(&mesh_result);
 

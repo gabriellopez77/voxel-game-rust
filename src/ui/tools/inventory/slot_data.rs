@@ -1,5 +1,7 @@
+use std::rc::Rc;
 use crate::math::Vec2;
 use crate::render::UiRenderer;
+use crate::resources::FontInfo;
 use crate::ui::tools::{Sprite, Text, UiElement};
 use crate::world::player::EntityInventory;
 
@@ -26,6 +28,7 @@ impl UiElement for SlotData {
         self.position = Vec2::new(x, y);
 
         self.icon.set_posv(self.icon.get_center(self));
+        self.count_text.set_posv(self.icon.get_final() - self.count_text.get_size());
     }
 
     fn set_size(&mut self, x: f32, y: f32) {
@@ -52,8 +55,10 @@ impl SlotData {
         }
     }
 
-    pub fn start(&mut self, slot_index: i32) {
+    pub fn start(&mut self, slot_index: i32, text_font: Rc<FontInfo>) {
         self.slot_index = slot_index;
+
+        self.count_text.set_font(text_font);
     }
 
     pub fn update(&mut self, inventory: &dyn EntityInventory) {
@@ -64,17 +69,16 @@ impl SlotData {
             return;
         }
 
-        self.visible = true;
-        self.count_text_visible = false;
-
         let item_count = slot.get_count();
 
-        // avoids update text chars mesh in every frame
-        if self.last_count != item_count && item_count > 1 {
-            self.count_text_visible = true;
+        self.visible = true;
+        self.count_text_visible = item_count > 1;
 
+
+        // avoids update text chars mesh in every frame
+        if self.last_count != item_count {
             self.count_text.set_text_i32(item_count);
-            self.count_text.set_posv(self.count_text.get_center(self));
+            self.count_text.set_posv(self.icon.get_final());
         }
 
         self.icon.set_texture(slot.get_item().icon);
@@ -90,5 +94,6 @@ impl SlotData {
         if self.count_text_visible {
             self.count_text.draw(&mut renderer.text);
         }
+
     }
 }
