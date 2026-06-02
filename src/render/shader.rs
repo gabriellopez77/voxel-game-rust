@@ -61,34 +61,6 @@ impl Shader {
         }
     }
 
-    pub fn set_matrix(&mut self, uniform: &'static str, matrix: &Matrix4) {
-        if self.id == 0 { return }
-
-        let loc = self.get_or_add_uniform(uniform);
-
-        unsafe {gl::ProgramUniformMatrix4fv(self.id, loc, 1, gl::FALSE, matrix.as_ptr())}
-    }
-
-    pub fn set_vec3(&mut self, uniform: &'static str, vec: Vec3) {
-        if self.id == 0 { return }
-
-        let loc = self.get_or_add_uniform(uniform);
-
-        unsafe {gl::ProgramUniform3f(self.id, loc, vec.x, vec.y, vec.z)}
-    }
-
-    pub fn set_vec2(&mut self, uniform: &'static str, vec: Vec2) {
-        if self.id == 0 { return }
-
-        let loc = self.get_or_add_uniform(uniform);
-
-        unsafe {gl::ProgramUniform2f(self.id, loc, vec.x, vec.y)}
-    }
-
-    pub fn bind(&self) {
-        render_utils::bind_shader(self.id);
-    }
-
     fn compile_shader(string_data: &str, shader_type: gl::types::GLenum, info: &mut [c_char; 512]) -> Result<u32, String> {
         let shader_id = unsafe { gl::CreateShader(shader_type) };
 
@@ -125,6 +97,42 @@ impl Shader {
 
 
         return Ok(shader_id);
+    }
+
+    pub fn set_matrix(&mut self, uniform: &'static str, matrix: &Matrix4) {
+        if self.id == 0 { return }
+
+        let loc = self.get_or_add_uniform(uniform);
+
+        unsafe {gl::ProgramUniformMatrix4fv(self.id, loc, 1, gl::FALSE, matrix.as_ptr())}
+    }
+
+    pub fn set_vec3(&mut self, uniform: &'static str, vec: Vec3) {
+        if self.id == 0 { return }
+
+        let loc = self.get_or_add_uniform(uniform);
+
+        unsafe {gl::ProgramUniform3f(self.id, loc, vec.x, vec.y, vec.z)}
+    }
+
+    pub fn set_vec2(&mut self, uniform: &'static str, vec: Vec2) {
+        if self.id == 0 { return }
+
+        let loc = self.get_or_add_uniform(uniform);
+
+        unsafe {gl::ProgramUniform2f(self.id, loc, vec.x, vec.y)}
+    }
+
+    pub fn set_1f(&mut self, uniform: &'static str, value: f32) {
+        if self.id == 0 { return }
+
+        let loc = self.get_or_add_uniform(uniform);
+
+        unsafe {gl::ProgramUniform1f(self.id, loc, value)}
+    }
+
+    pub fn bind(&self) {
+        render_utils::bind_shader(self.id);
     }
 
     fn get_or_add_uniform(&mut self, name: &'static str) -> i32 {

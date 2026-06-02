@@ -53,12 +53,7 @@ impl SelectionBox {
         
         render_utils::enable(RenderCap::Blend);
         
-        render_utils::draw_indexed(
-            gl::TRIANGLES,
-            &self.shader.as_ref().unwrap(),
-            None,
-            &self.vao,
-        );
+        render_utils::draw_indexed(&self.shader.as_ref().unwrap(), None, &self.vao);
         
         render_utils::disable(RenderCap::Blend);
     }

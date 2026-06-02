@@ -17,6 +17,25 @@ layout(std140, binding = 0) uniform shaderData {
 	mat4 viewNoTranslation;
 };
 
+layout (std140, binding = 1) uniform worldData {
+    // fog
+    vec3 skyColor;
+    vec3 fogColor;
+    vec3 lightColor;
+    vec3 darknessColor;
+    vec3 ambientColor;
+    vec3 cloudsColor;
+    float fogDistance;
+    float fogDensity;
+    int fogEnable;
+};
+
+float calculateFog(vec3 viewSpace)
+{
+    float distanceFromCamera = length(viewSpace);
+    return exp(-pow(distanceFromCamera * fogDistance, fogDensity));
+}
+
 uniform vec3 pos;
 
 out vec3 Normal;
@@ -25,8 +44,11 @@ out vec2 TexCoords;
 flat out int Shade;
 out float AoLevel;
 
+out float FogFactor;
+
 void main() {
-    gl_Position = camProj * camView * vec4(aVertex + pos, 1.f);
+    vec4 viewSpace = camView * vec4(aVertex + pos, 1.f);;
+    gl_Position = camProj * viewSpace;
 
    	// flags and Ao level
 	int flagsValue = int(aFlags);
@@ -35,4 +57,5 @@ void main() {
 
     Normal = aNormal;
     TexCoords = aTexCoords;
+    FogFactor = calculateFog(viewSpace.xyz);
 }

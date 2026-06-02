@@ -38,8 +38,7 @@ impl<T: Copy> SpritesRenderer<T> {
 
         self.vao.update_buffer(VaoBuffers::Instance, &self.buffer);
         render_utils::draw_indexed_instanced(
-            gl::TRIANGLES,
-            &self.shader.as_ref().unwrap().borrow(),
+            &self.shader.as_ref().unwrap(),
             Some(&self.texture.as_ref().unwrap()),
             &self.vao,
             buffer_len

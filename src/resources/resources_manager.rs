@@ -83,7 +83,7 @@ impl ResourceManager {
 
 
         {
-            let mut ubo = Ubo::new();
+            let mut ubo = Ubo::new(6);
             ubo.add::<Matrix4>("uiProj");
             ubo.add::<f32>("uiPixelScale");
             ubo.add::<Matrix4>("camProj");
@@ -95,12 +95,13 @@ impl ResourceManager {
         }
 
         {
-            let mut ubo = Ubo::new();
+            let mut ubo = Ubo::new(8);
            	ubo.add::<Vec3>("skyColor");
            	ubo.add::<Vec3>("fogColor");
            	ubo.add::<Vec3>("lightColor");
            	ubo.add::<Vec3>("darknessColor");
            	ubo.add::<Vec3>("ambientColor");
+           	ubo.add::<Vec3>("cloudsColor");
            	ubo.add::<f32>("fogDistance");
            	ubo.add::<f32>("fogDensity");
            	ubo.add::<i32>("fogEnable");

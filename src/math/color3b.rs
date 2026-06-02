@@ -1,3 +1,5 @@
+use crate::math::Vec3;
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Color3b {
@@ -20,5 +22,15 @@ impl Color3b {
         let b = (hex >> 0) as u8;
 
         return Self { r, g, b };
+    }
+
+    pub fn normalized(&self) -> Vec3 {
+        Vec3::new(self.r as f32, self.g as f32, self.b as f32) / 255.0
+    }
+}
+
+impl PartialEq for Color3b {
+    fn eq(&self, other: &Self) -> bool {
+        other.r == self.r && other.g == self.g && other.b == self.b
     }
 }

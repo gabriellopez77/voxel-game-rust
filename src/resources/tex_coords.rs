@@ -43,6 +43,7 @@ impl TexCoords {
         )
     }
 
+    /// no normalize!
     pub fn get_sub_tex(&self, x: f32, y: f32, width: f32, height: f32) -> Self {
         TexCoords::new(
             self.minx + x,
@@ -52,6 +53,7 @@ impl TexCoords {
         )
     }
 
+    /// no normalize!
     pub fn get_size(&self) -> Vec2 {
         Vec2::new(self.maxx - self.minx, self.maxy - self.miny)
     }

@@ -43,7 +43,7 @@ impl Game {
         self.player.start(&self.resources_manager.borrow(), &self.blocks_manager.as_ref().unwrap());
         self.planet.start(self.resources_manager.clone());
 
-        self.sky.start(self.resources_manager.clone());
+        self.sky.start(&self.resources_manager.borrow());
         self.clouds.start(self.resources_manager.clone());
 
         //let now = std::time::Instant::now();
@@ -60,8 +60,8 @@ impl Game {
         }
 
         if !self.paused {
-            self.sky.update();
-            self.clouds.update(self.player.camera.position, self.planet.render_distance);
+            self.sky.update(dt, self.planet.render_distance);
+            self.clouds.update(self.player.camera.position, self.planet.render_distance, self.sky.time);
 
             self.player.update(dt, &self.planet, &self.blocks_manager.as_ref().unwrap());
             self.planet.update(self.player.camera.position, &self.blocks_manager.as_ref().unwrap());

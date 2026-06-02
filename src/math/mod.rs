@@ -16,6 +16,7 @@ pub mod matrix4;
 
 pub mod utils;
 
+pub mod key_frame;
 
 pub use utils::*;
 
@@ -35,4 +36,6 @@ pub use {
     color3b::Color3b,
 
     matrix4::Matrix4,
+
+    key_frame::KeyFrame,
 };

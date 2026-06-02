@@ -7,7 +7,7 @@ use crate::render::{ChunkVertices, Shader, Texture, render_utils};
 use crate::resources::{BlockItemModel, ResourceManager};
 use crate::utils::ObjectPool;
 use crate::world::blocks::BlocksManager;
-use crate::world::chunk::{ChunkGetter, ChunkMeshResult, NeighborChunks, neighbor_chunks};
+use crate::world::chunk::{ChunkMeshResult, NeighborChunks, neighbor_chunks};
 use crate::world::{Chunk, WorldGen, player::Camera};
 
 
@@ -38,7 +38,7 @@ impl Planet {
             chunks: HashMap::new(),
             world_gen: WorldGen::new(),
 
-            render_distance: 4,
+            render_distance: 8,
 
             last_player_chunk: Vec3i::ZERO,
             change_chunk_logic: true,
@@ -75,7 +75,7 @@ impl Planet {
             for (pos, ch) in &self.chunks {
                 let distance = math::get_chunk_distance(player_chunk, *pos);
 
-                if distance >= self.render_distance {
+                if distance > self.render_distance {
                     self.remove_chunks_list.push(ch.clone());
                     continue;
                 }
@@ -101,7 +101,7 @@ impl Planet {
 
                     let distance = math::get_chunk_distance(new_chunk_pos, player_chunk);
 
-                    if distance >= self.render_distance || self.chunks.contains_key(&new_chunk_pos) { continue; }
+                    if distance > self.render_distance || self.chunks.contains_key(&new_chunk_pos) { continue; }
 
                     let neighbor_chunks = NeighborChunks::new_set(self, new_chunk_pos, false);
                     self.regen_neighbor_chunks(&neighbor_chunks);
@@ -172,10 +172,10 @@ impl Planet {
                     &mut self.chunk_mesh_indices_pool
                 );
 
-                let now = std::time::Instant::now();
+                //let now = std::time::Instant::now();
 
                 Chunk::gen_mesh(&*ch, &neighbor_chunks, blocks_manager, &mut mesh_result);
-                println!("{}", now.elapsed().as_micros());
+                //println!("{}", now.elapsed().as_micros());
 
                 ch.renderer.update_mesh(&mesh_result);
 

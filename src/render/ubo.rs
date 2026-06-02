@@ -18,9 +18,9 @@ pub struct Ubo  {
 }
 
 impl Ubo {
-    pub fn new() -> Self {
+    pub fn new(capacity: usize) -> Self {
         Self {
-            offsets: HashMap::new(),
+            offsets: HashMap::with_capacity(capacity),
             current_offset: 0,
             last_field_size: 0,
 
@@ -40,16 +40,18 @@ impl Ubo {
             _ => panic!("Ubo size not supported: {size}"),
         };
 
-        // fits int, bool or float in last vec3's padding
-        if self.last_field_size == 12 && size == 4 {
-            self.current_offset -= 4;
-        }
-
+        
         let offset = math::align_up(self.current_offset, alignment);
         self.current_offset = offset + size;
         self.last_field_size = size;
-
-        self.offsets.insert(name, OffseData { offset, size });
+        
+        // fits int, bool or float in last vec3's padding
+        if self.last_field_size == 12 && size == 4 {
+            self.offsets.insert(name, OffseData { offset: self.current_offset - 4, size });
+        }
+        else {
+            self.offsets.insert(name, OffseData { offset, size });
+        }
     }
 
     pub fn create(&mut self, index: u32) {

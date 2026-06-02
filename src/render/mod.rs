@@ -7,6 +7,7 @@ pub mod vertices_data;
 pub mod ubo;
 pub mod chunk_renderer;
 pub mod ui_renderer;
+pub mod sky_bodies_renderer;
 
 pub use {
     shader::Shader,
@@ -17,4 +18,5 @@ pub use {
     vertices_data::*,
     chunk_renderer::ChunkRenderer,
     ui_renderer::UiRenderer,
+    sky_bodies_renderer::SkyBodiesRenderer,
 };

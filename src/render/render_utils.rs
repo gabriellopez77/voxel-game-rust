@@ -38,14 +38,14 @@ pub fn disable(cap: RenderCap) {
     }
 }
 
-pub fn draw_indexed(primitive: GLenum, shader: &Rc<RefCell<Shader>>, texture: Option<&Texture>, vao: &Vao) {
+pub fn draw_indexed(shader: &Rc<RefCell<Shader>>, texture: Option<&Texture>, vao: &Vao) {
     unsafe {
         if let Some(texture) = texture { texture.bind() }
         shader.borrow().bind();
         vao.bind();
 
         gl::DrawElements(
-            primitive,
+            gl::TRIANGLES,
             vao.triangles_count,
             gl::UNSIGNED_INT,
             std::ptr::null()
@@ -53,14 +53,14 @@ pub fn draw_indexed(primitive: GLenum, shader: &Rc<RefCell<Shader>>, texture: Op
     }
 }
 
-pub fn draw_indexed_instanced(primitive: GLenum, shader: &Shader, texture: Option<&Texture>, vao: &Vao, instances_count: usize) {
+pub fn draw_indexed_instanced(shader: &Rc<RefCell<Shader>>, texture: Option<&Texture>, vao: &Vao, instances_count: usize) {
     unsafe {
         if let Some(texture) = texture { texture.bind() }
-        shader.bind();
+        shader.borrow().bind();
         vao.bind();
 
         gl::DrawElementsInstanced(
-            primitive,
+            gl::TRIANGLES,
             vao.triangles_count,
             gl::UNSIGNED_INT,
             std::ptr::null(),

@@ -59,7 +59,7 @@ impl Chunk {
         self.chunk_data.get_data_mut().fill(0);
 
         self.mesh_generated = false;
-        self.renderer.recreate(position, shader, texture);
+        self.renderer = ChunkRenderer::new(position, shader, texture);
         self.inside_frustum = false;
 
         self.using_count.store(0, std::sync::atomic::Ordering::SeqCst);
@@ -82,7 +82,6 @@ impl Chunk {
 
     pub fn gen_mesh(chunk: &Chunk, neighbors: &NeighborChunks, blocks_manager: &BlocksManager,
                     mesh_result: &mut ChunkMeshResult) {
-
         let mut last_block_info = chunk.chunk_data.get_block_infoi(0, 0, 0);
         let mut block_functions = blocks_manager.get(last_block_info.id);
         let mut block_properties = block_functions.get_properties(last_block_info.state);
@@ -194,9 +193,8 @@ impl Chunk {
         mesh_result.gen_indices();
     }
 
-    fn add_face(chunk: &Chunk, blocks_manager: &BlocksManager, neighbors: &NeighborChunks,
-                vertices: &mut Vec<ChunkVertices>, model_vertices: &Vec<BlockModelMesh>, chunk_block: Vec3,
-                dir: Directions, ambient_occlusion: bool) {
+    fn add_face(chunk: &Chunk, blocks_manager: &BlocksManager, neighbors: &NeighborChunks, vertices: &mut Vec<ChunkVertices>,
+                model_vertices: &Vec<BlockModelMesh>, chunk_block: Vec3, dir: Directions, ambient_occlusion: bool) {
         for i in (0..model_vertices.len()).step_by(4) {
             let vert1 = &model_vertices[i + 0];
             let vert2 = &model_vertices[i + 1];

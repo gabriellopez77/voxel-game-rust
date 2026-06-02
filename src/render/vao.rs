@@ -123,7 +123,7 @@ impl Vao {
 
         let size= (arr.len() * size_of::<T>()) as isize;
 
-        if size >= buffer_info.size as isize {
+        if size > buffer_info.size as isize {
             panic!("data size out of buffer bounds! buffer size: {}, data size: {}", buffer_info.size, size)
         }
 

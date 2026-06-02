@@ -1,5 +1,18 @@
 #version 460 core
 
+layout (std140, binding = 1) uniform worldData {
+    // fog
+    vec3 skyColor;
+    vec3 fogColor;
+    vec3 lightColor;
+    vec3 darknessColor;
+    vec3 ambientColor;
+    vec3 cloudsColor;
+    float fogDistance;
+    float fogDensity;
+    int fogEnable;
+};
+
 uniform sampler2D myTexture;
 
 in vec3 Normal;
@@ -8,7 +21,10 @@ in vec2 TexCoords;
 flat in int Shade;
 in float AoLevel;
 
-out vec4 outColor;
+in float FogFactor;
+
+
+out vec4 FragColor;
 
 void main() {
     vec4 tex = texture(myTexture, TexCoords);
@@ -16,6 +32,7 @@ void main() {
     if (tex.a < 0.1)
         discard;
 
+    // face shading
     float shadeFace = 1.f;
     if (Shade == 1)
     {
@@ -30,5 +47,8 @@ void main() {
         shadeFace = min(1.0, (light0 + light1) * LIGHT_POWER + AMBIENT_LIGHT_POWER);
     }
 
-    outColor = vec4(tex.rgb * (shadeFace * AoLevel), tex.a);
+    FragColor = vec4(tex.rgb * (shadeFace * AoLevel), tex.a);
+
+    // fog
+    FragColor.rgb = mix(fogColor.xyz, FragColor.rgb, FogFactor);
 }
