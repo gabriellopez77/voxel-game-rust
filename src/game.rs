@@ -60,10 +60,11 @@ impl Game {
         }
 
         if !self.paused {
+            self.player.update(dt, &self.planet, &self.blocks_manager.as_ref().unwrap());
+            
             self.sky.update(dt, self.planet.render_distance);
             self.clouds.update(self.player.camera.position, self.planet.render_distance, self.sky.time);
 
-            self.player.update(dt, &self.planet, &self.blocks_manager.as_ref().unwrap());
             self.planet.update(self.player.camera.position, &self.blocks_manager.as_ref().unwrap());
         }
 

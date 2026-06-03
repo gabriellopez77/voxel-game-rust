@@ -5,6 +5,7 @@ use std::{
     rc::Rc,
     cell::RefCell
 };
+use std::str::FromStr;
 use image::DynamicImage;
 use crate::math::{Matrix4, Vec3};
 use crate::render::{Shader, Texture, Ubo};
@@ -50,7 +51,6 @@ impl ResourceManager {
             let images = get_filtered_files_in_directory(&path, "png");
             self.textures.insert("blocks", Rc::new(Texture::create_from_atlas(&images, 256, 256, gl::NEAREST)));
         }
-
         {
             path.clear();
             path.push_str(&self.textures_path);
@@ -59,13 +59,23 @@ impl ResourceManager {
 
             self.textures.insert("ui", Rc::new(Texture::create_from_atlas(&images, 256, 256, gl::NEAREST)));
         }
-
         {
             path.clear();
             path.push_str(&self.textures_path);
             path.push_str(r"\fonts");
             let images = get_filtered_files_in_directory(&path, "png");
             self.textures.insert("fonts", Rc::new(Texture::create_from_atlas(&images, 256, 256, gl::NEAREST)));
+        }
+        {
+            path.clear();
+            let images = [
+                PathBuf::from_str(&format!(r"{}\misc\moon.png", self.textures_path)).unwrap(),
+                //PathBuf::from_str(&format!(r"{}\misc\stars.png", self.textures_path)).unwrap(),
+                PathBuf::from_str(&format!(r"{}\misc\sun.png", self.textures_path)).unwrap(),
+                PathBuf::from_str(&format!(r"{}\error_404.png", self.textures_path)).unwrap(),
+            ];
+
+            self.textures.insert("skyBodies", Rc::new(Texture::create_from_atlas(&images, 96, 96, gl::NEAREST)));
         }
 
         // load fonts
@@ -118,6 +128,7 @@ impl ResourceManager {
         self.read_shader("skyDome");
         self.read_shader("clouds");
         self.read_shader("selection_box");
+        self.read_shader("skyBodies");
     }
 
     pub fn get_ubo(&self, name: &str) -> Option<Rc<Ubo>> {

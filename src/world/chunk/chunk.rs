@@ -22,6 +22,7 @@ pub enum Directions {
 
 pub struct Chunk {
     pub position: Vec3i,
+    pub visual_position: Vec3,
 
     pub chunk_data: ChunkData,
 
@@ -40,13 +41,20 @@ impl Chunk {
     pub const REGION_SIZE: i32 = 16;
 
     pub fn new(position: Vec3i, shader: Rc<RefCell<Shader>>, texture: Rc<Texture>) -> Self {
+        let visual_position = Vec3::new(
+            (position.x * Chunk::CHUNK_SIZE.x) as f32,
+            (position.y * Chunk::CHUNK_SIZE.y) as f32,
+            (position.z * Chunk::CHUNK_SIZE.z) as f32
+        );
+
         Self {
             position,
+            visual_position,
 
             chunk_data: ChunkData::new(),
 
             mesh_generated: false,
-            renderer: ChunkRenderer::new(position, shader, texture),
+            renderer: ChunkRenderer::new(shader, texture),
             inside_frustum: false,
 
             using_count: AtomicI32::new(0)
@@ -55,11 +63,12 @@ impl Chunk {
 
     pub fn recreate(&mut self, position: Vec3i, shader: Rc<RefCell<Shader>>, texture: Rc<Texture>) {
         self.position = position;
+        self.visual_position = (position * Self::CHUNK_SIZE).as_vec3();
 
         self.chunk_data.get_data_mut().fill(0);
 
         self.mesh_generated = false;
-        self.renderer = ChunkRenderer::new(position, shader, texture);
+        self.renderer = ChunkRenderer::new(shader, texture);
         self.inside_frustum = false;
 
         self.using_count.store(0, std::sync::atomic::Ordering::SeqCst);
@@ -88,6 +97,8 @@ impl Chunk {
         let mut model = &block_properties.base_properties.model;
         let mut ambient_occlusion = model.ambient_occlusion;
 
+        let chunk_pos = chunk.position.as_vec3() * Self::CHUNK_SIZEF;
+        
         for x in 0..Chunk::CHUNK_SIZE.x {
         for y in 0..Chunk::CHUNK_SIZE.y {
         for z in 0..Chunk::CHUNK_SIZE.z {
@@ -109,7 +120,7 @@ impl Chunk {
             let mut draw = false;
 
             // add nothing faces
-            Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.nothing_vertices, chunk_block, Directions::Nothing, ambient_occlusion);
+            Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.nothing_vertices, chunk_block, chunk_pos, Directions::Nothing, ambient_occlusion);
 
 
             // up
@@ -119,7 +130,7 @@ impl Chunk {
             }
             else if y == Chunk::CHUNK_SIZE_MINUS_ONE.y { draw = true }
 
-            if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.up_vertices, chunk_block, Directions::Up, ambient_occlusion); }
+            if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.up_vertices, chunk_block, chunk_pos, Directions::Up, ambient_occlusion); }
             draw = false;
 
 
@@ -129,7 +140,7 @@ impl Chunk {
                 draw = Self::draw_face(block_properties, temp, Directions::Down);
             }
 
-            if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.down_vertices, chunk_block, Directions::Down, ambient_occlusion); }
+            if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.down_vertices, chunk_block, chunk_pos, Directions::Down, ambient_occlusion); }
             draw = false;
 
 
@@ -143,7 +154,7 @@ impl Chunk {
                 draw = Self::draw_face(block_properties, temp, Directions::South);
             }
 
-            if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.south_vertices, chunk_block, Directions::South, ambient_occlusion); }
+            if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.south_vertices, chunk_block, chunk_pos, Directions::South, ambient_occlusion); }
             draw = false;
 
 
@@ -157,7 +168,7 @@ impl Chunk {
                 draw = Self::draw_face(block_properties, temp, Directions::North);
             }
 
-            if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.north_vertices, chunk_block, Directions::North, ambient_occlusion); }
+            if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.north_vertices, chunk_block, chunk_pos, Directions::North, ambient_occlusion); }
             draw = false;
 
 
@@ -171,7 +182,7 @@ impl Chunk {
                 draw = Self::draw_face(block_properties, temp, Directions::East);
             }
 
-            if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.east_vertices, chunk_block, Directions::East, ambient_occlusion); }
+            if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.east_vertices, chunk_block, chunk_pos, Directions::East, ambient_occlusion); }
             draw = false;
 
 
@@ -185,7 +196,7 @@ impl Chunk {
                 draw = Self::draw_face(block_properties, temp, Directions::West);
             }
 
-            if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.west_vertices, chunk_block, Directions::West, ambient_occlusion); }
+            if draw { Self::add_face(&chunk, blocks_manager, neighbors, &mut vertices, &model.west_vertices, chunk_block, chunk_pos, Directions::West, ambient_occlusion); }
         }
         }
         }
@@ -194,7 +205,7 @@ impl Chunk {
     }
 
     fn add_face(chunk: &Chunk, blocks_manager: &BlocksManager, neighbors: &NeighborChunks, vertices: &mut Vec<ChunkVertices>,
-                model_vertices: &Vec<BlockModelMesh>, chunk_block: Vec3, dir: Directions, ambient_occlusion: bool) {
+                model_vertices: &Vec<BlockModelMesh>, chunk_block: Vec3, chunk_pos: Vec3, dir: Directions, ambient_occlusion: bool) {
         for i in (0..model_vertices.len()).step_by(4) {
             let vert1 = &model_vertices[i + 0];
             let vert2 = &model_vertices[i + 1];
@@ -219,10 +230,10 @@ impl Chunk {
             let flag3 = ao_level3 | ((vert3.shade as u8) << 2);
             let flag4 = ao_level4 | ((vert4.shade as u8) << 2);
 
-            vertices.push(ChunkVertices { vertices: vert1.vertices + chunk_block, normal: vert1.normal, uv: vert1.uv, flags: flag1 });
-            vertices.push(ChunkVertices { vertices: vert2.vertices + chunk_block, normal: vert2.normal, uv: vert2.uv, flags: flag2 });
-            vertices.push(ChunkVertices { vertices: vert3.vertices + chunk_block, normal: vert3.normal, uv: vert3.uv, flags: flag3 });
-            vertices.push(ChunkVertices { vertices: vert4.vertices + chunk_block, normal: vert4.normal, uv: vert4.uv, flags: flag4 });
+            vertices.push(ChunkVertices { vertices: vert1.vertices + chunk_block + chunk_pos, normal: vert1.normal, uv: vert1.uv, flags: flag1 });
+            vertices.push(ChunkVertices { vertices: vert2.vertices + chunk_block + chunk_pos, normal: vert2.normal, uv: vert2.uv, flags: flag2 });
+            vertices.push(ChunkVertices { vertices: vert3.vertices + chunk_block + chunk_pos, normal: vert3.normal, uv: vert3.uv, flags: flag3 });
+            vertices.push(ChunkVertices { vertices: vert4.vertices + chunk_block + chunk_pos, normal: vert4.normal, uv: vert4.uv, flags: flag4 });
         }
     }
 

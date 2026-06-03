@@ -1,5 +1,4 @@
 ﻿use std::{cell::RefCell, rc::Rc, mem::offset_of};
-use crate::math::{Vec3, Vec3i};
 use crate::render::{render_utils, ChunkVertices, Shader, Texture, Vao, vao::VaoBuffers};
 use crate::world::{Chunk, chunk::ChunkMeshResult};
 
@@ -15,23 +14,15 @@ impl RendererType {
 }
 
 pub struct ChunkRenderer {
-    pub position: Vec3,
+    shader: Rc<RefCell<Shader>>,
+    texture: Rc<Texture>,
 
     vaos: [Vao; RendererType::RENDERS_COUNT],
-    pub shader: Rc<RefCell<Shader>>,
-    pub texture: Rc<Texture>,
 }
 
 impl ChunkRenderer {
-    pub fn new(position: Vec3i, shader: Rc<RefCell<Shader>>, texture: Rc<Texture>) -> Self {
-        let pos = Vec3 {
-            x: (position.x * Chunk::CHUNK_SIZE.x) as f32,
-            y: (position.y * Chunk::CHUNK_SIZE.y) as f32,
-            z: (position.z * Chunk::CHUNK_SIZE.z) as f32
-        };
-
+    pub fn new(shader: Rc<RefCell<Shader>>, texture: Rc<Texture>) -> Self {
         Self {
-            position: pos,
             vaos: [
                 Vao::new(),
                 Vao::new()
@@ -51,8 +42,6 @@ impl ChunkRenderer {
         let vao = &self.vaos[render_type as usize];
 
         if vao.triangles_count == 0 { return }
-
-        self.shader.borrow_mut().set_vec3("pos", self.position);
 
         render_utils::draw_indexed(&self.shader, Some(self.texture.as_ref()), vao);
     }

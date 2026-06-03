@@ -38,7 +38,7 @@ impl Planet {
             chunks: HashMap::new(),
             world_gen: WorldGen::new(),
 
-            render_distance: 8,
+            render_distance: 4,
 
             last_player_chunk: Vec3i::ZERO,
             change_chunk_logic: true,
@@ -154,7 +154,7 @@ impl Planet {
             let mut ch = chunk.borrow_mut();
 
             if camera.view_changed {
-                ch.inside_frustum = camera.chunk_inside_frustum(ch.position)
+                ch.inside_frustum = camera.chunk_inside_frustum(ch.visual_position)
             }
 
             if !ch.inside_frustum { continue }

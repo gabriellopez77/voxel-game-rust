@@ -95,7 +95,10 @@ impl Text {
         use std::fmt::Write;
 
         match self.text {
-            TextTypes::String(ref mut string) => write!(string, "{value}").unwrap(),
+            TextTypes::String(ref mut string) => {
+                string.clear();
+                write!(string, "{value}").unwrap();
+            }
             _ => self.text = TextTypes::String(value.to_string()),
         }
 
@@ -103,7 +106,11 @@ impl Text {
     }
 
     pub fn draw(&mut self, renderer: &mut SpritesRenderer<TextVertices>) {
-        if self.text.get().len() == 0 { return }
+        match self.text {
+            TextTypes::String(ref string) => if string.is_empty() { return }
+            TextTypes::Str(value) => if value.is_empty() { return }
+            _ => return
+        }
 
         if self.pos_modified {
             self.pos_modified = false;

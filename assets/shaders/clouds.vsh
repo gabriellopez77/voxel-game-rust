@@ -49,7 +49,6 @@ void main()
 	else if (index >= 20 && index <= 23 && !bool(cullfaceValue & (1 << 3))) return;
 
 	const vec3 size = vec3(12.f, 4.f, 12.f);
-	//const vec3 positionOffset = vec3(0.f, -0.6f, 0.f);
 	const vec3 pos = vec3(aPosition.x, 128.f, aPosition.y);
 
 	vec4 viewSpace = camView * vec4((aVertex * size) + pos, 1.f);

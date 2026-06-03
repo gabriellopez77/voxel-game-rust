@@ -14,6 +14,6 @@ layout(std140, binding = 0) uniform shaderData {
 uniform vec3 pos;
 
 void main() {
-    gl_Position = camProj * camView * vec4(aVertex + pos, 1.f);
+    gl_Position = camViewProj * vec4(aVertex + pos, 1.f);
     gl_Position.z -= 0.001f;
 }

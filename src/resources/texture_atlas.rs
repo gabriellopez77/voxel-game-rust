@@ -3,7 +3,7 @@ use crate::math::Vec2;
 use crate::resources::TexCoords;
 
 
-pub fn create(images_path: &Vec<PathBuf>, width: i32, height: i32) -> (Vec<u8>, Vec<(String, TexCoords)>) {
+pub fn create(images_path: &[PathBuf], width: i32, height: i32) -> (Vec<u8>, Vec<(String, TexCoords)>) {
     let mut root = Node::new(0, 0, width, height);
 
     let buffer_size = (width * height * 4) as usize;

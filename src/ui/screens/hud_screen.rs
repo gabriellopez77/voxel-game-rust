@@ -3,7 +3,7 @@ use crate::{math::Vec2, resources::ResourceManager, ui::{ScreenBase, tools::{Spr
 use crate::render::UiRenderer;
 use crate::ui::ScreenUpdateArgs;
 use crate::ui::tools::elements_grid::Alignment;
-use crate::ui::tools::{ElementsGrid, inventory::ItemSlot};
+use crate::ui::tools::{ElementsGrid, inventory::ItemSlot, Text};
 use crate::world::player::entitiy_inventory::PLAYER_HOTBAR_SLOTS_COUNT;
 use crate::world::player::EntityInventory;
 
@@ -13,6 +13,10 @@ pub struct HudScreen {
     hotbar_selected_slot: Sprite,
     hotbar_slots: [ItemSlot; PLAYER_HOTBAR_SLOTS_COUNT],
     hotbar_grid: ElementsGrid,
+
+    fps_text: Text,
+
+    delay: f32,
 }
 
 impl ScreenBase for HudScreen {
@@ -32,6 +36,8 @@ impl ScreenBase for HudScreen {
             self.hotbar_grid.add(slot);
         }
 
+        self.fps_text.set_font(resources.get_font("default").unwrap());
+        self.fps_text.set_pos(10.0, 10.0);
         self.hotbar_grid.update();
     }
 
@@ -44,7 +50,14 @@ impl ScreenBase for HudScreen {
         for slot in &mut self.hotbar_slots {
             slot.update(&args.game.player);
         }
-        
+
+        self.delay += dt;
+
+        if self.delay > 1.0 {
+            self.fps_text.set_text_i32((1.0 / dt) as i32);
+            self.delay = 0.0;
+        }
+
         self.hotbar_grid.update();
     }
 
@@ -55,6 +68,9 @@ impl ScreenBase for HudScreen {
         for slot in &mut self.hotbar_slots {
             slot.draw(renderer);
         }
+
+
+        self.fps_text.draw(&mut renderer.text)
     }
 
     fn resize(&mut self, args: &ScreenUpdateArgs) {
@@ -76,6 +92,10 @@ impl HudScreen {
             hotbar_selected_slot: Sprite::new(),
             hotbar_slots: array::from_fn(|_| ItemSlot::new()),
             hotbar_grid: ElementsGrid::new(PLAYER_HOTBAR_SLOTS_COUNT, Alignment::Horizontal, 9, 2.0),
+
+            fps_text: Text::new(),
+
+            delay: 0.0,
         }
     }
 }

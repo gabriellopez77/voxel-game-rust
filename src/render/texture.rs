@@ -49,7 +49,7 @@ impl Texture {
         }
     }
 
-    pub fn create_from_atlas(images: &Vec<PathBuf>, width: i32, height: i32, filter: gl::types::GLenum) -> Self {
+    pub fn create_from_atlas(images: &[PathBuf], width: i32, height: i32, filter: gl::types::GLenum) -> Self {
         let now = std::time::Instant::now();
         let (pixels, coords) = texture_atlas::create(images, width, height);
         println!("{}", now.elapsed().as_micros());

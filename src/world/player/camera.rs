@@ -1,5 +1,4 @@
-﻿use std::cell::RefCell;
-use std::rc::Rc;
+﻿use std::rc::Rc;
 
 use crate::math::Vec3i;
 use crate::math::vec3::Vec3;
@@ -81,6 +80,7 @@ impl Camera {
         self.update_frustum_planes();
 
         self.ubo.as_ref().unwrap().update("camView", self.view_matrix.as_ptr());
+        self.ubo.as_ref().unwrap().update("camViewProj", self.projection_view_matrix.as_ptr());
         self.ubo.as_ref().unwrap().update("camViewNoTranslate", &self.view_matrix.remove_translation());
     }
 
@@ -91,13 +91,7 @@ impl Camera {
         self.ubo.as_ref().unwrap().update("camProj", self.projection_matrix.as_ptr());
     }
 
-    pub fn chunk_inside_frustum(&self, chunk_pos: Vec3i) -> bool  {
-        let visual_chunk_pos = Vec3::new(
-            (chunk_pos.x * Chunk::CHUNK_SIZE.x) as f32,
-            (chunk_pos.y * Chunk::CHUNK_SIZE.y) as f32,
-            (chunk_pos.z * Chunk::CHUNK_SIZE.z) as f32
-        );
-
+    pub fn chunk_inside_frustum(&self, visual_chunk_pos: Vec3) -> bool  {
         for plane in &self.frustum_planes {
             let n = Vec3::new(
                 if plane.normal.x >= 0.0 { visual_chunk_pos.x + Chunk::CHUNK_SIZEF.x } else { visual_chunk_pos.x },

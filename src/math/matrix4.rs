@@ -20,6 +20,10 @@ impl Matrix4 {
         ]
     };
 
+    pub fn from(v1: Vec4, v2: Vec4, v3: Vec4, v4: Vec4) -> Self {
+        Self { values: [v1, v2, v3, v4] }
+    }
+
 
     pub fn orthographic(left: f32, right: f32, bottom: f32, top: f32) -> Self {
         let mut result = Matrix4::IDENTITY;
@@ -76,6 +80,62 @@ impl Matrix4 {
     pub fn get_row1(&self) -> Vec4 { Vec4::new(self.values[0].y, self.values[1].y, self.values[2].y, self.values[3].y) }
     pub fn get_row2(&self) -> Vec4 { Vec4::new(self.values[0].z, self.values[1].z, self.values[2].z, self.values[3].z) }
     pub fn get_row3(&self) -> Vec4 { Vec4::new(self.values[0].w, self.values[1].w, self.values[2].w, self.values[3].w) }
+
+    // pub fn inverse(&self) -> Self {
+    //     let Coef00 = self.values[2].z * self.values[3].w - self.values[3].z * self.values[2].w;
+    //     let Coef02 = self.values[1].z * self.values[3].w - self.values[3].z * self.values[1].w;
+    //     let Coef03 = self.values[1].z * self.values[2].w - self.values[2].z * self.values[1].w;
+    //
+    //     let Coef04 = self.values[2].y * self.values[3].w - self.values[3].y * self.values[2].w;
+    //     let Coef06 = self.values[1].y * self.values[3].w - self.values[3].y * self.values[1].w;
+    //     let Coef07 = self.values[1].y * self.values[2].w - self.values[2].y * self.values[1].w;
+    //
+    //     let Coef08 = self.values[2].y * self.values[3].z - self.values[3].y * self.values[2].z;
+    //     let Coef10 = self.values[1].y * self.values[3].z - self.values[3].y * self.values[1].z;
+    //     let Coef11 = self.values[1].y * self.values[2].z - self.values[2].y * self.values[1].z;
+    //
+    //     let Coef12 = self.values[2].x * self.values[3].w - self.values[3].x * self.values[2].w;
+    //     let Coef14 = self.values[1].x * self.values[3].w - self.values[3].x * self.values[1].w;
+    //     let Coef15 = self.values[1].x * self.values[2].w - self.values[2].x * self.values[1].w;
+    //
+    //     let Coef16 = self.values[2].x * self.values[3].z - self.values[3].x * self.values[2].z;
+    //     let Coef18 = self.values[1].x * self.values[3].z - self.values[3].x * self.values[1].z;
+    //     let Coef19 = self.values[1].x * self.values[2].z - self.values[2].x * self.values[1].z;
+    //
+    //     let Coef20 = self.values[2].x * self.values[3].y - self.values[3].x * self.values[2].y;
+    //     let Coef22 = self.values[1].x * self.values[3].y - self.values[3].x * self.values[1].y;
+    //     let Coef23 = self.values[1].x * self.values[2].y - self.values[2].x * self.values[1].y;
+    //
+    //     let Fac0 = Vec4::new(Coef00, Coef00, Coef02, Coef03);
+    //     let Fac1 = Vec4::new(Coef04, Coef04, Coef06, Coef07);
+    //     let Fac2 = Vec4::new(Coef08, Coef08, Coef10, Coef11);
+    //     let Fac3 = Vec4::new(Coef12, Coef12, Coef14, Coef15);
+    //     let Fac4 = Vec4::new(Coef16, Coef16, Coef18, Coef19);
+    //     let Fac5 = Vec4::new(Coef20, Coef20, Coef22, Coef23);
+    //
+    //     let Vec0 = Vec4::new(self.values[1].x, self.values[0].x, self.values[0].x, self.values[0].x);
+    //     let Vec1 = Vec4::new(self.values[1].y, self.values[0].y, self.values[0].y, self.values[0].y);
+    //     let Vec2 = Vec4::new(self.values[1].z, self.values[0].z, self.values[0].z, self.values[0].z);
+    //     let Vec3 = Vec4::new(self.values[1].w, self.values[0].w, self.values[0].w, self.values[0].w);
+    //
+    //     let Inv0 = Vec1 * Fac0 - Vec2 * Fac1 + Vec3 * Fac2;
+    //     let Inv1 = Vec0 * Fac0 - Vec2 * Fac3 + Vec3 * Fac4;
+    //     let Inv2 = Vec0 * Fac1 - Vec1 * Fac3 + Vec3 * Fac5;
+    //     let Inv3 = Vec0 * Fac2 - Vec1 * Fac4 + Vec2 * Fac5;
+    //
+    //     let SignA = Vec4::new(1.0, -1.0, 1.0, -1.0);
+    //     let SignB = Vec4::new(-1.0, 1.0, -1.0, 1.0);
+    //     let Inverse = Matrix4::from(Inv0 * SignA, Inv1 * SignB, Inv2 * SignA, Inv3 * SignB);
+    //
+    //     let Row0 = Vec4::new(Inverse.values[0].x, Inverse.values[1].x, Inverse.values[2].x, Inverse.values[3].x);
+    //
+    //     let Dot0 = self.values[0] * Row0;
+    //     let Dot1 = (Dot0.x + Dot0.y) + (Dot0.z + Dot0.w);
+    //
+    //     let OneOverDeterminant = 1.0 / Dot1;
+    //
+    //     return Inverse * OneOverDeterminant;
+    // }
 
     pub fn remove_translation(&self) -> Self {
         Self {
@@ -168,5 +228,19 @@ impl Mul<Vec4> for Matrix4 {
         let add2 = add0 + add1;
 
         return add2;
+    }
+}
+
+impl Mul<f32> for Matrix4 {
+    type Output = Self;
+
+    fn mul(self, v: f32) -> Self {
+        Matrix4::from(
+            self.values[0] * v,
+        self.values[1] * v,
+        self.values[2] * v,
+        self.values[3] * v,
+
+        )
     }
 }

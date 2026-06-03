@@ -2,14 +2,18 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{math::Vec3, render::{Shader, Ubo, Vao, render_utils}, resources::{ResourceManager, resources_manager}};
 use crate::math::{Color3b, KeyFrame};
+use crate::render::render_utils::RenderCap;
+use crate::render::SkyBodiesRenderer;
 use crate::render::vao::VaoBuffers;
 use crate::world::Chunk;
-
+use crate::world::sky::SkyBodies;
 
 pub struct Sky {
     shader: Option<Rc<RefCell<Shader>>>,
     vao: Vao,
     ubo: Option<Rc<Ubo>>,
+
+    sky_bodies: SkyBodies,
 
     fog_distance: f32,
     fog_density: f32,
@@ -30,7 +34,7 @@ pub struct Sky {
 impl Sky {
     pub const MINUTES_SCALE: f32 = 60.0;
     pub const HOURS_SCALE: f32 = 24.0;
-    const UPDATE_DELAY: f32 = 0.25;
+    const UPDATE_DELAY: f32 = 0.3;
 
     pub const CYCLE_TIME: f32 = Self::MINUTES_SCALE * Self::HOURS_SCALE;
     pub const TIME_MORNING: f32 = Self::MINUTES_SCALE * 6.0 + 30.0; // 6:30
@@ -40,6 +44,8 @@ impl Sky {
             shader: None,
             vao: Vao::new(),
             ubo: None,
+
+            sky_bodies: SkyBodies::new(),
 
             fog_distance: 0.0,
             fog_density: 0.0,
@@ -130,35 +136,43 @@ impl Sky {
             ((19.0 * Sky::MINUTES_SCALE + 00.0) / Sky::CYCLE_TIME, Color3b::from_hex(0x0E0F18)),
             ((24.0 * Sky::MINUTES_SCALE + 00.0) / Sky::CYCLE_TIME, Color3b::from_hex(0x0E0F18)),
         ];
+
+        self.sky_bodies.start(resources_manager);
     }
 
     pub fn update(&mut self, dt: f32, render_distance: i32) {
         self.set_fog_distance(render_distance as f32 - 1.0);
-
-        self.time += dt * 60.0;
+        
+        self.time += dt;
         self.update_delay += dt;
 
         if self.time > Self::CYCLE_TIME { self.time = 0.0 }
 
         let factor = self.time / Self::CYCLE_TIME;
 
-        //if self.update_delay > Self::UPDATE_DELAY {
+        if self.update_delay > Self::UPDATE_DELAY {
             self.set_sky_color(self.sky_color_gradient.get(factor));
             self.set_fog_color(self.fog_color_gradient.get(factor));
             self.set_clouds_color(self.clouds_color_gradient.get(factor));
+
+            self.sky_bodies.update(factor);
+
             self.update_delay = 0.0;
-        //}
+        }
     }
 
     pub fn draw(&mut self) {
-        unsafe { gl::Disable(gl::DEPTH_TEST) }
+        render_utils::disable(RenderCap::DepthTest);
 
-        render_utils::draw_indexed(
-            &self.shader.as_ref().unwrap(),
-            None,
-            &self.vao
-        );
-        unsafe { gl::Enable(gl::DEPTH_TEST) }
+        // draw sky dome
+        render_utils::draw_indexed(&self.shader.as_ref().unwrap(), None, &self.vao);
+
+        // draw stars, sun and moon
+        render_utils::enable(RenderCap::Blend);
+        self.sky_bodies.draw();
+        render_utils::disable(RenderCap::Blend);
+
+        render_utils::enable(RenderCap::DepthTest);
     }
 
     pub fn set_fog_distance(&mut self, distance: f32) {
