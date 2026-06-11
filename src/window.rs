@@ -113,7 +113,6 @@ impl Window {
         self.width = width;
         self.height = height;
 
-
         game.resize(width as f32, height as f32);
         
     }

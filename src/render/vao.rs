@@ -7,16 +7,7 @@ use crate::render::render_utils;
 struct BufferInfo {
     id: u32,
     size: u32,
-    binding_index: u32
-}
-
-pub struct Vao {
-    pub triangles_count: i32,
-
-    id: u32,
-    binding_index: u32,
-    binding_buffer: VaoBuffers,
-    buffers: [BufferInfo; 3],
+    //binding_index: u32
 }
 
 #[repr(i32)]
@@ -27,14 +18,24 @@ pub enum VaoBuffers {
     Instance,
 }
 
+pub struct Vao {
+    pub triangles_count: i32,
+
+    id: u32,
+    binding_index: i32,
+    binding_buffer: VaoBuffers,
+    buffers: [BufferInfo; 3],
+}
+
 impl Vao {
     pub fn new() -> Self {
         Self {
             triangles_count: 0,
             id: 0,
-            binding_index: 0,
+            binding_index: -1,
             binding_buffer: VaoBuffers::Vbo,
-            buffers: [BufferInfo{ id: 0, size: 0, binding_index: 0 }; 3]
+            //buffers: [BufferInfo{ id: 0, size: 0, binding_index: 0 }; 3]
+            buffers: [BufferInfo{ id: 0, size: 0 }; 3]
         }
     }
 
@@ -77,7 +78,7 @@ impl Vao {
         self.buffers[vao_buffer as usize] = BufferInfo {
             id: buffer_id,
             size: 0,
-            binding_index: self.binding_index
+            //binding_index: self.binding_index
         };
 
         if !matches!(vao_buffer, VaoBuffers::Ebo) {
@@ -110,7 +111,7 @@ impl Vao {
                 self.triangles_count = size as i32 / 4;
                 gl::VertexArrayElementBuffer(self.id, buffer_info.id);
             }
-            else { self.binding_index = buffer_info.binding_index }
+            else { self.binding_index += 1 }
         }
 
         self.binding_buffer = buffer;
