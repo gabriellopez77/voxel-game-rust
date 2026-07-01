@@ -1,28 +1,36 @@
-use std::{
-    any::TypeId,
-    cell::RefCell,
-    collections::HashMap,
-    rc::Rc,
-};
-use crate::game::Game;
-use crate::math::Vec2;
-use crate::render::UiRenderer;
+use std::{cell::RefCell,collections::HashMap,rc::Rc};
+use crate::game::{Game, GameEvents};
+use crate::inputs;
+use crate::math::{Color4b, Matrix4, Vec2};
+use crate::render::{GlobalRenderer, UiRenderer};
 use crate::resources::ResourceManager;
-use crate::ui::{ScreenBase, screen_base::ScreenInfo, StartScreen, HudScreen, ScreenUpdateArgs};
+use crate::ui::{ScreenResizeArgs, ScreenStartArgs};
+use crate::ui::tools::Sprite;
+use crate::ui::{ScreenBase, screen_base::ScreenInfo, ScreenUpdateArgs, screens::*};
+use super::tools::UiElement;
 
 type MutRc<T> = Rc<RefCell<T>>;
 
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ScreensId {
+    StartScreen,
+    HudScreen,
+    PauseScreen,
+}
+
 pub struct UiManager {
     ui_renderer: UiRenderer,
 
-    resource_manager: Option<Rc<RefCell<ResourceManager>>>,
-
-    pixel_scale: f32,
+    pub projection: Matrix4,
+    pub pixel_scale: f32,
     screen_size: Vec2,
 
-    current_screen: Option<MutRc<ScreenInfo>>,
-    screens: HashMap<TypeId, MutRc<ScreenInfo>>,
+    current_screen_id: ScreensId,
+    screens: HashMap<ScreensId, MutRc<ScreenInfo>>,
+
+    screens_background: Sprite,
+    background_visible: bool,
 }
 
 impl UiManager {
@@ -30,24 +38,32 @@ impl UiManager {
         Self {
             ui_renderer: UiRenderer::new(),
 
-            resource_manager: None,
-
+            projection: Matrix4::ZERO,
             pixel_scale: 3.0,
             screen_size: Vec2::ZERO,
 
             screens: HashMap::new(),
-            current_screen: None,
+            current_screen_id: ScreensId::StartScreen,
+
+            screens_background: Sprite::new(),
+            background_visible: false,
         }
     }
 
-    pub fn start(&mut self, resource_manager: Rc<RefCell<ResourceManager>>, game: &Game) {
-        self.ui_renderer.start(&resource_manager.borrow());
-        self.resource_manager = Some(resource_manager.clone());
+    pub fn start(&mut self, resources: &ResourceManager, global_renderer: &mut GlobalRenderer) {
+        self.screens_background.set_texture(&resources.ui_sprites_texture, "white_color");
 
-        self.add(HudScreen::new());
-        self.add(StartScreen::new());
+        self.screens_background.color = Color4b::new(0, 0, 0, 128);
 
-        self.change::<HudScreen>(game);
+        self.ui_renderer.start(global_renderer);
+
+        self.add(ScreensId::StartScreen, StartScreen::new());
+        self.add(ScreensId::HudScreen, HudScreen::new());
+        self.add(ScreensId::PauseScreen, PauseScreen::new());
+    }
+
+    pub fn cleanup(&mut self) {
+        self.ui_renderer.cleanup();
     }
 
     pub fn resize(&mut self, width: f32, height: f32, game: &Game) {
@@ -60,10 +76,11 @@ impl UiManager {
 
         self.screen_size = Vec2::new(width, height) / self.pixel_scale;
 
+        self.projection = Matrix4::orthographic(0.0, width, height, 0.0);
 
-        self.ui_renderer.resize(width, height, self.pixel_scale);
+        self.screens_background.set_sizev(self.screen_size);
 
-        let args = ScreenUpdateArgs {
+        let args = ScreenResizeArgs {
             screen_size: self.screen_size,
             screen_center: self.screen_size / 2.0,
             game
@@ -73,73 +90,99 @@ impl UiManager {
     }
 
     pub fn update(&self, dt: f32, game: &mut Game) {
-        let args = ScreenUpdateArgs {
+        let mut args = ScreenUpdateArgs {
             screen_size: self.screen_size,
             screen_center: self.screen_size / 2.0,
+
+            mouse_pos: inputs::get_mouse_pos() / self.pixel_scale,
+
             game
         };
-        self.get_current_screen().borrow_mut().update(dt, &args);
+
+        self.get_current_screen().borrow_mut().update(dt, &mut args);
     }
 
-    pub fn draw(&mut self) {
+    pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
+        if self.background_visible {
+            self.screens_background.draw(&mut self.ui_renderer);
+        }
+
         self.get_current_screen().borrow_mut().draw(&mut self.ui_renderer);
 
-        self.ui_renderer.draw();
+        self.ui_renderer.draw(global_renderer);
     }
 
-    pub fn change<T>(&mut self, game: &Game)
-    where
-        T: ScreenBase,
-        for<'a> T: 'a
-    {
-        let new_screen = self.screens[&TypeId::of::<T>()].clone();
+    pub fn change(&mut self, id: ScreensId, game: &mut Game) {
+        self.background_visible = false;
 
-        Self::change_logic(self.screen_size, &new_screen, &self.resource_manager.as_ref().unwrap().borrow(), game);
-        self.current_screen = Some(new_screen);
+        if id == ScreensId::HudScreen {
+            game.add_event(GameEvents::SetCursorMode(glfw::CursorMode::Disabled));
+        }
+        else {
+            if game.is_in_world() {
+                self.background_visible = true;
+            }
+
+            game.add_event(GameEvents::SetCursorMode(glfw::CursorMode::Normal));
+        }
+
+        let new_screen = self.screens[&id].clone();
+        Self::change_logic(self.screen_size, &mut new_screen.borrow_mut(), &game.resources_manager, game);
+
+        self.current_screen_id = id;
     }
 
-    fn change_logic(screen_size: Vec2, screen_info: &MutRc<ScreenInfo>, resource_manager: &ResourceManager, game: &Game) {
-        let info = &mut screen_info.borrow_mut();
+    pub fn current_screen_is(&self, other: ScreensId) -> bool {
+        self.current_screen_id == other
+    }
 
-        let args = ScreenUpdateArgs {
+    fn change_logic(screen_size: Vec2, screen_info: &mut ScreenInfo, resources: &ResourceManager, game: &Game) {
+        let start_args = ScreenStartArgs {
             screen_size,
             screen_center: screen_size / 2.0,
+
+            resources: resources,
             game
         };
 
-        if !info.started {
-            info.started = true;
-            info.screen_size = screen_size;
-            info.screen_center = screen_size / 2.0;
-            info.screen.borrow_mut().start(resource_manager, &args);
+        let resize_args = ScreenResizeArgs {
+            screen_size,
+            screen_center: screen_size / 2.0,
+
+            game
+        };
+
+        let mut screen = screen_info.screen.borrow_mut();
+
+        if !screen_info.started {
+            screen_info.started = true;
+            screen_info.screen_size = screen_size;
+            screen_info.screen_center = screen_size / 2.0;
+            screen.start(&start_args);
 
             // not resize if screen size in zero
             if screen_size != Vec2::ZERO {
-                info.screen.borrow_mut().resize(&args);
+                screen.resize(&resize_args);
             }
         }
 
-        if info.screen_size != screen_size {
-            info.screen_size = screen_size;
-            info.screen_center = screen_size / 2.0;
-            info.screen.borrow_mut().resize(&args);
+        if screen_info.screen_size != screen_size {
+            screen_info.screen_size = screen_size;
+            screen_info.screen_center = screen_size / 2.0;
+            screen.resize(&resize_args);
         }
     }
 
-    pub fn add<T>(&mut self, screen: T)
+    pub fn add<T>(&mut self, id: ScreensId, screen: T)
     where
         T: ScreenBase,
         for<'a> T: 'a
     {
         let screen_info = ScreenInfo::new(Rc::new(RefCell::new(screen)));
-        self.screens.insert(TypeId::of::<T>(), Rc::new(RefCell::new(screen_info)));
+        self.screens.insert(id, Rc::new(RefCell::new(screen_info)));
     }
 
     pub fn get_current_screen(&self) -> MutRc<dyn ScreenBase> {
-        self.current_screen.as_ref().unwrap().borrow_mut().screen.clone()
-    }
-
-    pub fn get_current_screen_info(&self) -> MutRc<ScreenInfo> {
-        self.current_screen.as_ref().unwrap().clone()
+        self.screens[&self.current_screen_id].borrow_mut().screen.clone()
     }
 }

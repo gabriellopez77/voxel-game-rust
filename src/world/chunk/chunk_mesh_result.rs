@@ -57,12 +57,12 @@ impl ChunkMeshResult {
     pub fn restore(self, vertices_pool: &mut ObjectPool<Vec<ChunkVertices>>, indices_pool: &mut ObjectPool<Vec<u32>>) {
         for mut vertices in self.vertices {
             vertices.clear();
-            vertices_pool.insert(vertices);
+            vertices_pool.restore(vertices);
         }
 
         for mut indices in self.indices {
             indices.clear();
-            indices_pool.insert(indices);
+            indices_pool.restore(indices);
         }
     }
 }

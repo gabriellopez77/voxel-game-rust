@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use crate::math::Vec2;
 use crate::render::UiRenderer;
-use crate::resources::FontInfo;
+use crate::resources::{FontInfo, ResourceManager};
 use crate::ui::tools::{Sprite, Text, UiElement};
 use crate::world::player::EntityInventory;
 
@@ -81,7 +81,8 @@ impl SlotData {
             self.count_text.set_posv(self.icon.get_final());
         }
 
-        self.icon.set_texture(slot.get_item().icon);
+
+        self.icon.set_texture_from_coords(ResourceManager::WORLD_TEXTURE_IDX, slot.get_item().icon);
 
         self.last_count = item_count;
     }
@@ -89,10 +90,10 @@ impl SlotData {
     pub fn draw(&mut self, renderer: &mut UiRenderer) {
         if !self.visible { return }
 
-        self.icon.draw(&mut renderer.icons);
+        self.icon.draw(renderer);
 
         if self.count_text_visible {
-            self.count_text.draw(&mut renderer.text);
+            self.count_text.draw(renderer);
         }
 
     }

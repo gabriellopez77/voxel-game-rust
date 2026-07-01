@@ -1,11 +1,12 @@
 use std::array;
-use crate::{math::Vec2, resources::ResourceManager, ui::{ScreenBase, tools::{Sprite, UiElement}}};
+use crate::{ui::{ScreenBase, ScreenResizeArgs, ScreenStartArgs, tools::{Sprite, UiElement}}};
 use crate::render::UiRenderer;
 use crate::ui::ScreenUpdateArgs;
 use crate::ui::tools::elements_grid::Alignment;
 use crate::ui::tools::{ElementsGrid, inventory::ItemSlot, Text};
 use crate::world::player::entitiy_inventory::PLAYER_HOTBAR_SLOTS_COUNT;
 use crate::world::player::EntityInventory;
+
 
 pub struct HudScreen {
     crosshair: Sprite,
@@ -20,35 +21,35 @@ pub struct HudScreen {
 }
 
 impl ScreenBase for HudScreen {
-    fn start(&mut self, resources: &ResourceManager, args: &ScreenUpdateArgs) {
-        self.crosshair.set_texture_from_atlas(resources,"crosshair");
+    fn start(&mut self, args: &ScreenStartArgs) {
+        self.crosshair.set_texture(&args.resources.ui_sprites_texture, "crosshair");
         self.crosshair.set_size(16.0, 16.0);
-        
-        self.hotbar_selected_slot.set_texture_from_atlas(resources, "hotbar_selected_slot");
+
+        self.hotbar_selected_slot.set_texture(&args.resources.ui_sprites_texture, "hotbar_selected_slot");
         self.hotbar_selected_slot.set_size(24.0, 24.0);
 
         for i in 0..self.hotbar_slots.len() {
             let slot = &mut self.hotbar_slots[i];
 
-            slot.start(i as i32, resources.get_texture("ui").unwrap().get_coords("hotbar_slot"), resources.get_font("default").unwrap());
+            slot.start(i as i32, &args.resources.ui_sprites_texture, "hotbar_slot", args.resources.get_font("default"));
             slot.set_size(20.0, 20.0);
 
             self.hotbar_grid.add(slot);
         }
 
-        self.fps_text.set_font(resources.get_font("default").unwrap());
+        self.fps_text.set_font(args.resources.get_font("default"));
         self.fps_text.set_pos(10.0, 10.0);
         self.hotbar_grid.update();
     }
 
-    fn update(&mut self, dt: f32, args: &ScreenUpdateArgs) {
+    fn update(&mut self, dt: f32, args: &mut ScreenUpdateArgs) {
         // update selected hotbar slot position
-        let selected_hotbar_index = args.game.player.get_selected_hotbar_index();
+        let selected_hotbar_index = args.game.world.player.get_selected_hotbar_index();
         self.hotbar_selected_slot.set_center(&self.hotbar_slots[selected_hotbar_index as usize]);
 
         // update hotbar item slot
         for slot in &mut self.hotbar_slots {
-            slot.update(&args.game.player);
+            slot.update(&args.game.world.player);
         }
 
         self.delay += dt;
@@ -62,18 +63,18 @@ impl ScreenBase for HudScreen {
     }
 
     fn draw(&mut self, renderer: &mut UiRenderer) {
-        self.crosshair.draw(&mut renderer.sprites);
+        self.crosshair.draw(renderer);
 
-        self.hotbar_selected_slot.draw(&mut renderer.sprites);
+        self.hotbar_selected_slot.draw(renderer);
         for slot in &mut self.hotbar_slots {
             slot.draw(renderer);
         }
 
 
-        self.fps_text.draw(&mut renderer.text)
+        self.fps_text.draw(renderer)
     }
 
-    fn resize(&mut self, args: &ScreenUpdateArgs) {
+    fn resize(&mut self, args: &ScreenResizeArgs) {
         self.crosshair.set_posv(args.screen_center - self.crosshair.get_size() / 2.0);
 
         let hotbar_grid_size = self.hotbar_grid.get_size();

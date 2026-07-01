@@ -1,35 +1,46 @@
-﻿use std::collections::HashMap;
+use std::cell::RefCell;
+use std::{collections::HashMap, rc::Rc};
 
-use crate::math;
+use ash::vk;
+use crate::utils::NullSafePtr;
+
+use super::raw_buffer::BufferFlags;
+use super::{vulkan_app::VulkanApp, RawBuffer};
 
 
 #[derive(Clone, Copy)]
-struct OffseData {
-    offset: i32,
-    size: i32,
+struct OffsetData {
+    offset: u64,
+    size: u64,
 }
 
-pub struct Ubo  {
-    offsets: HashMap<&'static str, OffseData>,
-    current_offset: i32,
-    last_field_size: i32,
+pub struct Ubo {
+    pub size: u64,
 
-    id: u32,
+    pub buffer: RawBuffer,
+
+    offsets: HashMap<&'static str, OffsetData>,
+    last_field_size: u64,
+
+    app: NullSafePtr<VulkanApp>
 }
 
 impl Ubo {
-    pub fn new(capacity: usize) -> Self {
+    pub fn new() -> Self {
         Self {
-            offsets: HashMap::with_capacity(capacity),
-            current_offset: 0,
+            size: 0,
+
+            buffer: RawBuffer::new(),
+
+            offsets: HashMap::new(),
             last_field_size: 0,
 
-            id: 0,
+            app: NullSafePtr::null(),
         }
     }
 
     pub fn add<T>(&mut self, name: &'static str) {
-        let size = size_of::<T>() as i32;
+        let size = size_of::<T>() as u64;
 
         // align size to opengl memory layout specification
         let alignment = match size {
@@ -40,42 +51,38 @@ impl Ubo {
             _ => panic!("Ubo size not supported: {size}"),
         };
 
-        
-        let offset = math::align_up(self.current_offset, alignment);
-        self.current_offset = offset + size;
+        let offset = Self::align_up(self.size, alignment);
+        self.size = offset + size;
         self.last_field_size = size;
-        
+
         // fits int, bool or float in last vec3's padding
         if self.last_field_size == 12 && size == 4 {
-            self.offsets.insert(name, OffseData { offset: self.current_offset - 4, size });
+            self.offsets.insert(name, OffsetData { offset: self.size - 4, size });
         }
         else {
-            self.offsets.insert(name, OffseData { offset, size });
+            self.offsets.insert(name, OffsetData { offset, size });
         }
     }
 
-    pub fn create(&mut self, index: u32) {
-        unsafe {
-            gl::CreateBuffers(1, &mut self.id);
+    pub fn create(&mut self, app: &mut VulkanApp, flags: BufferFlags) {
+        debug_assert!(flags.contains(BufferFlags::DUPLICATE), "Ubo buffer need DUPLICATE");
 
-            gl::NamedBufferData(self.id, self.current_offset as isize, std::ptr::null(), gl::DYNAMIC_DRAW);
-            gl::BindBufferBase(gl::UNIFORM_BUFFER, index, self.id);
-        }
+        self.buffer.create(app, self.size, std::ptr::null(), vk::BufferUsageFlags::UNIFORM_BUFFER, flags);
+
+        self.app = NullSafePtr::from(app);
+    }
+
+    pub fn destroy(&mut self, app: &mut VulkanApp) {
+        self.buffer.destroy(app);
     }
 
     pub fn update<T>(&self, name: &'static str, data: *const T) {
         let offset_data = self.offsets[name];
-        let len = offset_data.offset + offset_data.size;
 
-        // check out of bounds
-        if len > self.current_offset {
-            panic!("Ubo data out of bounds! offset: {}, size: {}, len: {}, ubo size: {}",
-                   offset_data.offset, offset_data.size, len, self.current_offset);
-        }
+        self.buffer.update(&self.app, offset_data.size, offset_data.offset as usize, data as _);
+    }
 
-        unsafe {
-            gl::NamedBufferSubData(self.id, offset_data.offset as isize, offset_data.size as isize,
-                                   data as *const std::ffi::c_void);
-        }
+    fn align_up(value: u64, alignment: u64) -> u64 {
+        ((value + alignment - 1) / alignment) * alignment
     }
 }

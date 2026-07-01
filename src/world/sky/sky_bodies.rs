@@ -3,21 +3,21 @@ use std::rc::Rc;
 use rand::RngExt;
 use crate::math;
 use crate::math::{KeyFrame, Matrix4, Vec3, Vec4};
-use crate::render::{Shader, SkyBodiesRenderer, SkyBodiesVertices, Texture};
+use crate::render::material::MaterialType;
+use crate::render::raw_buffer::BufferFlags;
+use crate::render::{CENTER_SPRITES_VERTICES, GlobalRenderer, Material, SPRITES_INDICES, SkyBodiesVertices, VulkanApp};
 use crate::resources::{ResourceManager, TexCoords};
 use crate::world::sky::Sky;
 
 
 pub struct SkyBodies {
-    shader: Option<Rc<RefCell<Shader>>>,
-    texture: Option<Rc<Texture>>,
-
-    stars_renderer: SkyBodiesRenderer,
-    sun_mon_renderer: SkyBodiesRenderer,
+    stars_material: Option<Material>,
+    sun_moon_material: Option<Material>,
 
     stars_transparency_gradient: KeyFrame<f32>,
     bodies_rotation_gradient: KeyFrame<f32>,
 
+    matrix: Matrix4,
     stars_alpha: f32,
 }
 
@@ -28,11 +28,8 @@ impl SkyBodies {
 
     pub fn new() -> Self {
         Self {
-            shader: None,
-            texture: None,
-
-            stars_renderer: SkyBodiesRenderer::new(),
-            sun_mon_renderer: SkyBodiesRenderer::new(),
+            stars_material: None,
+            sun_moon_material: None,
 
             stars_transparency_gradient: KeyFrame::new(|factor, current, next| {
                 current + (next - current) * factor
@@ -41,14 +38,12 @@ impl SkyBodies {
                 current + (next - current) * factor
             }),
 
+            matrix: Matrix4::ZERO,
             stars_alpha: 0.0,
         }
     }
 
-    pub fn start(&mut self, resources: &ResourceManager) {
-        self.shader = resources.get_shader("skyBodies");
-        self.texture = resources.get_texture("skyBodies");
-
+    pub fn start(&mut self, resources: &ResourceManager, global_renderer: &mut GlobalRenderer) {
         // possible stars colors
         let stars_color = [
             Vec3::new(255.0, 178.0, 085.0) / 255.0,
@@ -58,18 +53,18 @@ impl SkyBodies {
             Vec3::new(255.0, 255.0, 255.0) / 255.0
         ];
 
-        let texture = self.texture.as_ref().unwrap();
+        let texture = &resources.sky_bodies_texture;
 
-        let stars_tex = texture.get_coords("stars").denormalized(texture.get_size());
+        //let stars_tex = texture.get_coords("stars").denormalized(texture.get_size());
 
         // all stars_textures
-        let stars_textures = [
-            stars_tex.get_sub_tex(00.0, 0.0, 8.0, 8.0).normalized(texture.get_size()),
-            stars_tex.get_sub_tex(08.0, 0.0, 8.0, 8.0).normalized(texture.get_size()),
-            stars_tex.get_sub_tex(16.0, 0.0, 8.0, 8.0).normalized(texture.get_size()),
-            stars_tex.get_sub_tex(24.0, 0.0, 8.0, 8.0).normalized(texture.get_size()),
-            stars_tex.get_sub_tex(32.0, 0.0, 8.0, 8.0).normalized(texture.get_size()),
-        ];
+        //let stars_textures = [
+        //    stars_tex.get_sub_tex(00.0, 0.0, 8.0, 8.0).normalized(texture.get_size()),
+        //    stars_tex.get_sub_tex(08.0, 0.0, 8.0, 8.0).normalized(texture.get_size()),
+        //    stars_tex.get_sub_tex(16.0, 0.0, 8.0, 8.0).normalized(texture.get_size()),
+        //    stars_tex.get_sub_tex(24.0, 0.0, 8.0, 8.0).normalized(texture.get_size()),
+        //    stars_tex.get_sub_tex(32.0, 0.0, 8.0, 8.0).normalized(texture.get_size()),
+        //];
 
         let mut stars_buffer: [SkyBodiesVertices; Self::STARS_COUNT] = [
             SkyBodiesVertices {
@@ -103,8 +98,6 @@ impl SkyBodies {
             };
         }
 
-        self.stars_renderer.start(&stars_buffer);
-
 
         let mut sun_matrix = Matrix4::IDENTITY;
         let sun_pos = Vec3::new(5.0, 0.0, 0.0);
@@ -118,7 +111,7 @@ impl SkyBodies {
         moon_matrix = moon_matrix * math::look_at_rotation(Vec3::ZERO, moon_pos);
         moon_matrix.scale(Vec3::from1(2.0));
 
-        let sun_moon_buffer =[
+        let sun_moon_buffer = [
             SkyBodiesVertices {
                 matrix: sun_matrix,
                 uv: texture.get_coords("sun"),
@@ -132,7 +125,16 @@ impl SkyBodies {
             }
         ];
 
-        self.sun_mon_renderer.start(&sun_moon_buffer);
+        let mut stars_material = global_renderer.create_material("skyBodies", MaterialType::Sky);
+        stars_material.set_mesh(&CENTER_SPRITES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
+        stars_material.create_instance_buffer_from_arr(&stars_buffer, BufferFlags::VRAM | BufferFlags::ONCE);
+        self.stars_material = Some(stars_material);
+
+        let mut sun_moon_material = global_renderer.create_material("skyBodies", MaterialType::Sky);
+        sun_moon_material.set_mesh(&CENTER_SPRITES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
+        sun_moon_material.create_instance_buffer_from_arr(&sun_moon_buffer, BufferFlags::VRAM | BufferFlags::ONCE);
+        self.sun_moon_material = Some(sun_moon_material);
+
 
 
         self.stars_transparency_gradient.frames = vec![
@@ -161,19 +163,27 @@ impl SkyBodies {
         model_matrix.rotate(degrees, 0.0, 0.0, 1.0);
 
         self.stars_alpha = stars_alpha;
-
-        self.shader.as_ref().unwrap().borrow_mut().set_matrix("model", &model_matrix);
-        self.shader.as_ref().unwrap().borrow_mut().set_1f("alpha", stars_alpha);
+        self.matrix = model_matrix;
     }
 
-    pub fn draw(&self) {
-        let shader = self.shader.as_ref().unwrap();
-        let texture = self.texture.as_ref().unwrap();
+    pub fn cleanup(&mut self) {
+        self.stars_material.as_mut().unwrap().destroy();
+        self.sun_moon_material.as_mut().unwrap().destroy();
+    }
+
+    pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
+        let stars_material = self.stars_material.as_mut().unwrap();
+        let sun_moon_material = self.sun_moon_material.as_mut().unwrap();
+
+        stars_material.update_push_constant(0, size_of::<Matrix4>(), self.matrix.as_ptr());
+        stars_material.update_push_constant(size_of::<Matrix4>(), size_of::<f32>(), &self.stars_alpha);
+
+        sun_moon_material.update_push_constant(size_of::<Matrix4>(), size_of::<f32>(), &self.stars_alpha);
 
         if self.stars_alpha > 0.0 {
-            self.stars_renderer.draw(shader, texture);
+            global_renderer.draw_obj_instanced(self.stars_material.as_ref().unwrap(), Self::STARS_COUNT);
         }
 
-        self.sun_mon_renderer.draw(shader, texture);
+        global_renderer.draw_obj_instanced(self.sun_moon_material.as_ref().unwrap(), 2);
     }
 }

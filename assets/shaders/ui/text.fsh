@@ -1,15 +1,16 @@
 #version 460 core
 
-uniform sampler2D myTexture;
+#include "../includes/globalTextures.glsl"
 
-in vec2 TexCoords;
-in vec3 Color;
 
-out vec4 FragColor;
+layout(location = 0) in vec2 TexCoords;
+layout(location = 1) in vec3 Color;
+
+layout(location = 0) out vec4 FragColor;
 
 void main()
 {
-    vec4 tex = texture(myTexture, TexCoords);
+    vec4 tex = bindlessTexture(UI_FONTS_TEXTURE_IDX, TexCoords);
 
     if (tex.a < 0.1f)
         discard;

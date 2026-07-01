@@ -15,7 +15,7 @@ impl<T> ObjectPool<T> {
         return self.objects.pop();
     }
 
-    pub fn insert(&mut self, obj: T) {
+    pub fn restore(&mut self, obj: T) {
         self.objects.push(obj);
     }
 }

@@ -1,20 +1,14 @@
-use std::cell::RefCell;
-use std::mem::offset_of;
-use std::rc::Rc;
-use crate::math::{Color3b, Color4b, KeyFrame, Vec2, Vec2i, Vec3};
-use crate::render::{CloudsVertices, Shader, Vao, CUBE_INDICES, CUBE_VERTICES};
-use crate::render::vao::VaoBuffers;
+use crate::math::{Color4b, Vec2, Vec2i, Vec3};
+use crate::render::material::MaterialType;
+use crate::render::{CUBE_INDICES, CUBE_VERTICES, CloudsVertices, GlobalRenderer, Material};
+use crate::render::raw_buffer::BufferFlags;
 use crate::resources::ResourceManager;
 use crate::world::Chunk;
-use crate::render::render_utils;
-use crate::render::render_utils::RenderCap;
-use crate::world::sky::Sky;
+
 
 pub struct Clouds {
-    shader: Option<Rc<RefCell<Shader>>>,
-    vao: Vao,
-
-    instance_buffer: Vec<CloudsVertices>,
+    instance_data: Vec<CloudsVertices>,
+    material: Option<Material>,
 
     clouds_chunk: Vec2i,
     first_time: bool,
@@ -29,14 +23,12 @@ impl Clouds {
 
     const CLOUDS_SIZE: i32 = 12;
     const SLICE_SIZE: i32 = 1;
-    const ADDITIONAL_DISTANCE: i32 = 8;
+    const ADDITIONAL_DISTANCE: i32 = 16;
 
     pub fn new() -> Self {
         Self {
-            shader: None,
-            vao: Vao::new(),
-
-            instance_buffer: Vec::with_capacity(Self::MAX_CLOUDS_COUNT),
+            instance_data: Vec::with_capacity(Self::MAX_CLOUDS_COUNT),
+            material: None,
 
             clouds_chunk: Vec2i::ZERO,
             first_time: true,
@@ -47,37 +39,25 @@ impl Clouds {
         }
     }
 
-    pub fn start(&mut self, resource_manager: Rc<RefCell<ResourceManager>>) {
-        self.shader = resource_manager.borrow().get_shader("clouds");
-        
-        let mut vao = Vao::new();
-        vao.gen_vao()
-           .gen_buffer(VaoBuffers::Ebo)
-           .gen_buffer(VaoBuffers::Vbo)
-           .gen_buffer(VaoBuffers::Instance);
+    pub fn start(&mut self, resources: &ResourceManager, global_renderer: &mut GlobalRenderer) {
+        let mut material = global_renderer.create_material("clouds", MaterialType::Alpha);
+        material.set_mesh(&CUBE_VERTICES, &CUBE_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
+        material.create_instance_buffer(size_of::<CloudsVertices>() * Self::MAX_CLOUDS_COUNT, None, BufferFlags::VRAM);
+        self.material = Some(material);
 
-        vao.buffer_data_from_arr(VaoBuffers::Ebo, &CUBE_INDICES, gl::STATIC_DRAW);
 
-        vao.buffer_data_from_arr(VaoBuffers::Vbo, &CUBE_VERTICES, gl::STATIC_DRAW)
-           .attrib_info(0, 3, gl::BYTE, 0, false)
-           .attrib_info(1, 3, gl::BYTE, 3 * size_of::<i8>(), false)
-           .set_stride(6 * size_of::<i8>());
-
-        vao.buffer_data(VaoBuffers::Instance, size_of::<CloudsVertices>() * Self::MAX_CLOUDS_COUNT, None, gl::DYNAMIC_DRAW)
-           .attrib_info(2, 2, gl::FLOAT, offset_of!(CloudsVertices, position), true)
-           .attrib_info(3, 1, gl::UNSIGNED_BYTE, offset_of!(CloudsVertices, cullface), true)
-           .set_stride(size_of::<CloudsVertices>());
-
-        self.vao = vao;
-
-        let image = resource_manager.borrow().read_texture("misc/clouds.png");
+        let image = resources.read_texture("misc/clouds.png");
 
         self.image_width = image.width() as i32;
         self.image_height = image.height() as i32;
         self.image_data = image.into_rgba8().into_raw();
     }
 
-    pub fn update(&mut self, player_pos: Vec3, render_distance: i32, day_time: f32) {
+    pub fn cleanup(&mut self) {
+        self.material.as_mut().unwrap().destroy();
+    }
+
+    pub fn update(&mut self, player_pos: Vec3, render_distance: i32) {
         let last_clouds_chunk = self.clouds_chunk;
         self.clouds_chunk = Self::get_clouds_chunk(player_pos);
 
@@ -87,7 +67,7 @@ impl Clouds {
         }
 
         self.first_time = false;
-        self.instance_buffer.clear();
+        self.instance_data.clear();
 
 
         let c = (render_distance as f32 * Chunk::CHUNK_SIZEF.x / (Self::SLICE_SIZE as f32 * Self::CLOUDS_SIZE as f32)).ceil() as i32;
@@ -104,7 +84,7 @@ impl Clouds {
 
         for x in start.x..=end.x {
             for z in start.y..=end.y {
-                if self.instance_buffer.len() >= Self::MAX_CLOUDS_COUNT {
+                if self.instance_data.len() >= Self::MAX_CLOUDS_COUNT {
                     continue;
                 }
 
@@ -122,7 +102,7 @@ impl Clouds {
                 let cullface = self.get_clouds_cullface(&color_middle, norm_x, norm_z);
                 let pos = Vec2i::new(x, z) * Self::CLOUDS_SIZE * Self::SLICE_SIZE;
 
-                self.instance_buffer.push(CloudsVertices{
+                self.instance_data.push(CloudsVertices {
                     position: Vec2::new(pos.x as f32, pos.y as f32),
                     cullface,
                 });
@@ -131,20 +111,11 @@ impl Clouds {
         }
 
         // update instances data
-        self.vao.update_buffer(VaoBuffers::Instance, &self.instance_buffer);
+        self.material.as_mut().unwrap().update_instance_data(&self.instance_data);
     }
 
-    pub fn draw(&self) {
-        render_utils::enable(RenderCap::Blend);
-
-        render_utils::draw_indexed_instanced(
-           &self.shader.as_ref().unwrap(),
-           None,
-           &self.vao,
-           self.instance_buffer.len()
-        );
-
-        render_utils::disable(RenderCap::Blend);
+    pub fn draw(&self, global_renderer: &mut GlobalRenderer) {
+        global_renderer.draw_obj_instanced(self.material.as_ref().unwrap(), self.instance_data.len());
     }
 
     fn get_clouds_chunk(global_coords: Vec3) -> Vec2i {

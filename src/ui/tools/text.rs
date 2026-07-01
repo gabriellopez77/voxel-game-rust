@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::{math::{Color3b, Vec2, Vec2i16}, render::{self, SpritesRenderer, TextVertices}, ui::tools::UiElement};
+use crate::{math::{Color3b, Vec2, Vec2i16}, render::{TextVertices, UiRenderer}, ui::tools::UiElement};
 use crate::resources::FontInfo;
 
 
@@ -80,7 +80,7 @@ impl Text {
         self.color = color;
         self.color_modified = true;
     }
-    
+
     pub fn set_text(&mut self, text: &'static str) {
         self.text = TextTypes::Str(text);
         self.update_mesh();
@@ -90,7 +90,7 @@ impl Text {
         self.text = TextTypes::String(text);
         self.update_mesh();
     }
-    
+
     pub fn set_text_i32(&mut self, value: i32) {
         use std::fmt::Write;
 
@@ -105,7 +105,7 @@ impl Text {
         self.update_mesh();
     }
 
-    pub fn draw(&mut self, renderer: &mut SpritesRenderer<TextVertices>) {
+    pub fn draw(&mut self, renderer: &mut UiRenderer) {
         match self.text {
             TextTypes::String(ref string) => if string.is_empty() { return }
             TextTypes::Str(value) => if value.is_empty() { return }
@@ -132,7 +132,7 @@ impl Text {
 
         // add text data to render buffer
         for item in &self.buffer {
-            renderer.add_element(*item);
+            renderer.add_text(*item);
         }
     }
 

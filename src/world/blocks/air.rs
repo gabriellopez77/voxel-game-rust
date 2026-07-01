@@ -20,6 +20,8 @@ impl ItemCreation for Air {
         let mut properties = BlockProperties::new(internal_name, name, resources.get_model(internal_name), id, 0);
         properties.can_replaced = true;
         properties.is_transparent = true;
+        properties.collision_box = None;
+        properties.selection_box = None;
 
         Self {
             properties: vec![properties],

@@ -1,26 +1,24 @@
 #version 460 core
 
-layout (location = 0) in vec4 aVertex;
-layout (location = 1) in vec2 aPosition;
-layout (location = 2) in vec2 aSize;
-layout (location = 3) in vec4 aInstanceTexCoords;
-layout (location = 4) in vec4 aColor;
+#include "../includes/globals.glsl"
 
-layout(std140, binding = 0) uniform shaderData {
-    mat4 uiProj;
-    float pixelScale;
-    mat4 camProj;
-	mat4 camView;
-	mat4 camViewProj;
-	mat4 viewNoTranslation;
-};
 
-out vec2 TexCoords;
-out vec4 Color;
+layout(location = 0) in vec4 aVertex;
+layout(location = 1) in ivec2 aPosition;
+layout(location = 2) in ivec2 aSize;
+layout(location = 3) in vec4 aInstanceTexCoords;
+layout(location = 4) in uvec4 aColor;
+layout(location = 5) in uint aTextureIdx;
+
+
+layout(location = 0) out vec2 TexCoords;
+layout(location = 1) out vec4 Color;
+layout(location = 2) out uint TextureIdx;
 
 void main() {
-    gl_Position = uiProj * vec4(aVertex.xy * (aSize * pixelScale) + (aPosition * pixelScale), 0.f, 1.f);
+    gl_Position = globalUbo.uiProj * vec4(aVertex.xy * (aSize * globalUbo.pixelScale) + (aPosition * globalUbo.pixelScale), 0.f, 1.f);
 
     TexCoords = mix(aInstanceTexCoords.xy, aInstanceTexCoords.zw, aVertex.zw);
-    Color = aColor / 255.f;
+    Color = vec4(float(aColor.r), float(aColor.g), float(aColor.b), float(aColor.a)) / 255.0;
+    TextureIdx = aTextureIdx;
 }

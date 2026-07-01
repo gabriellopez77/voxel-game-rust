@@ -3,7 +3,7 @@ use crate::world::blocks::BlockProperties;
 
 
 #[derive(Clone, Copy)]
-pub struct ChunkDataInfo {
+pub struct ChunkBlockInfo {
     pub id: u16,
     pub state: u8
 }
@@ -25,33 +25,23 @@ impl ChunkData {
         }
     }
 
-    pub fn get_data_mut(&mut self) -> &mut [u16] {
-        &mut self.blocks_id
+    pub fn get_block_id(&self, chunk_block: Vec3i) -> u16 {
+        self.get_blocki_id(chunk_block.x, chunk_block.y, chunk_block.z)
     }
 
-    pub fn get_block(&self, chunk_block: Vec3i) -> u16 {
-        let index = math::get_index(chunk_block.x, chunk_block.y, chunk_block.z);
-        self.blocks_id[index]
-    }
-
-    pub fn get_blocki(&self, x: i32, y: i32, z: i32) -> u16 {
+    pub fn get_blocki_id(&self, x: i32, y: i32, z: i32) -> u16 {
         let index = math::get_index(x, y, z);
         self.blocks_id[index]
     }
 
-    pub fn get_block_info(&self, chunk_block: Vec3i) -> ChunkDataInfo {
-        let index = math::get_index(chunk_block.x, chunk_block.y, chunk_block.z);
-
-        return ChunkDataInfo {
-            id: self.blocks_id[index],
-            state: self.blocks_state[index]
-        };
+    pub fn get_block_info(&self, chunk_block: Vec3i) -> ChunkBlockInfo {
+        self.get_block_infoi(chunk_block.x, chunk_block.y, chunk_block.z)
     }
 
-    pub fn get_block_infoi(&self, x: i32, y: i32, z: i32) -> ChunkDataInfo {
+    pub fn get_block_infoi(&self, x: i32, y: i32, z: i32) -> ChunkBlockInfo {
         let index = math::get_index(x, y, z);
 
-        return ChunkDataInfo {
+        return ChunkBlockInfo {
             id: self.blocks_id[index],
             state: self.blocks_state[index]
         };
@@ -59,13 +49,11 @@ impl ChunkData {
 
 
     pub fn set_blocki(&mut self, x: i32, y: i32, z: i32, block: &BlockProperties) {
-        let index = math::get_index(x, y, z);
-        self.set_block_index(index, block);
+        self.set_block_index(math::get_index(x, y, z), block);
     }
 
     pub fn set_block(&mut self, chunk_block: Vec3i, block: &BlockProperties) {
-        let index = math::get_index(chunk_block.x, chunk_block.y, chunk_block.z);
-        self.set_block_index(index, block);
+        self.set_block_index(math::get_index(chunk_block.x, chunk_block.y, chunk_block.z), block);
     }
 
     pub fn set_block_index(&mut self, index: usize, block: &BlockProperties) {
@@ -73,8 +61,7 @@ impl ChunkData {
         let current_state = &mut self.blocks_state[index];
 
         let base_properties = &block.base_properties;
-        
-        // SAFETY: ptr is always valid
+
         let id = base_properties.id;
 
         self.regen_mesh |= *current_id != id || *current_state != base_properties.state;

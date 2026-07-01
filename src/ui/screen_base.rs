@@ -6,10 +6,10 @@ use crate::resources::ResourceManager;
 
 
 pub trait ScreenBase {
-    fn start(&mut self, resource_manager: &ResourceManager, args: &ScreenUpdateArgs);
-    fn update(&mut self, dt: f32, args: &ScreenUpdateArgs);
+    fn start(&mut self, args: &ScreenStartArgs);
+    fn update(&mut self, dt: f32, args: &mut ScreenUpdateArgs);
     fn draw(&mut self, renderer: &mut UiRenderer);
-    fn resize(&mut self, args: &ScreenUpdateArgs);
+    fn resize(&mut self, args: &ScreenResizeArgs);
 }
 
 pub struct ScreenInfo {
@@ -32,9 +32,28 @@ impl ScreenInfo {
     }
 }
 
+
+pub struct ScreenStartArgs<'a> {
+    pub screen_size: Vec2,
+    pub screen_center: Vec2,
+
+    pub resources: &'a ResourceManager,
+
+    pub game: &'a Game,
+}
+
 pub struct ScreenUpdateArgs<'a> {
     pub screen_size: Vec2,
     pub screen_center: Vec2,
-    
+
+    pub mouse_pos: Vec2,
+
+    pub game: &'a mut Game,
+}
+
+pub struct ScreenResizeArgs<'a> {
+    pub screen_size: Vec2,
+    pub screen_center: Vec2,
+
     pub game: &'a Game,
 }

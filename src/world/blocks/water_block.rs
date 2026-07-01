@@ -21,6 +21,8 @@ impl ItemCreation for WaterBlock {
         properties.light_filter = 1;
         properties.renderer_type = RendererType::Alpha;
         properties.block_type = super::BlockTypes::Water;
+        properties.collision_box = None;
+        properties.selection_box = None;
 
         Self {
             properties: vec![properties],

@@ -1,25 +1,24 @@
-use std::{cell::RefCell, rc::Rc};
-
-use crate::{math::Vec3, render::{Shader, Ubo, Vao, render_utils}, resources::{ResourceManager, resources_manager}};
-use crate::math::{Color3b, KeyFrame};
-use crate::render::render_utils::RenderCap;
-use crate::render::SkyBodiesRenderer;
-use crate::render::vao::VaoBuffers;
+use crate::resources::{ResourceManager, resources_manager};
+use crate::math::{Color3b, KeyFrame, Vec3};
+use crate::render::{GlobalRenderer, Material, material};
+use crate::render::raw_buffer::BufferFlags;
 use crate::world::Chunk;
-use crate::world::sky::SkyBodies;
+use crate::world::sky::{Clouds, SkyBodies};
+
 
 pub struct Sky {
-    shader: Option<Rc<RefCell<Shader>>>,
-    vao: Vao,
-    ubo: Option<Rc<Ubo>>,
+    material: Option<Material>,
 
     sky_bodies: SkyBodies,
+    clouds: Clouds,
 
-    fog_distance: f32,
-    fog_density: f32,
-    fog_color: Color3b,
-    sky_color: Color3b,
-    clouds_color: Color3b,
+    pub fog_enabled: i32,
+    pub fog_norm_distance: f32,
+    pub fog_distance: f32,
+    pub fog_density: f32,
+    pub fog_color: Color3b,
+    pub sky_color: Color3b,
+    pub clouds_color: Color3b,
 
     sky_color_gradient: KeyFrame<Color3b>,
     fog_color_gradient: KeyFrame<Color3b>,
@@ -41,16 +40,17 @@ impl Sky {
 
     pub fn new() -> Self {
         Self {
-            shader: None,
-            vao: Vao::new(),
-            ubo: None,
+            material: None,
 
             sky_bodies: SkyBodies::new(),
+            clouds: Clouds::new(),
 
+            fog_enabled: 0,
+            fog_norm_distance: 0.0,
             fog_distance: 0.0,
             fog_density: 0.0,
             fog_color: Color3b::ZERO,
-            sky_color: Color3b::ZERO, 
+            sky_color: Color3b::ZERO,
             clouds_color: Color3b::ZERO,
 
             sky_color_gradient: KeyFrame::new(|factor, current, next| {
@@ -81,24 +81,12 @@ impl Sky {
             update_delay: 0.0,
         }
     }
-    pub fn start(&mut self, resources_manager: &ResourceManager) {
+    pub fn start(&mut self, resources_manager: &ResourceManager, global_renderer: &mut GlobalRenderer) {
         let (vertices, indices) = resources_manager::gen_sphere(16.0, 16.0);
 
-        let mut vao = Vao::new();
-
-        vao.gen_vao()
-            .gen_buffer(VaoBuffers::Ebo)
-            .gen_buffer(VaoBuffers::Vbo);
-
-        vao.buffer_data_from_arr(VaoBuffers::Ebo, &indices, gl::STATIC_DRAW);
-
-        vao.buffer_data_from_arr(VaoBuffers::Vbo, &vertices, gl::STATIC_DRAW)
-            .attrib_info(0, 3, gl::FLOAT, 0, false)
-            .set_stride(size_of::<Vec3>());
-
-        self.vao = vao;
-        self.shader = resources_manager.get_shader("skyDome");
-        self.ubo = resources_manager.get_ubo("worldData");
+        let mut material = global_renderer.create_material("skyDome", material::MaterialType::Sky);
+        material.set_mesh(&vertices, &indices, BufferFlags::VRAM | BufferFlags::ONCE);
+        self.material = Some(material);
 
         self.set_fog(true);
         self.set_sky_color(Color3b::new(5, 94, 255));
@@ -137,12 +125,23 @@ impl Sky {
             ((24.0 * Sky::MINUTES_SCALE + 00.0) / Sky::CYCLE_TIME, Color3b::from_hex(0x0E0F18)),
         ];
 
-        self.sky_bodies.start(resources_manager);
+        self.sky_bodies.start(resources_manager, global_renderer);
+        self.clouds.start(resources_manager, global_renderer);
+
+        self.set_sky_color(self.sky_color_gradient.get(0.0));
+        self.set_fog_color(self.fog_color_gradient.get(0.0));
+        self.set_clouds_color(self.clouds_color_gradient.get(0.0));
     }
 
-    pub fn update(&mut self, dt: f32, render_distance: i32) {
+    pub fn cleanup(&mut self) {
+        self.material.as_mut().unwrap().destroy();
+        self.sky_bodies.cleanup();
+        self.clouds.cleanup();
+    }
+
+    pub fn update(&mut self, dt: f32, player_pos: Vec3, render_distance: i32) {
         self.set_fog_distance(render_distance as f32 - 1.0);
-        
+
         self.time += dt;
         self.update_delay += dt;
 
@@ -159,66 +158,41 @@ impl Sky {
 
             self.update_delay = 0.0;
         }
+
+        self.clouds.update(player_pos, render_distance);
     }
 
-    pub fn draw(&mut self) {
-        render_utils::disable(RenderCap::DepthTest);
-
+    pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
         // draw sky dome
-        render_utils::draw_indexed(&self.shader.as_ref().unwrap(), None, &self.vao);
+        global_renderer.draw_obj(self.material.as_ref().unwrap());
 
-        // draw stars, sun and moon
-        render_utils::enable(RenderCap::Blend);
-        self.sky_bodies.draw();
-        render_utils::disable(RenderCap::Blend);
-
-        render_utils::enable(RenderCap::DepthTest);
+        // draw stars, sun, moon and clouds
+        self.sky_bodies.draw(global_renderer);
+        self.clouds.draw(global_renderer);
     }
 
     pub fn set_fog_distance(&mut self, distance: f32) {
-        if self.fog_distance == distance { return }
-
         self.fog_distance = distance;
-
-        let norm_distance = 1.0 / Chunk::CHUNK_SIZEF.x / distance;
-        self.ubo.as_ref().unwrap().update("fogDistance", &norm_distance);
+        self.fog_norm_distance = 1.0 / Chunk::CHUNK_SIZEF.x / distance;
     }
 
     pub fn set_fog_density(&mut self, density: f32) {
-        if self.fog_density == density { return }
-
         self.fog_density = density;
-
-        self.ubo.as_ref().unwrap().update("fogDensity", &density);
     }
 
-    pub fn set_fog(&self, value: bool) {
-        let i32_value = value as i32;
-
-        self.ubo.as_ref().unwrap().update("fogEnable", &i32_value);
+    pub fn set_fog(&mut self, value: bool) {
+        self.fog_enabled = value as i32;
     }
 
     pub fn set_sky_color(&mut self, color: Color3b) {
-        if self.sky_color == color { return }
-
         self.sky_color = color;
-
-        self.ubo.as_ref().unwrap().update("skyColor", &color.normalized());
     }
 
     pub fn set_fog_color(&mut self, color: Color3b) {
-        if self.fog_color == color { return }
-
         self.fog_color = color;
-
-        self.ubo.as_ref().unwrap().update("fogColor", &color.normalized());
     }
-    
+
     pub fn set_clouds_color(&mut self, color: Color3b) {
-        if self.clouds_color == color { return }
-        
         self.clouds_color = color;
-        
-        self.ubo.as_ref().unwrap().update("cloudsColor", &color.normalized());
     }
 }

@@ -2,8 +2,7 @@
 use std::{cell::RefCell, rc::Rc};
 use std::sync::atomic::AtomicI32;
 use crate::math::{self, Vec2, Vec3, Vec3i};
-use crate::render::chunk_renderer::RendererType;
-use crate::render::{BlockModelMesh, ChunkRenderer, ChunkVertices, Shader, Texture};
+use crate::render::{BlockModelMesh, ChunkRenderer, ChunkVertices, GlobalRenderer};
 use crate::world::blocks::{BlockProperties, BlockTypes, BlocksManager};
 use crate::world::WorldGen;
 use crate::world::chunk::{ChunkData, ChunkMeshResult, NeighborChunks};
@@ -20,6 +19,12 @@ pub enum Directions {
     Nothing,
 }
 
+impl Directions {
+    pub fn is_vertical(self) -> bool {
+        self == Self::Up || self == Self::Down
+    }
+}
+
 pub struct Chunk {
     pub position: Vec3i,
     pub visual_position: Vec3,
@@ -27,7 +32,7 @@ pub struct Chunk {
     pub chunk_data: ChunkData,
 
     pub mesh_generated: bool,
-    pub renderer: ChunkRenderer,
+    pub renderer: Option<ChunkRenderer>,
     pub inside_frustum: bool,
 
     using_count: AtomicI32,
@@ -40,50 +45,35 @@ impl Chunk {
     pub const CHUNK_DATA_SIZE: usize = (Self::CHUNK_SIZE.x * Self::CHUNK_SIZE.y * Self::CHUNK_SIZE.z) as usize;
     pub const REGION_SIZE: i32 = 16;
 
-    pub fn new(position: Vec3i, shader: Rc<RefCell<Shader>>, texture: Rc<Texture>) -> Self {
-        let visual_position = Vec3::new(
-            (position.x * Chunk::CHUNK_SIZE.x) as f32,
-            (position.y * Chunk::CHUNK_SIZE.y) as f32,
-            (position.z * Chunk::CHUNK_SIZE.z) as f32
-        );
+    pub fn new(position: Vec3i) -> Self {
+        let visual_position = position * Self::CHUNK_SIZE;
 
         Self {
             position,
-            visual_position,
+            visual_position: visual_position.as_vec3(),
 
             chunk_data: ChunkData::new(),
 
             mesh_generated: false,
-            renderer: ChunkRenderer::new(shader, texture),
+            renderer: None,
             inside_frustum: false,
 
             using_count: AtomicI32::new(0)
         }
     }
 
-    pub fn recreate(&mut self, position: Vec3i, shader: Rc<RefCell<Shader>>, texture: Rc<Texture>) {
-        self.position = position;
-        self.visual_position = (position * Self::CHUNK_SIZE).as_vec3();
-
-        self.chunk_data.get_data_mut().fill(0);
-
-        self.mesh_generated = false;
-        self.renderer = ChunkRenderer::new(shader, texture);
-        self.inside_frustum = false;
-
-        self.using_count.store(0, std::sync::atomic::Ordering::SeqCst);
-    }
-
     pub fn start(&mut self, world_gen: &mut WorldGen, blocks_manager: &BlocksManager) {
         world_gen.gen_data(self.position, &mut self.chunk_data, blocks_manager);
     }
 
-    pub fn draw(&self, render_type: RendererType) {
-        self.renderer.draw(render_type);
+    pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
+        self.renderer.as_mut().unwrap().draw(global_renderer);
     }
 
     pub fn erase(&mut self) {
-        self.renderer.erase();
+        if let Some(ref mut renderer) = self.renderer {
+            renderer.erase();
+        }
     }
 
     pub fn lock(&self) { self.using_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst); }
@@ -98,7 +88,7 @@ impl Chunk {
         let mut ambient_occlusion = model.ambient_occlusion;
 
         let chunk_pos = chunk.position.as_vec3() * Self::CHUNK_SIZEF;
-        
+
         for x in 0..Chunk::CHUNK_SIZE.x {
         for y in 0..Chunk::CHUNK_SIZE.y {
         for z in 0..Chunk::CHUNK_SIZE.z {
@@ -237,32 +227,37 @@ impl Chunk {
         }
     }
 
-    fn draw_face(current: &BlockProperties, around: &BlockProperties, dir: Directions) -> bool {
-	    if around.is_transparent {
-		    if current.block_type == around.block_type {
+    fn draw_face(current: &BlockProperties, other: &BlockProperties, dir: Directions) -> bool {
+        let current_type = current.block_type;
+        let other_type = other.block_type;
+
+	    if other.is_transparent {
+	        if current_type == other_type {
 				// glasses
-			    if current.block_type == BlockTypes::Glass { return false }
+			    if current_type == BlockTypes::Glass { return false }
 
 			    // water
-			    if current.block_type == BlockTypes::Water { return false }
+			    if current_type == BlockTypes::Water { return false }
 
 			    // slabs
-			    if current.block_type == BlockTypes::Slab && dir != Directions::Up && dir != Directions::Down { return false }
+			    if current_type == BlockTypes::Slab && dir.is_vertical() { return false }
 
 			    // snow layer
-			    if current.block_type == BlockTypes::SnowLayer && dir != Directions::Up && dir != Directions::Down { return false }
+			    if current_type == BlockTypes::SnowLayer && dir.is_vertical() { return false }
 		    }
 		    else {
-			    if current.block_type != BlockTypes::Water && around.block_type == BlockTypes::Slab && dir == Directions::Up { return false }
-			    if current.block_type != BlockTypes::Water && around.block_type == BlockTypes::SnowLayer && dir == Directions::Up { return false }
+			    if current_type != BlockTypes::Water && other_type == BlockTypes::Slab && dir == Directions::Up { return false }
+			    if current_type != BlockTypes::Water && other_type == BlockTypes::SnowLayer && dir == Directions::Up { return false }
+				//if current_type == BlockTypes::Water { return true }
 		    }
 
 		    return true;
 	    }
 
-	    if current.block_type == BlockTypes::Slab && dir == Directions::Up { return true }
-	    if current.block_type == BlockTypes::SnowLayer && dir == Directions::Up { return true }
-	    if !current.is_transparent && around.is_transparent { return true }
+		if current_type == BlockTypes::Water && dir == Directions::Up { return true }
+        if current_type == BlockTypes::Slab && dir == Directions::Up { return true }
+        if current_type == BlockTypes::SnowLayer && dir == Directions::Up { return true }
+	    if !current.is_transparent && other.is_transparent { return true }
 
 	    return false;
     }

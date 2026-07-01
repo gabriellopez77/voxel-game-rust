@@ -1,6 +1,7 @@
-﻿use std::{cell::RefCell, rc::Rc, mem::offset_of};
-use crate::render::{render_utils, ChunkVertices, Shader, Texture, Vao, vao::VaoBuffers};
-use crate::world::{Chunk, chunk::ChunkMeshResult};
+﻿use crate::render::material::MaterialType;
+use crate::render::{GlobalRenderer, Material};
+use crate::render::raw_buffer::BufferFlags;
+use crate::world::chunk::ChunkMeshResult;
 
 
 #[derive(Copy, Clone)]
@@ -14,65 +15,48 @@ impl RendererType {
 }
 
 pub struct ChunkRenderer {
-    shader: Rc<RefCell<Shader>>,
-    texture: Rc<Texture>,
-
-    vaos: [Vao; RendererType::RENDERS_COUNT],
+    default_material: Material,
+    water_material: Material,
 }
 
 impl ChunkRenderer {
-    pub fn new(shader: Rc<RefCell<Shader>>, texture: Rc<Texture>) -> Self {
+    pub fn new(global_renderer: &mut GlobalRenderer) -> Self {
         Self {
-            vaos: [
-                Vao::new(),
-                Vao::new()
-            ],
-            shader,
-            texture,
+            default_material: global_renderer.create_chunk_material(MaterialType::ChunksOpaque),
+            water_material: global_renderer.create_chunk_material(MaterialType::ChunksAlpha),
         }
     }
 
     pub fn erase(&mut self) {
-        for vao in &mut self.vaos {
-            vao.delete();
-        }
+        self.default_material.destroy();
+        self.water_material.destroy();
     }
 
-    pub fn draw(&self, render_type: RendererType) {
-        let vao = &self.vaos[render_type as usize];
-
-        if vao.triangles_count == 0 { return }
-
-        render_utils::draw_indexed(&self.shader, Some(self.texture.as_ref()), vao);
+    pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
+        global_renderer.draw_obj(&self.default_material);
+        global_renderer.draw_obj(&self.water_material);
     }
 
     pub fn update_mesh(&mut self, mesh_result: &ChunkMeshResult) {
-        for i in 0..RendererType::RENDERS_COUNT {
-            let vertices = &mesh_result.vertices[i];
+        //let now = std::time::Instant::now();
+        //println!("{}", now.elapsed().as_micros());
 
-            if vertices.is_empty() { return }
-
-            let indices = &mesh_result.indices[i];
-            let vao = &mut self.vaos[i];
-
-            if !vao.is_generated() {
-                vao.gen_vao()
-                    .gen_buffer(VaoBuffers::Ebo)
-                    .gen_buffer(VaoBuffers::Vbo);
-
-                vao.buffer_data_from_arr(VaoBuffers::Ebo, &indices, gl::STATIC_DRAW);
-
-                vao.buffer_data_from_arr(VaoBuffers::Vbo, &vertices, gl::STATIC_DRAW)
-                    .attrib_info(0, 3, gl::FLOAT, offset_of!(ChunkVertices, vertices), false)
-                    .attrib_info(1, 3, gl::FLOAT, offset_of!(ChunkVertices, normal), false)
-                    .attrib_info(2, 2, gl::FLOAT, offset_of!(ChunkVertices, uv), false)
-                    .attrib_info(3, 1, gl::UNSIGNED_BYTE, offset_of!(ChunkVertices, flags), false)
-                    .set_stride(size_of::<ChunkVertices>());
-            }
-            else {
-                vao.smart_reallocate_buffer(VaoBuffers::Ebo, &indices);
-                vao.smart_reallocate_buffer(VaoBuffers::Vbo, &vertices);
-            }
+        if mesh_result.vertices[RendererType::Opaque as usize].len() != 0 {
+            self.default_material.set_mesh(
+                &mesh_result.vertices[RendererType::Opaque as usize],
+                &mesh_result.indices[RendererType::Opaque as usize],
+                BufferFlags::VRAM
+            );
         }
+
+        if mesh_result.vertices[RendererType::Alpha as usize].len() != 0 {
+            self.water_material.set_mesh(
+                &mesh_result.vertices[RendererType::Alpha as usize],
+                &mesh_result.indices[RendererType::Alpha as usize],
+                BufferFlags::VRAM
+            );
+        }
+
+        //println!("{}", now.elapsed().as_micros());
     }
 }

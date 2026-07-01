@@ -13,7 +13,7 @@ pub struct FontInfo {
 }
 
 impl FontInfo {
-    pub fn create_from_file(path: &str, font_name: &str, fonts_atlas: Rc<Texture>) -> Self {
+    pub fn create_from_file(path: &str, font_name: &str, fonts_atlas: &Texture) -> Self {
         let file_content = match std::fs::read_to_string(path) {
             Ok(content) => content,
             Err(e) => panic!("Error reading file: {e}")

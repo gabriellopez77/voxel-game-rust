@@ -1,6 +1,6 @@
 ﻿use crate::math::{Color4b, Vec2, Vec2i16, Vec4};
-use crate::render::{SpritesRenderer, SpritesVertices, sprites_renderer};
-use crate::resources::{ResourceManager, TexCoords};
+use crate::render::{SpritesVertices, Texture, UiRenderer};
+use crate::resources::TexCoords;
 use crate::ui::tools::ui_element::UiElement;
 
 
@@ -8,6 +8,7 @@ pub struct Sprite {
     position: Vec2,
     size: Vec2,
     uv: TexCoords,
+    texture_idx: u8,
 
     pub color: Color4b,
 }
@@ -27,25 +28,32 @@ impl Sprite {
             position: Vec2::ZERO,
             size: Vec2::ZERO,
             uv: TexCoords::ZERO,
+            texture_idx: 0,
         }
     }
 
-    pub fn set_texture(&mut self, uv: TexCoords) { self.uv = uv }
-    pub fn set_texture_from_atlas(&mut self, resource_manager: &ResourceManager, name: &str) {
-        self.uv = resource_manager.get_texture("ui").unwrap().get_coords(name);
+    pub fn set_texture_from_coords(&mut self, texture_idx: u8, uv: TexCoords) {
+        self.texture_idx = texture_idx;
+        self.uv = uv;
     }
 
-    pub fn draw(&self, renderer: &mut SpritesRenderer<SpritesVertices>) {
-        if renderer.buffer_len() >= sprites_renderer::MAX_SPRITES { return }
+    pub fn set_texture(&mut self, tex: &Texture, name: &str) {
+        self.texture_idx = tex.raw_texture.inxeding_idx as u8;
+        self.uv = tex.get_coords(name);
+    }
+
+    pub fn draw(&self, renderer: &mut UiRenderer) {
+        if renderer.get_sprites_count() >= UiRenderer::MAX_SPRITES_COUNT { return }
 
         let pos = self.get_pos();
         let size = self.get_size();
 
-        renderer.add_element(SpritesVertices{
+        renderer.add_sprite(SpritesVertices{
             position: Vec2i16::new(pos.x as i16, pos.y as i16),
             size: Vec2i16::new(size.x as i16, size.y as i16),
             uv: self.uv,
             color: self.color,
+            texture_idx: self.texture_idx,
         })
     }
 }

@@ -20,6 +20,7 @@ impl ItemCreation for SnowLayer {
         properties.is_transparent = true;
         properties.light_filter = 0;
         properties.block_type = BlockTypes::SnowLayer;
+        properties.collision_box = None;
 
         Self {
             properties: vec![properties],

@@ -4,8 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-glfw = "0.62"
-gl = "0.14.0"
+glfw = { version = "0.62.0", features = ["vulkan"] }
 
 image = "0.25.10"
 
@@ -17,3 +16,14 @@ rand = "0.10.1"
 # json
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
+
+
+ash = "0.38.0"
+vk-mem = "0.5.0"
+shaderc = "0.10.1"
+
+ash-window = "0.13.0"
+raw-window-handle = "0.6.2"
+
+# modified time metadata files manipulation
+filetime = "0.2"

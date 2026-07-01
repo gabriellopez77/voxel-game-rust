@@ -4,6 +4,7 @@ pub mod slice;
 pub mod text;
 pub mod elements_grid;
 pub mod inventory;
+pub mod button;
 
 pub use {
     sprite::Sprite,
@@ -11,4 +12,5 @@ pub use {
     slice::Slice,
     text::Text,
     elements_grid::ElementsGrid,
+    button::Button,
 };

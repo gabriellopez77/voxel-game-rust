@@ -1,14 +1,17 @@
 #version 460 core
 
-uniform sampler2D myTexture;
+#include "../includes/globalTextures.glsl"
 
-in vec4 Color;
-in vec2 TexCoords;
 
-out vec4 outColor;
+layout(location = 0) in vec2 TexCoords;
+layout(location = 1) in vec4 Color;
+layout(location = 2) in flat uint TextureIdx;
 
-void main() {
-    vec4 tex = texture(myTexture, TexCoords);
+layout(location = 0) out vec4 outColor;
+
+void main()
+{
+    vec4 tex = bindlessTexture(TextureIdx, TexCoords);
 
     if (tex.a < 0.1f)
         discard;

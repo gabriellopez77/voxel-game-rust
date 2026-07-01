@@ -1,13 +1,13 @@
 #version 460 core
 
-uniform sampler2D myTexture;
+#include "includes/globalTextures.glsl"
 
-uniform float alpha;
 
-in vec2 TexCoords;
-in vec4 Color;
+layout(location = 0) in vec2 TexCoords;
+layout(location = 1) in vec4 Color;
+layout(location = 2) in float Alpha;
 
-out vec4 FragColor;
+layout(location = 0) out vec4 FragColor;
 
 void main()
 {
@@ -15,15 +15,15 @@ void main()
 
     if (isStar)
     {
-        FragColor = vec4(Color.rgb, alpha);
+        FragColor = vec4(Color.rgb, Alpha);
     }
     else
     {
-        vec4 tex = texture(myTexture, TexCoords);
+        vec4 tex = bindlessTexture(SKY_BODIES_TEXTURE_IDX, TexCoords);
 
         if (tex.a < 0.1f)
             discard;
 
-        FragColor = vec4(tex);
+        FragColor = tex;
     }
 }

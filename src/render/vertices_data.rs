@@ -34,31 +34,31 @@ pub const CUBE_VERTICES: [i8; 144] = [
     0, 1, 0,   0, 1, 0,
     0, 1, 1,   0, 1, 0,
     1, 1, 1,   0, 1, 0,
-    
+
     // down
     1, 0, 1,   0, -1, 0,
     0, 0, 1,   0, -1, 0,
     0, 0, 0,   0, -1, 0,
     1, 0, 0,   0, -1, 0,
-    
+
     // south
     0, 1, 1,   0, 0, 1,
     0, 0, 1,   0, 0, 1,
     1, 0, 1,   0, 0, 1,
     1, 1, 1,   0, 0, 1,
-    
+
     // north
     1, 1, 0,   0, 0, -1,
     1, 0, 0,   0, 0, -1,
     0, 0, 0,   0, 0, -1,
     0, 1, 0,   0, 0, -1,
-    
+
     // west
     0, 1, 0,  -1, 0, 0,
     0, 0, 0,  -1, 0, 0,
     0, 0, 1,  -1, 0, 0,
     0, 1, 1,  -1, 0, 0,
-    
+
     // east
     1, 1, 1,   1, 0, 0,
     1, 0, 1,   1, 0, 0,
@@ -73,6 +73,7 @@ pub struct SpritesVertices {
     pub size: Vec2i16,
     pub uv: TexCoords,
     pub color: Color4b,
+    pub texture_idx: u8,
 }
 
 #[repr(C)]
@@ -95,7 +96,6 @@ pub struct ChunkVertices {
 
     /// 00000011 = ao level
     /// 00000100 = shade flag
-    /// 00001000 = bloom flag
     pub flags: u8,
 }
 

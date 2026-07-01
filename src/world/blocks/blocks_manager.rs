@@ -1,9 +1,8 @@
-use std::{rc::Rc, cell::RefCell};
 use std::sync::Arc;
 use crate::resources::ResourceManager;
 use crate::utils::SafePtr;
+use crate::world::chunk::chunk_data::ChunkBlockInfo;
 use crate::world::blocks::*;
-use crate::world::chunk::chunk_data::ChunkDataInfo;
 use crate::world::items::*;
 
 
@@ -28,9 +27,8 @@ pub struct BlocksManager {
 }
 
 impl BlocksManager {
-    pub fn new(resources_manager: &Rc<RefCell<ResourceManager>>) -> Self {
+    pub fn new(resources: &ResourceManager) -> Self {
         let mut blocks: Vec<SafePtr<dyn BlockFunctions>> = Vec::new();
-        let resources = &resources_manager.borrow();
 
         Self {
             air: Self::add::<Air>("air", "AIR", resources, &mut blocks),
@@ -61,7 +59,7 @@ impl BlocksManager {
         self.blocks[item_base.parent_index as usize].clone()
     }
 
-    pub fn get_properties_from_block_info(&self, block_info: ChunkDataInfo) -> &BlockProperties {
+    pub fn get_properties_from_block_info(&self, block_info: ChunkBlockInfo) -> &BlockProperties {
          return &self.blocks[block_info.id as usize].get_properties(block_info.state);
     }
 
@@ -69,13 +67,13 @@ impl BlocksManager {
         return &self.blocks[item_base.id as usize].get_properties(item_base.state);
     }
 
-    fn add<T>(internal_name: &'static str, name: &'static str,
-        resources: &ResourceManager, blocks: &mut Vec<SafePtr<dyn BlockFunctions>>) -> Box<dyn BlockFunctions>
+    fn add<T>(internal_name: &'static str, name: &'static str, resources: &ResourceManager,
+              blocks: &mut Vec<SafePtr<dyn BlockFunctions>>) -> Box<dyn BlockFunctions>
     where
         T: ItemCreation<ItemType: BlockFunctions>,
         for<'a> T::ItemType: 'a,
     {
-        let block_box: Box<T::ItemType> = Box::new(T::new(internal_name, name, blocks.len(), resources));
+        let block_box = Box::new(T::new(internal_name, name, blocks.len(), resources));
         blocks.push(SafePtr::from(block_box.as_ref()));
 
         return block_box;

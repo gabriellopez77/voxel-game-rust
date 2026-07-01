@@ -1,13 +1,6 @@
-﻿use std::rc::Rc;
-
-use crate::math::Vec3i;
-use crate::math::vec3::Vec3;
-use crate::math::vec2::Vec2;
-use crate::math::matrix4::Matrix4;
+﻿use crate::math::{Vec3, Vec2, Matrix4};
 
 use crate::inputs;
-use crate::render::Ubo;
-use crate::resources::ResourceManager;
 use crate::world::Chunk;
 
 
@@ -22,18 +15,16 @@ impl Plane {
 }
 
 pub struct Camera {
-    pub position: Vec3,
+    position: Vec3,
 
-    pub direction: Vec3,
+    direction: Vec3,
     pub rot: Vec2,
     pub view_changed: bool,
 
-    ubo: Option<Rc<Ubo>>,
-
-    view_matrix: Matrix4,
-    projection_matrix: Matrix4,
-    projection_view_matrix: Matrix4,
-
+    pub view_matrix: Matrix4,
+    pub projection_matrix: Matrix4,
+    pub projection_view_matrix: Matrix4,
+    pub view_no_translate_matrix: Matrix4,
     frustum_planes: [Plane; 6],
 
     last_mouse_pos: Vec2,
@@ -47,11 +38,10 @@ impl Camera {
             rot: Vec2::ZERO,
             view_changed: false,
 
-            ubo: None,
-
             view_matrix: Matrix4::ZERO,
             projection_matrix: Matrix4::ZERO,
             projection_view_matrix: Matrix4::ZERO,
+            view_no_translate_matrix: Matrix4::ZERO,
 
             frustum_planes: [Plane{normal: Vec3::ZERO, d: 0.0}; 6],
 
@@ -59,8 +49,16 @@ impl Camera {
         }
     }
 
-    pub fn start(&mut self, resources: &ResourceManager) {
-        self.ubo = resources.get_ubo("globalData");
+    pub fn start(&mut self) {
+
+    }
+
+    pub fn get_pos(&self) -> Vec3 {
+        self.position
+    }
+
+    pub fn get_dir(&self) -> Vec3 {
+        self.direction
     }
 
     pub fn update(&mut self, new_pos: Vec3) {
@@ -76,19 +74,14 @@ impl Camera {
 
         self.view_matrix = Matrix4::look_at(self.position, self.position + self.direction);
         self.projection_view_matrix = self.projection_matrix * self.view_matrix;
-
+        self.view_no_translate_matrix = self.view_matrix.remove_translation();
         self.update_frustum_planes();
-
-        self.ubo.as_ref().unwrap().update("camView", self.view_matrix.as_ptr());
-        self.ubo.as_ref().unwrap().update("camViewProj", self.projection_view_matrix.as_ptr());
-        self.ubo.as_ref().unwrap().update("camViewNoTranslate", &self.view_matrix.remove_translation());
     }
 
     pub fn resize(&mut self, width: f32, height: f32) {
         self.view_changed = true;
 
-        self.projection_matrix = Matrix4::perspective(70.0, width / height, 0.1, 1000.0);
-        self.ubo.as_ref().unwrap().update("camProj", self.projection_matrix.as_ptr());
+        self.projection_matrix = Matrix4::perspective(70.0, width / height, 0.04, 1000.0);
     }
 
     pub fn chunk_inside_frustum(&self, visual_chunk_pos: Vec3) -> bool  {

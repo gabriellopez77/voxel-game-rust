@@ -1,13 +1,12 @@
 use crate::{
-    math::{Color4b, Vec2, Vec2i16, Vec4},
-    render::{SpritesRenderer, SpritesVertices, Texture, sprites_renderer},
-    resources::TexCoords, ui::tools::UiElement
+    math::{Color4b, Vec2, Vec2i16, Vec4}, render::{SpritesVertices, Texture, UiRenderer}, resources::TexCoords, ui::tools::UiElement
 };
 
 
 pub struct Slice {
     position: Vec2,
     size: Vec2,
+    texture_idx: u8,
 
     pub color: Color4b,
 
@@ -20,14 +19,14 @@ pub struct Slice {
 
 impl UiElement for Slice {
     fn get_pos(&self) -> Vec2 { self.position }
-    fn set_pos(&mut self, x: f32, y: f32) { 
+    fn set_pos(&mut self, x: f32, y: f32) {
         self.position = Vec2{ x, y };
 
         self.update_position();
     }
-    
+
     fn get_size(&self) -> Vec2 { self.size }
-    fn set_size(&mut self, x: f32, y: f32) { 
+    fn set_size(&mut self, x: f32, y: f32) {
         self.size = Vec2{ x, y };
 
         self.update_size();
@@ -40,6 +39,7 @@ impl Slice {
         Self {
             position: Vec2::ZERO,
             size: Vec2::ZERO,
+            texture_idx: 0,
 
             color: Color4b::ZERO,
 
@@ -51,29 +51,33 @@ impl Slice {
         }
     }
 
-    pub fn draw(&self, renderer: &mut SpritesRenderer<SpritesVertices>) {
+    pub fn draw(&self, renderer: &mut UiRenderer) {
         if self.size.x == 0.0 || self.size.y == 0.0 { return }
 
-        if renderer.buffer_len() >= sprites_renderer::MAX_SPRITES - 9 { return }
+        if renderer.get_sprites_count() >= UiRenderer::MAX_SPRITES_COUNT - 9 { return }
 
         for i in 0..9 {
             let pos = self.slice_position[i];
             let size = self.slice_size[i];
 
-            renderer.add_element(SpritesVertices{
+            renderer.add_sprite(SpritesVertices{
                 position: Vec2i16::new(pos.x as i16, pos.y as i16),
                 size: Vec2i16::new(size.x as i16, size.y as i16),
                 uv: self.slice_tex[i],
-                color: self.color
+                color: self.color,
+                texture_idx: self.texture_idx,
             });
         }
     }
 
-    pub fn set_texture(&mut self, coords: TexCoords, size: Vec2, corner: u16) {
+    pub fn set_texture(&mut self, tex: &Texture, name: &'static str, corner: u16) {
         self.corner = corner;
 
-        let cx = corner as f32 / size.x;
-        let cy = corner as f32 / size.y;
+        let coords = tex.get_coords(name);
+        let tex_size = tex.get_size();
+
+        let cx = corner as f32 / tex_size.x;
+        let cy = corner as f32 / tex_size.y;
 
         let top = coords.miny;
         let bottom = coords.maxy;
@@ -81,9 +85,9 @@ impl Slice {
         let right = coords.maxx;
 
         self.slice_tex[0] = TexCoords::new(
-            left, 
+            left,
 		    top,
-		    left + cx, 
+		    left + cx,
 		    top + cy
         );
         self.slice_tex[1] = TexCoords::new(
@@ -104,7 +108,7 @@ impl Slice {
             left,
 		    top + cy,
 		    left + cx,
-		    bottom - cy 
+		    bottom - cy
         );
         self.slice_tex[4] = TexCoords::new(
             left + cx,
@@ -150,7 +154,7 @@ impl Slice {
         let size = self.size;
 
         if size.x == 0.0|| size.y == 0.0 { return }
-        
+
         let corner_multiplied = corner * 2.0;
 
         slice_size[0].x = (corner).ceil();

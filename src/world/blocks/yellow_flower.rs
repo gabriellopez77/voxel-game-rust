@@ -19,6 +19,7 @@ impl ItemCreation for YellowFlower {
         properties.can_replaced = true;
         properties.is_transparent = true;
         properties.light_filter = 0;
+        properties.collision_box = None;
 
         Self {
             properties: vec![properties],

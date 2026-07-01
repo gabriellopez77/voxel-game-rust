@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::rc::Rc;
 use serde::Deserialize;
 use crate::{math, render::BlockModelMesh, resources::TexCoords};
 use crate::math::{Matrix4, Vec2, Vec3, Vec4};
@@ -48,7 +47,7 @@ pub struct BlockItemModel {
 }
 
 impl BlockItemModel {
-    pub fn new(models_path: &str, path: &str, texture: &Rc<Texture>) -> Result<Self, String> {
+    pub fn new(models_path: &str, path: &str, texture: &Texture) -> Result<Self, String> {
         let file_content = match std::fs::read_to_string(path) {
             Ok(content) => content,
             Err(err) => {
@@ -77,7 +76,7 @@ impl BlockItemModel {
         }
     }
 
-    pub fn read_error_model(texture: &Rc<Texture>) -> Self {
+    pub fn read_error_model(texture: &Texture) -> Self {
         let mut instance = Self {
             nothing_vertices: Vec::new(),
             up_vertices: Vec::new(),
@@ -98,7 +97,7 @@ impl BlockItemModel {
         }
     }
 
-    fn read(&mut self, models_path: &str, content: &str, texture: &Rc<Texture>) -> Result<(), String> {
+    fn read(&mut self, models_path: &str, content: &str, texture: &Texture) -> Result<(), String> {
         let model_info: ModelInfo = match serde_json::from_str(content) {
             Ok(info) => info,
             Err(err) => {
@@ -418,7 +417,7 @@ impl BlockItemModel {
     }
 
     fn read_textures(&mut self, used_textures: &mut HashMap<String, TexCoords>,
-                     textures_info: &HashMap<String, String>, texture: &Rc<Texture>) {
+                     textures_info: &HashMap<String, String>, texture: &Texture) {
         fn remove_unnecessary_path(path: &String) -> String {
             if path.starts_with("blocks/") {
                 return path.replace("blocks/", "")

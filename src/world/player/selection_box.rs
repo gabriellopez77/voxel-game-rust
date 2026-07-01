@@ -1,60 +1,55 @@
-use std::cell::RefCell;
-use std::rc::Rc;
 use crate::math::Vec3;
-use crate::render::{render_utils, Shader, Vao, CUBE_INDICES, CUBE_VERTICES};
-use crate::render::render_utils::RenderCap;
-use crate::render::vao::VaoBuffers;
-use crate::resources::ResourceManager;
+use crate::render::material::MaterialType;
+use crate::render::{CUBE_INDICES, CUBE_VERTICES, GlobalRenderer, Material};
+use crate::render::raw_buffer::BufferFlags;
 
 
 pub struct SelectionBox {
-    shader: Option<Rc<RefCell<Shader>>>,
-    vao: Vao,
-    
+    material: Option<Material>,
+
+    position: Vec3,
+
     visible: bool,
 }
 
 impl SelectionBox {
     pub fn new() -> Self {
         Self {
-            shader: None,
-            vao: Vao::new(),
-            
+            material: None,
+
+            position: Vec3::ZERO,
+
             visible: false,
         }
     }
 
-    pub fn start(&mut self, resources: &ResourceManager) {
-        self.vao.gen_vao()
-            .gen_buffer(VaoBuffers::Ebo)
-            .gen_buffer(VaoBuffers::Vbo);
-        
-        self.vao.buffer_data_from_arr(VaoBuffers::Ebo, &CUBE_INDICES, gl::STATIC_DRAW);
-        
-        self.vao.buffer_data_from_arr(VaoBuffers::Vbo, &CUBE_VERTICES, gl::STATIC_DRAW)
-            .attrib_info(0, 3, gl::BYTE, 0, false)
-            .set_stride(6);
+    pub fn start(&mut self, global_renderer: &mut GlobalRenderer) {
+        let mut material = global_renderer.create_material("selectionBox", MaterialType::Alpha);
+        material.set_mesh(&CUBE_VERTICES, &CUBE_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
 
-        self.shader = resources.get_shader("selection_box");
+        self.material = Some(material);
     }
-    
+
+    pub fn cleanup(&mut self) {
+        self.material.as_mut().unwrap().destroy();
+    }
+
     pub fn update(&mut self, dt: f32, position: Option<Vec3>) {
         if let Some(position) = position {
-            self.shader.as_ref().unwrap().borrow_mut().set_vec3("pos", position);
+            self.position = position;
             self.visible = true;
         }
         else {
             self.visible = false;
         }
     }
-    
-    pub fn draw(&mut self) {
+
+    pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
         if !self.visible { return }
-        
-        render_utils::enable(RenderCap::Blend);
-        
-        render_utils::draw_indexed(&self.shader.as_ref().unwrap(), None, &self.vao);
-        
-        render_utils::disable(RenderCap::Blend);
+
+        let material = self.material.as_mut().unwrap();
+        material.update_push_constant(0, size_of::<Vec3>(), &self.position);
+        global_renderer.draw_obj(material);
+
     }
 }
