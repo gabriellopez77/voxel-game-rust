@@ -34,7 +34,7 @@ impl Camera {
     pub fn new() -> Self {
         Self {
             position: Vec3::ZERO,
-            direction: Vec3::ZERO,
+            direction: Vec3::new(1.0, 0.0, 0.0),
             rot: Vec2::ZERO,
             view_changed: false,
 
@@ -51,10 +51,6 @@ impl Camera {
 
     pub fn start(&mut self) {
 
-    }
-
-    pub fn reset(&mut self) {
-        self.rot = Vec2::ZERO;
     }
 
     pub fn get_pos(&self) -> Vec3 {
@@ -97,7 +93,9 @@ impl Camera {
             );
 
             // completely outside frustum
-            if plane.distance(n) < 0.0 { return false }
+            if plane.distance(n) < 0.0 {
+                return false;
+            }
         }
 
         return true;

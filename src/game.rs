@@ -71,6 +71,32 @@ impl Game {
     }
 
     pub fn update(&mut self, dt: f32, window: &mut Window) {
+        // process events
+        while let Some(event) = self.events_queue.pop_front() {
+            match event {
+                GameEvents::QuitGame => window.close(),
+                GameEvents::SetCursorMode(mode) => window.set_cursor(mode),
+                GameEvents::ChangeScreen(id) => self.ui_manager.clone().borrow_mut().change(id, self),
+                GameEvents::LoadChunks => {
+                    self.add_event(GameEvents::ChangeScreen(ScreensId::LoadingScreen));
+                    self.state = GameStates::Loading;
+                    self.world.load();
+                },
+                GameEvents::EnterToWorld => {
+                    self.in_world = true;
+                    self.paused = false;
+                    self.state = GameStates::Playable;
+
+                    self.add_event(GameEvents::ChangeScreen(ScreensId::HudScreen));
+                },
+                GameEvents::LeaveToWorld => {
+                    self.in_world = false;
+                    self.world.leave();
+                    self.add_event(GameEvents::ChangeScreen(ScreensId::StartScreen));
+                },
+            }
+        }
+
         if inputs::key_pressed(inputs::Keys::Escape) && self.in_world {
             self.paused = !self.paused;
 
@@ -97,26 +123,6 @@ impl Game {
         }
 
         self.ui_manager.clone().borrow_mut().update(dt, self);
-
-        // process events
-        while let Some(event) = self.events_queue.pop_front() {
-            match event {
-                GameEvents::EnterToWorld => self.enter_in_world(),
-                GameEvents::QuitGame => window.close(),
-                GameEvents::SetCursorMode(mode) => window.set_cursor(mode),
-                GameEvents::ChangeScreen(id) => self.ui_manager.clone().borrow_mut().change(id, self),
-                GameEvents::LoadChunks => {
-                    self.add_event(GameEvents::ChangeScreen(ScreensId::LoadingScreen));
-                    self.state = GameStates::Loading;
-                    self.world.load();
-                },
-                GameEvents::LeaveToWorld => {
-                    self.in_world = false;
-                    self.world.leave();
-                    self.add_event(GameEvents::ChangeScreen(ScreensId::StartScreen));
-                },
-            }
-        }
     }
 
     pub fn render(&mut self) {
@@ -154,13 +160,6 @@ impl Game {
 
     pub fn is_in_world(&self) -> bool { self.in_world }
     pub fn is_paused(&self) -> bool { self.paused }
-
-    fn enter_in_world(&mut self) {
-        self.in_world = true;
-        self.state = GameStates::Playable;
-
-        self.add_event(GameEvents::ChangeScreen(ScreensId::HudScreen));
-    }
 
     pub fn add_event(&mut self, event: GameEvents) {
         self.events_queue.push_back(event);

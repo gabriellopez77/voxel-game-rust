@@ -3,7 +3,7 @@ use std::{cell::RefCell, sync::Arc};
 use crate::{math::Vec3i, utils::ObjectPool, world::{Chunk, Planet, chunk::ChunkData}};
 
 
-pub struct NeighborChunksData {
+pub struct NeighborsDataCopy {
     pub north: Option<Box<RefCell<ChunkData>>>,
     pub south: Option<Box<RefCell<ChunkData>>>,
     pub west: Option<Box<RefCell<ChunkData>>>,
@@ -15,7 +15,7 @@ pub struct NeighborChunksData {
     pub southeast: Option<Box<RefCell<ChunkData>>>,
 }
 
-impl NeighborChunksData {
+impl NeighborsDataCopy {
     pub fn new(planet: &mut Planet, pos: Vec3i) -> Self {
         let mut data_north: Option<Box<RefCell<ChunkData>>> = None;
         let mut data_south: Option<Box<RefCell<ChunkData>>> = None;

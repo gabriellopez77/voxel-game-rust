@@ -8,7 +8,7 @@ use crate::resources::Worker;
 use crate::utils::{ObjectPool, SafePtr};
 use crate::world::Aabb;
 use crate::world::blocks::BlocksManager;
-use crate::world::chunk::{ChunkData, ChunkMeshResult, NeighborChunks, NeighborChunksData};
+use crate::world::chunk::{ChunkData, ChunkMeshResult, NeighborChunks};
 use crate::world::{Chunk, WorldGen, player::Camera};
 
 
@@ -28,8 +28,8 @@ pub struct Planet {
     ordered_chunks: Vec<Arc<RefCell<Chunk>>>,
     visible_chunks: Vec<Arc<RefCell<Chunk>>>,
 
-    chunk_mesh_vertices_pool: ObjectPool<Vec<ChunkVertices>>,
-    chunk_mesh_indices_pool: ObjectPool<Vec<u32>>,
+    pub chunk_mesh_vertices_pool: ObjectPool<Vec<ChunkVertices>>,
+    pub chunk_mesh_indices_pool: ObjectPool<Vec<u32>>,
     pub chunk_data_pool: ObjectPool<Box<RefCell<ChunkData>>>,
 
     blocks_aabb_list: Vec<Aabb>,
@@ -105,14 +105,13 @@ impl Planet {
             self.change_chunk_logic(player_chunk, blocks_manager);
         }
 
-
         // sort chunks
         if self.need_ordering_chunks {
             self.need_ordering_chunks = false;
 
             self.ordered_chunks.sort_by(|ch1, ch2| {
-                let ch1_distance = math::get_chunk_distance(ch1.borrow().position, player_chunk);
-                let ch2_distance = math::get_chunk_distance(ch2.borrow().position, player_chunk);
+                let ch1_distance = math::get_chunk_distance(ch1.borrow().position, self.last_player_chunk);
+                let ch2_distance = math::get_chunk_distance(ch2.borrow().position, self.last_player_chunk);
 
                 return ch1_distance.cmp(&ch2_distance);
             });
@@ -130,11 +129,11 @@ impl Planet {
             let mut ch = chunk_arc.borrow_mut();
 
             if camera.view_changed {
-                ch.inside_frustum = camera.chunk_inside_frustum(ch.visual_position)
+                ch.inside_frustum = camera.chunk_inside_frustum(ch.visual_position);
             }
 
             if !ch.inside_frustum {
-                continue
+                continue;
             }
 
             self.visible_chunks.push(chunk_arc.clone());
@@ -150,23 +149,7 @@ impl Planet {
                 // SAFETY: blocks_manager reference is valid for all game time
                 let blocks_manager_ptr = SafePtr::from(blocks_manager);
 
-                let current_chunk_data = match self.chunk_data_pool.get() {
-                    Some(data) => {
-                        ch.chunk_data.copy_to(&mut data.borrow_mut());
-
-                        data
-                    }
-                    None => Box::new(RefCell::new(ch.chunk_data.clone()))
-                };
-
-                let mesh_result = Box::new(RefCell::new(ChunkMeshResult::new(
-                    current_chunk_data,
-                    NeighborChunksData::new(self, ch.position),
-                    &mut self.chunk_mesh_vertices_pool,
-                    &mut self.chunk_mesh_indices_pool,
-                    ch.position
-                )));
-
+                let mesh_result = Box::new(RefCell::new(ChunkMeshResult::new(self, &ch)));
 
                 // create chunk mesh async
                 self.chunks_mesh_worker.add_task(move || {
@@ -230,8 +213,8 @@ impl Planet {
     }
 
     pub fn get_chunk(&self, pos: Vec3i) -> Option<Arc<RefCell<Chunk>>> {
-        if let Some(chunk) = self.chunks.get(&pos) && let Some(chunk2) = chunk {
-            return Some(chunk2.clone());
+        if let Some(chunk) = self.chunks.get(&pos) {
+            return chunk.clone();
         }
 
         return None;
@@ -248,6 +231,7 @@ impl Planet {
             let chunk_pos = chunk_result.borrow().position;
             let chunk_arc: Arc<RefCell<Chunk>> = Arc::from(chunk_result);
 
+            self.need_ordering_chunks = true;
             self.ordered_chunks.push(chunk_arc.clone());
             self.pendings_chunks_count -= 1;
 
@@ -268,11 +252,7 @@ impl Planet {
                 ch_renderer.update_mesh(&mesh_result.borrow());
             }
 
-            mesh_result.into_inner().restore(
-                &mut self.chunk_mesh_vertices_pool,
-                &mut self.chunk_mesh_indices_pool,
-                &mut self.chunk_data_pool
-            );
+            mesh_result.into_inner().restore(self);
         }
     }
 

@@ -1,10 +1,10 @@
 use std::{array, cell::RefCell};
 
-use crate::{math::Vec3i, render::{ChunkVertices, chunk_renderer::RendererType}, utils::ObjectPool, world::chunk::{ChunkData, NeighborChunksData}};
+use crate::{math::Vec3i, render::{ChunkVertices, chunk_renderer::RendererType}, world::{Chunk, Planet, chunk::{ChunkData, NeighborsDataCopy}}};
 
 
 pub struct ChunkMeshResult {
-    pub neighbors_data: NeighborChunksData,
+    pub neighbors_data: NeighborsDataCopy,
     pub chunk_data: Box<RefCell<ChunkData>>,
 
     pub vertices: [Vec<ChunkVertices>; RendererType::RENDERS_COUNT],
@@ -14,16 +14,25 @@ pub struct ChunkMeshResult {
 }
 
 impl ChunkMeshResult {
-    pub fn new(chunk_data: Box<RefCell<ChunkData>>, neighbors_data: NeighborChunksData, vertices_pool: &mut ObjectPool<Vec<ChunkVertices>>,
-               indices_pool: &mut ObjectPool<Vec<u32>>, chunk_pos: Vec3i) -> Self {
+    pub fn new(planet: &mut Planet, chunk: &Chunk) -> Self {
+        // create a copy of chunk data
+        let chunk_data_copy = match planet.chunk_data_pool.get() {
+            Some(data) => {
+                chunk.chunk_data.copy_to(&mut data.borrow_mut());
+
+                data
+            }
+            None => Box::new(RefCell::new(chunk.chunk_data.clone()))
+        };
+
         Self {
-            neighbors_data: neighbors_data,
-            chunk_data: chunk_data,
+            neighbors_data: NeighborsDataCopy::new(planet, chunk.position),
+            chunk_data: chunk_data_copy,
 
-            vertices: array::from_fn(|_| vertices_pool.get_or(|| Vec::new())),
-            indices: array::from_fn(|_| indices_pool.get_or(|| Vec::new())),
+            vertices: array::from_fn(|_| planet.chunk_mesh_vertices_pool.get_or(|| Vec::new())),
+            indices: array::from_fn(|_| planet.chunk_mesh_indices_pool.get_or(|| Vec::new())),
 
-            chunk_pos: chunk_pos,
+            chunk_pos: chunk.position,
         }
     }
 
@@ -60,18 +69,17 @@ impl ChunkMeshResult {
         }
     }
 
-    pub fn restore(self, vertices_pool: &mut ObjectPool<Vec<ChunkVertices>>, indices_pool: &mut ObjectPool<Vec<u32>>,
-                   chunk_data_pool: &mut ObjectPool<Box<RefCell<ChunkData>>>) {
+    pub fn restore(mut self, planet: &mut Planet) {
         for mut vertices in self.vertices {
             vertices.clear();
-            vertices_pool.restore(vertices);
+            planet.chunk_mesh_vertices_pool.restore(vertices);
         }
 
         for mut indices in self.indices {
             indices.clear();
-            indices_pool.restore(indices);
+            planet.chunk_mesh_indices_pool.restore(indices);
         }
 
-        self.neighbors_data.restore(chunk_data_pool);
+        self.neighbors_data.restore(&mut planet.chunk_data_pool);
     }
 }

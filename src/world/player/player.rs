@@ -64,7 +64,6 @@ impl Player {
 
     pub fn reset(&mut self) {
         self.aabb.set_position(0.0, 60.0, 0.0);
-        self.camera.reset();
     }
 
     pub fn get_pos(&self) -> Vec3 {

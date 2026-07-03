@@ -1,6 +1,6 @@
 use ash::vk;
 use ash::vk::{Handle, ShaderStageFlags};
-use crate::render::{GlobalRenderer, PipelineLayout};
+use crate::render::PipelineLayout;
 use crate::resources::ShadersCompiler;
 use super::descriptor_set::DescriptorSet;
 use super::{vkutl, VulkanApp};
@@ -15,6 +15,7 @@ pub struct PipelineSettings {
     pub cull_mode: vk::CullModeFlags,
     pub enable_blend: bool,
     pub enable_depth_test: bool,
+    pub topology: vk::PrimitiveTopology,
 
     pub push_constant: vk::PushConstantRange,
 
@@ -44,6 +45,7 @@ impl PipelineSettings {
             cull_mode: vk::CullModeFlags::FRONT,
             enable_blend: false,
             enable_depth_test: true,
+            topology: vk::PrimitiveTopology::TRIANGLE_LIST,
 
             push_constant: vk::PushConstantRange::default(),
 

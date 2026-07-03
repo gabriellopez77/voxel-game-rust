@@ -4,7 +4,7 @@ use crate::math::{self, Vec2, Vec3, Vec3i};
 use crate::render::{BlockModelMesh, ChunkRenderer, ChunkVertices, GlobalRenderer};
 use crate::world::blocks::{BlockProperties, BlockTypes, BlocksManager};
 use crate::world::WorldGen;
-use crate::world::chunk::{ChunkData, ChunkMeshResult, NeighborChunksData};
+use crate::world::chunk::{ChunkData, ChunkMeshResult, NeighborsDataCopy};
 
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -191,7 +191,7 @@ impl Chunk {
         }
     }
 
-    fn add_face(chunk_data: &ChunkData, blocks_manager: &BlocksManager, neighbors: &NeighborChunksData, vertices: &mut Vec<ChunkVertices>,
+    fn add_face(chunk_data: &ChunkData, blocks_manager: &BlocksManager, neighbors: &NeighborsDataCopy, vertices: &mut Vec<ChunkVertices>,
                 model_vertices: &Vec<BlockModelMesh>, chunk_block: Vec3, chunk_pos: Vec3, dir: Directions, ambient_occlusion: bool) {
         for i in (0..model_vertices.len()).step_by(4) {
             let vert1 = &model_vertices[i + 0];
@@ -259,9 +259,9 @@ impl Chunk {
 	    return false;
     }
 
-    fn get_ao_level(chunk_data: &ChunkData, blocks_manager: &BlocksManager, neighbors: &NeighborChunksData,
-                    chunk_block: Vec3i, face_pos: Vec3, dir: Directions, vertex: u8) -> u8 {
-        let chunk_pos = { chunk_data.position };
+    fn get_ao_level(chunk_data: &ChunkData, blocks_manager: &BlocksManager, neighbors_data: &NeighborsDataCopy,
+                    ch_block: Vec3i, face_pos: Vec3, dir: Directions, vertex: u8) -> u8 {
+        let ch_pos = { chunk_data.position };
 
    	    let get_ao = |dx: f32, dy: f32, dz: f32| -> u8 {
             let ndx = (if dx < 0.0 { dx.ceil() } else { dx.floor() }).clamp(-1.0, 1.0) as i32;
@@ -269,28 +269,28 @@ impl Chunk {
             let ndz = (if dz < 0.0 { dz.ceil() } else { dz.floor() }).clamp(-1.0, 1.0) as i32;
 
       		// block in same chunk
-		    if chunk_block.x >= 1 && chunk_block.x <= 14 && chunk_block.z >= 1 && chunk_block.z <= 14 {
-			    let new_chunk_block = chunk_block + Vec3i::new(ndx, ndy, ndz);
+		    if ch_block.x >= 1 && ch_block.x <= 14 && ch_block.z >= 1 && ch_block.z <= 14 {
+			    let new_ch_block = ch_block + Vec3i::new(ndx, ndy, ndz);
 
-			    if new_chunk_block.y > Self::CHUNK_SIZE_MINUS_ONE.y || new_chunk_block.y < 0 {
+			    if new_ch_block.y > Self::CHUNK_SIZE_MINUS_ONE.y || new_ch_block.y < 0 {
 				    return 0;
 				}
 
-				let block_info = chunk_data.get_block_info(new_chunk_block);
+				let block_info = chunk_data.get_block_info(new_ch_block);
 
 			    return !blocks_manager.get(block_info.id).get_properties(block_info.state).is_transparent as u8;
 		    }
 
 
 		    // in another chunk
-		    let global_block = (chunk_pos * Self::CHUNK_SIZE) + chunk_block + Vec3i::new(ndx, ndy, ndz);
+		    let global_block = (ch_pos * Self::CHUNK_SIZE) + ch_block + Vec3i::new(ndx, ndy, ndz);
 
 		    if global_block.y > Self::CHUNK_SIZE_MINUS_ONE.y || global_block.y < 0 {
 			    return 0;
 			}
 
-		    let other_chunk_pos = math::get_chunk_pos(global_block.as_vec3());
-		    let other_chunk_block = math::get_chunk_block(other_chunk_pos, global_block.as_vec3());
+		    let other_ch_pos = math::get_chunk_pos(global_block.as_vec3());
+		    let other_chunk_block = math::get_chunk_block(other_ch_pos, global_block.as_vec3());
 
             enum Tee<'a> {
                 Same(&'a ChunkData),
@@ -299,18 +299,18 @@ impl Chunk {
 
 			let mut ch = Tee::Same(chunk_data);
 
-            if other_chunk_pos != chunk_pos {
+            if other_ch_pos != ch_pos {
                 // around chunks
-                if other_chunk_pos      == Vec3i::new(chunk_pos.x, 0, chunk_pos.z - 1) { ch = Tee::Other(neighbors.north.as_ref()) }
-                else if other_chunk_pos == Vec3i::new(chunk_pos.x, 0, chunk_pos.z + 1) { ch = Tee::Other(neighbors.south.as_ref()) }
-                else if other_chunk_pos == Vec3i::new(chunk_pos.x - 1, 0, chunk_pos.z) { ch = Tee::Other(neighbors.west.as_ref()) }
-                else if other_chunk_pos == Vec3i::new(chunk_pos.x + 1, 0, chunk_pos.z) { ch = Tee::Other(neighbors.east.as_ref()) }
+                if other_ch_pos      == Vec3i::new(ch_pos.x, 0, ch_pos.z - 1) { ch = Tee::Other(neighbors_data.north.as_ref()) }
+                else if other_ch_pos == Vec3i::new(ch_pos.x, 0, ch_pos.z + 1) { ch = Tee::Other(neighbors_data.south.as_ref()) }
+                else if other_ch_pos == Vec3i::new(ch_pos.x - 1, 0, ch_pos.z) { ch = Tee::Other(neighbors_data.west.as_ref()) }
+                else if other_ch_pos == Vec3i::new(ch_pos.x + 1, 0, ch_pos.z) { ch = Tee::Other(neighbors_data.east.as_ref()) }
 
                 // corner chunks
-                else if other_chunk_pos == Vec3i::new(chunk_pos.x - 1, 0, chunk_pos.z - 1) { ch = Tee::Other(neighbors.northwest.as_ref()) }
-                else if other_chunk_pos == Vec3i::new(chunk_pos.x + 1, 0, chunk_pos.z - 1) { ch = Tee::Other(neighbors.northeast.as_ref()) }
-                else if other_chunk_pos == Vec3i::new(chunk_pos.x - 1, 0, chunk_pos.z + 1) { ch = Tee::Other(neighbors.southwest.as_ref()) }
-                else if other_chunk_pos == Vec3i::new(chunk_pos.x + 1, 0, chunk_pos.z + 1) { ch = Tee::Other(neighbors.southeast.as_ref()) }
+                else if other_ch_pos == Vec3i::new(ch_pos.x - 1, 0, ch_pos.z - 1) { ch = Tee::Other(neighbors_data.northwest.as_ref()) }
+                else if other_ch_pos == Vec3i::new(ch_pos.x + 1, 0, ch_pos.z - 1) { ch = Tee::Other(neighbors_data.northeast.as_ref()) }
+                else if other_ch_pos == Vec3i::new(ch_pos.x - 1, 0, ch_pos.z + 1) { ch = Tee::Other(neighbors_data.southwest.as_ref()) }
+                else if other_ch_pos == Vec3i::new(ch_pos.x + 1, 0, ch_pos.z + 1) { ch = Tee::Other(neighbors_data.southeast.as_ref()) }
             }
 
 
@@ -329,7 +329,7 @@ impl Chunk {
 
    	    let mut ao_level: u8 = 3;
 
-	    if chunk_block.y > Self::CHUNK_SIZE_MINUS_ONE.y || chunk_block.y < 0 {
+	    if ch_block.y > Self::CHUNK_SIZE_MINUS_ONE.y || ch_block.y < 0 {
 		    return ao_level;
 		}
 
