@@ -42,8 +42,8 @@ pub struct RawBuffer {
 
     // Vram: used to copy buffer to vram
     // Ram: not used
-    staging_buffer: vk::Buffer,
-    staging_allocation: vk_mem::Allocation,
+    staging_buffer: [vk::Buffer; vkutl::FRAMES_COUNT],
+    staging_allocation: [vk_mem::Allocation; vkutl::FRAMES_COUNT],
 
     buffers: [vk::Buffer; vkutl::FRAMES_COUNT],
     allocations: [vk_mem::Allocation; vkutl::FRAMES_COUNT],
@@ -59,7 +59,7 @@ impl RawBuffer {
             flags: BufferFlags::EMPTY,
             size: 0,
 
-            staging_buffer: vk::Buffer::null(),
+            staging_buffer: [vk::Buffer::null(); vkutl::FRAMES_COUNT],
             staging_allocation: unsafe { std::mem::zeroed() },
 
             buffers: [vk::Buffer::null(); vkutl::FRAMES_COUNT],
@@ -85,6 +85,7 @@ impl RawBuffer {
         debug_assert!(flags.contains(BufferFlags::VRAM) || flags.contains(BufferFlags::RAM), "Need RAM or VRAM flag");
         debug_assert!(!(flags.contains(BufferFlags::VRAM) && flags.contains(BufferFlags::RAM)), "Can not have VRAM and RAM flags");
         debug_assert!(!(flags.contains(BufferFlags::RAM) && flags.contains(BufferFlags::ONCE)), "Ram buffer can not have ONCE flag");
+        debug_assert!(!(flags.contains(BufferFlags::ONCE) && flags.contains(BufferFlags::DUPLICATE)), "ONCE buffer can not have ONCE flag");
 
         debug_assert_ne!(size, 0, "Invalid buffer size!");
 
@@ -92,24 +93,23 @@ impl RawBuffer {
         self.flags = flags;
 
         if flags.contains(BufferFlags::VRAM) {
-            // create staging buffer
+            let mut staging_allocation_info = vk_mem::AllocationCreateInfo::default();
+            staging_allocation_info.usage = vk_mem::MemoryUsage::Auto;
+            staging_allocation_info.preferred_flags = vk::MemoryPropertyFlags::HOST_VISIBLE;
+            staging_allocation_info.flags = vk_mem::AllocationCreateFlags::HOST_ACCESS_SEQUENTIAL_WRITE;
+
             let mut allocation_info = vk_mem::AllocationCreateInfo::default();
             allocation_info.usage = vk_mem::MemoryUsage::Auto;
-            allocation_info.preferred_flags = vk::MemoryPropertyFlags::HOST_VISIBLE;
-            allocation_info.flags = vk_mem::AllocationCreateFlags::HOST_ACCESS_SEQUENTIAL_WRITE;
-
-            (self.staging_buffer, self.staging_allocation) = vkutl::create_buffer(
-                app, size,
-                vk::BufferUsageFlags::TRANSFER_SRC,
-                &allocation_info, false
-            );
-
+            allocation_info.preferred_flags = vk::MemoryPropertyFlags::DEVICE_LOCAL;
 
             // create buffer in vram
             for i in 0..vkutl::FRAMES_COUNT {
-                let mut allocation_info = vk_mem::AllocationCreateInfo::default();
-                allocation_info.usage = vk_mem::MemoryUsage::Auto;
-                allocation_info.preferred_flags = vk::MemoryPropertyFlags::DEVICE_LOCAL;
+                // create staging buffer
+                (self.staging_buffer[i], self.staging_allocation[i]) = vkutl::create_buffer(
+                    app, size,
+                    vk::BufferUsageFlags::TRANSFER_SRC,
+                    &staging_allocation_info, false
+                );
 
                 (self.buffers[i], self.allocations[i]) = vkutl::create_buffer(
                     app, size,
@@ -117,12 +117,14 @@ impl RawBuffer {
                     &allocation_info, true
                 );
 
+                // map staging buffer
+                self.mapped_memory[i] = unsafe {
+                    app.vma_allocator.map_memory(&mut self.staging_allocation[i]).expect("Failed to map memory!")
+                };
+
                 // if not DUPLICATE then we use only first buffer
                 if !flags.contains(BufferFlags::DUPLICATE) { break }
             }
-
-            // map staging buffer
-            self.mapped_memory[0] = unsafe { app.vma_allocator.map_memory(&mut self.staging_allocation).expect("Failed to map memory!") };
         }
         else {
             assert!(!flags.contains(BufferFlags::ONCE), "RAM buffer can not be ONCE");
@@ -145,6 +147,7 @@ impl RawBuffer {
             }
         }
 
+
         // if data is not null then copy to buffer
         if !data.is_null() {
             for i in 0..vkutl::FRAMES_COUNT {
@@ -157,9 +160,9 @@ impl RawBuffer {
 
         // if ONCE then we do not update the buffer again, in other words, we can destroy staging buffer
         if self.flags.contains(BufferFlags::ONCE) {
-            app.add_to_bargabe_list(GarbageType::Buffer(self.staging_buffer, self.staging_allocation, true));
+            app.add_to_bargabe_list(GarbageType::Buffer(self.staging_buffer[0], self.staging_allocation[0], true));
 
-            self.staging_buffer = vk::Buffer::null();
+            self.staging_buffer[0] = vk::Buffer::null();
             self.mapped_memory[0] = std::ptr::null_mut();
         }
     }
@@ -173,16 +176,16 @@ impl RawBuffer {
         self.update_with_index(app, index, size, offset,  data);
     }
 
-    pub fn update_with_index(&self, app: &VulkanApp, index: usize, size: u64, offset: usize, data: *const u8) {
+    fn update_with_index(&self, app: &VulkanApp, index: usize, size: u64, offset: usize, data: *const u8) {
         unsafe {
             if self.flags.contains(BufferFlags::VRAM) {
                 // copy data to mapped staging buffer
-                std::ptr::copy_nonoverlapping(data, self.mapped_memory[0].byte_add(offset), size as usize);
+                std::ptr::copy_nonoverlapping(data, self.mapped_memory[index].byte_add(offset), size as usize);
 
                 // update gpu memory cache
-                app.vma_allocator.flush_allocation(&&self.staging_allocation, offset as u64, size).expect("Failed to flush memory ranges!");
+                app.vma_allocator.flush_allocation(&self.staging_allocation[index], offset as u64, size).expect("Failed to flush memory ranges!");
 
-                vkutl::copy_buffer_async(app, self.staging_buffer, self.buffers[index], size, offset as u64, offset as u64);
+                vkutl::copy_buffer_async(app, self.staging_buffer[index], self.buffers[index], size, offset as u64, offset as u64);
             }
             else {
                 // copy data to mapped memory
@@ -198,18 +201,16 @@ impl RawBuffer {
         // buffer is not create or has destroyed
         if self.size == 0 { return }
 
-        // unmap and destroy staging buffer
-        if self.flags.contains(BufferFlags::VRAM) && !self.flags.contains(BufferFlags::ONCE) {
-            app.add_to_bargabe_list(GarbageType::Buffer(self.staging_buffer, self.staging_allocation, true));
-            self.staging_buffer = vk::Buffer::null();
-            self.mapped_memory[0] = std::ptr::null_mut();
-        }
-
-
         // destroy buffers
         for i in 0..vkutl::FRAMES_COUNT {
             if self.flags.contains(BufferFlags::RAM) {
                 self.mapped_memory[i] = std::ptr::null_mut();
+            }
+
+            // unmap and destroy staging buffer
+            if self.flags.contains(BufferFlags::VRAM) && !self.flags.contains(BufferFlags::ONCE) {
+                app.add_to_bargabe_list(GarbageType::Buffer(self.staging_buffer[i], self.staging_allocation[i], true));
+                self.staging_buffer[i] = vk::Buffer::null();
             }
 
             app.add_to_bargabe_list(GarbageType::Buffer(self.buffers[i], self.allocations[i], self.flags.contains(BufferFlags::RAM)));
@@ -219,41 +220,7 @@ impl RawBuffer {
             if !self.flags.contains(BufferFlags::DUPLICATE) { break }
         }
 
-
         self.size = 0;
         self.flags = BufferFlags::EMPTY;
-    }
-
-    pub fn copy(&self, app: &VulkanApp, dst: &RawBuffer, size: u64, src_offset: u64, dst_offset: u64) {
-        assert!(src_offset + size >= self.size || dst_offset + size >= dst.size, "Invalid size to copy buffer: {}", size);
-
-        let copy_region = vk::BufferCopy::default()
-            .size(size)
-            .src_offset(src_offset)
-            .dst_offset(dst_offset);
-
-        if self.flags.contains(BufferFlags::DUPLICATE) && dst.flags.contains(BufferFlags::DUPLICATE) {
-            for i in 0..vkutl::FRAMES_COUNT {
-                unsafe {
-                    app.ash_device.cmd_copy_buffer(app.get_current_transfer_command_buffer(),
-                        self.buffers[i],
-                        dst.buffers[i],
-                        &[copy_region]
-                    )
-                };
-            }
-        }
-        else if !self.flags.contains(BufferFlags::DUPLICATE) && !dst.flags.contains(BufferFlags::DUPLICATE) {
-            unsafe {
-                app.ash_device.cmd_copy_buffer(app.get_current_transfer_command_buffer(),
-                    self.buffers[0],
-                    dst.buffers[0],
-                    &[copy_region]
-                )
-            };
-        }
-        else {
-            panic!("Incompatible buffers!")
-        }
     }
 }

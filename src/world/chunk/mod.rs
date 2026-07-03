@@ -3,6 +3,7 @@ pub mod neighbor_chunks;
 pub mod chunk_getter;
 pub mod chunk_data;
 pub mod chunk_mesh_result;
+pub mod neighbor_chunks_data;
 
 pub use {
     chunk::Chunk,
@@ -10,4 +11,5 @@ pub use {
     chunk_getter::ChunkGetter,
     chunk_data::ChunkData,
     chunk_mesh_result::ChunkMeshResult,
+    neighbor_chunks_data::NeighborChunksData,
 };

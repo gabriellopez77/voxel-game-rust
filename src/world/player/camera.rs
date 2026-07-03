@@ -53,6 +53,10 @@ impl Camera {
 
     }
 
+    pub fn reset(&mut self) {
+        self.rot = Vec2::ZERO;
+    }
+
     pub fn get_pos(&self) -> Vec3 {
         self.position
     }

@@ -17,6 +17,7 @@ pub enum ScreensId {
     StartScreen,
     HudScreen,
     PauseScreen,
+    LoadingScreen,
 }
 
 pub struct UiManager {
@@ -60,6 +61,7 @@ impl UiManager {
         self.add(ScreensId::StartScreen, StartScreen::new());
         self.add(ScreensId::HudScreen, HudScreen::new());
         self.add(ScreensId::PauseScreen, PauseScreen::new());
+        self.add(ScreensId::LoadingScreen, LoadingScreen::new());
     }
 
     pub fn cleanup(&mut self) {
@@ -78,7 +80,7 @@ impl UiManager {
 
         self.projection = Matrix4::orthographic(0.0, width, height, 0.0);
 
-        self.screens_background.set_sizev(self.screen_size);
+        self.screens_background.set_sizev(self.screen_size + 1.0);
 
         let args = ScreenResizeArgs {
             screen_size: self.screen_size,

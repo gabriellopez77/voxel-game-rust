@@ -19,7 +19,7 @@ impl ScreenBase for PauseScreen {
 
     fn update(&mut self, dt: f32, args: &mut ScreenUpdateArgs) {
         if self.quit_button.update(args.mouse_pos) {
-            args.game.add_event(GameEvents::QuitGame);
+            args.game.add_event(GameEvents::LeaveToWorld);
         }
     }
 

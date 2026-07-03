@@ -6,6 +6,8 @@ pub struct NullSafePtr<T: ?Sized> {
     ptr: *const T
 }
 
+unsafe impl<T: ?Sized> Send for NullSafePtr<T> {}
+
 impl<T: ?Sized> Deref for NullSafePtr<T> {
     type Target = T;
 

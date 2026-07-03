@@ -13,6 +13,8 @@ pub struct WorldGen {
     rand: ThreadRng,
 }
 
+unsafe impl Send for WorldGen {}
+
 impl WorldGen {
     pub fn new() -> Self {
         let mut noise = FastNoiseLite::new();
@@ -27,8 +29,6 @@ impl WorldGen {
             noise,
             rand: rand::rng(),
         }
-
-
     }
 
     pub fn gen_data(&mut self, chunk_pos: Vec3i, data: &mut ChunkData, blocks_manager: &BlocksManager) {

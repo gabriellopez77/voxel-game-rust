@@ -1,7 +1,7 @@
 ﻿use ash::vk;
 use crate::render::{GlobalRenderer, PipelineLayout};
 
-use super::{vkutl, vulkan_app::VulkanApp};
+use super::vulkan_app::VulkanApp;
 use super::pipeline_settings::PipelineSettings;
 
 

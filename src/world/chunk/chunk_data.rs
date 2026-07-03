@@ -8,21 +8,33 @@ pub struct ChunkBlockInfo {
     pub state: u8
 }
 
+#[derive(Clone)]
 pub struct ChunkData {
     blocks_id: [u16; Chunk::CHUNK_DATA_SIZE],
     blocks_state: [u8; Chunk::CHUNK_DATA_SIZE],
+
+    pub position: Vec3i,
 
     pub regen_mesh: bool,
 }
 
 impl ChunkData {
-    pub fn new() -> Self {
+    pub fn new(position: Vec3i) -> Self {
         Self {
             blocks_id: [0; Chunk::CHUNK_DATA_SIZE],
             blocks_state: [0; Chunk::CHUNK_DATA_SIZE],
 
+            position: position,
+
             regen_mesh: false,
         }
+    }
+
+    pub fn copy_to(&self, other: &mut Self) {
+        other.blocks_id.copy_from_slice(&self.blocks_id);
+        other.blocks_state.copy_from_slice(&self.blocks_state);
+        other.position = self.position;
+        other.regen_mesh = self.regen_mesh;
     }
 
     pub fn get_block_id(&self, chunk_block: Vec3i) -> u16 {

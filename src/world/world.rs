@@ -1,4 +1,4 @@
-use crate::{render::{GlobalRenderer, Ubo}, resources::ResourceManager, world::{Planet, Player, blocks::BlocksManager, sky::Sky}};
+use crate::{inputs, render::{GlobalRenderer, Ubo}, resources::ResourceManager, world::{Planet, Player, blocks::BlocksManager, sky::Sky}};
 
 
 pub struct World {
@@ -33,7 +33,7 @@ impl World {
         self.player.selection_box.start(global_renderer);
     }
 
-    pub fn udate(&mut self, dt: f32) {
+    pub fn update(&mut self, dt: f32) {
         self.player.update(dt, &mut self.planet, &self.blocks_manager.as_ref().unwrap());
 
         self.sky.update(dt, self.player.get_pos(), self.planet.render_distance);
@@ -69,7 +69,17 @@ impl World {
 
     pub fn cleanup(&mut self) {
         self.planet.cleanup();
+        self.planet.stop();
         self.sky.cleanup();
         self.player.selection_box.cleanup();
+    }
+
+    pub fn leave(&mut self) {
+        self.player.reset();
+        self.planet.cleanup();
+    }
+
+    pub fn load(&mut self) {
+        self.planet.load_chunks(self.player.get_pos(), &self.blocks_manager.as_ref().unwrap());
     }
 }

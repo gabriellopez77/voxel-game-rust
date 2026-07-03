@@ -6,6 +6,8 @@ pub struct MutSafePtr<T: ?Sized> {
     ptr: *mut T
 }
 
+unsafe impl<T: ?Sized> Send for MutSafePtr<T> {}
+
 impl<T: ?Sized> Deref for MutSafePtr<T> {
     type Target = T;
 

@@ -25,6 +25,8 @@ pub struct Material {
     push_range: u8,
 }
 
+unsafe impl Send for Material {}
+
 impl Material {
     pub fn new(app: &mut VulkanApp, pipeline: Rc<RefCell<GraphicsPipeline>>, material_type: MaterialType) -> Self {
         Self {

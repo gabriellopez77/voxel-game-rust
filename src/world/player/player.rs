@@ -62,6 +62,11 @@ impl Player {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.aabb.set_position(0.0, 60.0, 0.0);
+        self.camera.reset();
+    }
+
     pub fn get_pos(&self) -> Vec3 {
         self.aabb.get_pos()
     }
@@ -107,7 +112,7 @@ impl Player {
     }
 
     fn update_ray_casting(&mut self, planet: &Planet, blocks_manager: &BlocksManager, start: Vec3, dir: Vec3) -> Option<Vec3> {
-        const RAY_LENGHT: f32 = 50.5;
+        const RAY_LENGHT: f32 = 4.5;
         const RAY_STEP: f32 = 0.1;
 
         let mut target_pos: Option<Vec3> = None;

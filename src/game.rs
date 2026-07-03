@@ -9,11 +9,20 @@ use crate::ui::UiManager;
 use crate::window::Window;
 
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum GameStates {
+    Loading,
+    Playable,
+    Saving,
+}
+
 pub enum GameEvents {
-    EnterInWorld,
     QuitGame,
     SetCursorMode(glfw::CursorMode),
     ChangeScreen(ScreensId),
+    LoadChunks,
+    EnterToWorld,
+    LeaveToWorld,
 }
 
 pub struct Game {
@@ -24,6 +33,7 @@ pub struct Game {
 
     ui_manager: Rc<RefCell<UiManager>>,
 
+    state: GameStates,
     paused: bool,
     in_world: bool,
 
@@ -39,6 +49,7 @@ impl Game {
 
             ui_manager: Rc::new(RefCell::new(UiManager::new())),
 
+            state: GameStates::Playable,
             paused: false,
             in_world: false,
 
@@ -73,8 +84,16 @@ impl Game {
             }
         }
 
+        if self.state == GameStates::Loading {
+            self.world.planet.process_chunks_gen();
+
+            if self.world.planet.pendings_chunks_count == 0 {
+                self.add_event(GameEvents::EnterToWorld);
+            }
+        }
+
         if self.in_world && !self.paused {
-            self.world.udate(dt);
+            self.world.update(dt);
         }
 
         self.ui_manager.clone().borrow_mut().update(dt, self);
@@ -82,10 +101,20 @@ impl Game {
         // process events
         while let Some(event) = self.events_queue.pop_front() {
             match event {
-                GameEvents::EnterInWorld => self.enter_in_world(),
+                GameEvents::EnterToWorld => self.enter_in_world(),
                 GameEvents::QuitGame => window.close(),
                 GameEvents::SetCursorMode(mode) => window.set_cursor(mode),
                 GameEvents::ChangeScreen(id) => self.ui_manager.clone().borrow_mut().change(id, self),
+                GameEvents::LoadChunks => {
+                    self.add_event(GameEvents::ChangeScreen(ScreensId::LoadingScreen));
+                    self.state = GameStates::Loading;
+                    self.world.load();
+                },
+                GameEvents::LeaveToWorld => {
+                    self.in_world = false;
+                    self.world.leave();
+                    self.add_event(GameEvents::ChangeScreen(ScreensId::StartScreen));
+                },
             }
         }
     }
@@ -128,6 +157,7 @@ impl Game {
 
     fn enter_in_world(&mut self) {
         self.in_world = true;
+        self.state = GameStates::Playable;
 
         self.add_event(GameEvents::ChangeScreen(ScreensId::HudScreen));
     }
