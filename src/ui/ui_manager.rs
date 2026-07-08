@@ -52,8 +52,6 @@ impl UiManager {
     }
 
     pub fn start(&mut self, resources: &ResourceManager, global_renderer: &mut GlobalRenderer) {
-        self.screens_background.set_texture(&resources.ui_sprites_texture, "white_color");
-
         self.screens_background.color = Color4b::new(0, 0, 0, 128);
 
         self.ui_renderer.start(global_renderer);

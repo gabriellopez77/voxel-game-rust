@@ -69,7 +69,7 @@ impl ChunkMeshResult {
         }
     }
 
-    pub fn restore(mut self, planet: &mut Planet) {
+    pub fn restore(self, planet: &mut Planet) {
         for mut vertices in self.vertices {
             vertices.clear();
             planet.chunk_mesh_vertices_pool.restore(vertices);

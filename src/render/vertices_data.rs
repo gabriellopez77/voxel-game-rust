@@ -27,6 +27,13 @@ pub const CENTER_SPRITES_VERTICES: [f32; 20] = [
     -0.5,  0.5,  0.0,   0.0, 1.0, // bottom left
 ];
 
+pub const PARTICLES_VERTICES: [f32; 20] = [
+    0.0,  0.5,  0.5,   1.0, 0.0, // bottom right
+    0.0,  0.5, -0.5,   0.0, 0.0, // top right
+    0.0, -0.5, -0.5,   0.0, 1.0, // top left
+    0.0, -0.5,  0.5,   1.0, 1.0, // bottom left
+];
+
 // vertices, normal
 pub const CUBE_VERTICES: [i8; 144] = [
     // up
@@ -120,4 +127,14 @@ pub struct SkyBodiesVertices {
     pub matrix: Matrix4,
     pub uv: TexCoords,
     pub color: Vec4,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ParticlesVertices {
+    pub position: Vec3,
+    pub scale: Vec3,
+    pub rotation: Vec3,
+    pub uv: TexCoords,
+    pub texture_idx: u8,
 }

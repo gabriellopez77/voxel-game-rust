@@ -44,7 +44,7 @@ impl Planet {
             chunks: HashMap::new(),
             world_gen: Arc::new(Mutex::new(WorldGen::new())),
 
-            render_distance: 14,
+            render_distance: 4,
 
             pendings_chunks_count: 0,
 

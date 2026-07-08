@@ -1,6 +1,10 @@
 ﻿use crate::math::{Matrix4, Vec2i, Vec3, Vec3i, Vec4};
 use crate::world::Chunk;
 
+
+pub const FRICTION: f32 = 10.0;
+pub const EPSILON: f32 = 0.01;
+
 struct Quaternion {
     x: f32,
     y: f32,
@@ -152,4 +156,3 @@ fn look_rotation_quaternion(center: Vec3, object_pos: Vec3) -> Quaternion {
 
     return quaternion;
 }
-

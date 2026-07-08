@@ -8,9 +8,6 @@ use super::pipeline_settings::PipelineSettings;
 pub struct GraphicsPipeline {
     pub pipeline_layout: PipelineLayout,
     pipeline: vk::Pipeline,
-
-    push_constant_shader_stage: vk::ShaderStageFlags,
-    push_constant_size: u32,
 }
 
 impl GraphicsPipeline {
@@ -116,24 +113,6 @@ impl GraphicsPipeline {
         Self {
             pipeline_layout: settings.pipeline_layout,
             pipeline,
-
-            push_constant_shader_stage: settings.push_constant.stage_flags,
-            push_constant_size: settings.push_constant.size,
-        }
-    }
-
-    pub fn bind_push_constant<T>(&self, app: &VulkanApp, size: usize, offset: usize, data: *const T) {
-        assert_ne!(self.push_constant_size, 0, "pipeline do not use push constant");
-        assert!(offset + size <= self.push_constant_size as usize, "push constant size not valid");
-
-        unsafe {
-            app.ash_device.cmd_push_constants(
-                app.get_current_command_buffer(),
-                self.pipeline_layout.get_layout(),
-                vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
-                offset as u32,
-                core::slice::from_raw_parts(data as _, size),
-            )
         }
     }
 

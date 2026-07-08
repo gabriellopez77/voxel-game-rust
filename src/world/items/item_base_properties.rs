@@ -43,7 +43,7 @@ impl ItemBaseProperties {
             id: new_id,
             name,
             internal_name,
-            icon: model.particle_tex_coords,
+            icon: model.particle_coords,
 
             state,
             parent_index: parent_index as u32,
@@ -52,20 +52,20 @@ impl ItemBaseProperties {
             model,
         }
     }
-    
+
     pub fn copy(&self, internal_name: &'static str, name: &'static str, model: Rc<BlockItemModel>,
                 parent_index: usize, state: u8, item_base_type: ItemBaseType) -> Self {
         Self {
             id: self.id,
             internal_name,
             name,
-            icon: model.icon_tex_coords,
+            icon: model.icon_coords,
             model,
-            
+
             state,
             parent_index: parent_index as u32,
             base_type: item_base_type,
-            
+
         }
     }
 

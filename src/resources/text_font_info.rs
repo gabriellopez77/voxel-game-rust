@@ -1,5 +1,4 @@
-use std::{collections::HashMap, rc::Rc};
-use std::path::{Path, PathBuf};
+use std::collections::HashMap;
 use serde::Deserialize;
 use crate::math::{Vec2i16, Vec2u8};
 use crate::render::Texture;
@@ -8,7 +7,7 @@ use crate::resources::TexCoords;
 
 pub struct FontInfo {
     characters_info: HashMap<char, CharacterInfo>,
-    
+
     unknown_character_info: CharacterInfo,
 }
 

@@ -2,7 +2,7 @@ use crate::math::Vec2;
 
 
 #[repr(C)]
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 pub struct TexCoords {
     pub minx: f32,
     pub miny: f32,

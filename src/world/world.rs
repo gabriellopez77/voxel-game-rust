@@ -1,4 +1,4 @@
-use crate::{inputs, render::{GlobalRenderer, Ubo}, resources::ResourceManager, world::{Planet, Player, blocks::BlocksManager, sky::Sky}};
+use crate::{inputs, render::{GlobalRenderer, Ubo}, resources::ResourceManager, world::{Planet, Player, blocks::BlocksManager, particles::ParticlesManager, sky::Sky}};
 
 
 pub struct World {
@@ -6,6 +6,7 @@ pub struct World {
 
     pub planet: Planet,
     pub sky: Sky,
+    pub particles_manager: ParticlesManager,
 
     pub blocks_manager: Option<BlocksManager>,
 }
@@ -17,6 +18,7 @@ impl World {
 
             planet: Planet::new(),
             sky: Sky::new(),
+            particles_manager: ParticlesManager::new(),
 
             blocks_manager: None,
         }
@@ -30,15 +32,18 @@ impl World {
         self.planet.start();
 
         self.sky.start(resources_manager, global_renderer);
+        self.particles_manager.start(resources_manager, global_renderer);
         self.player.selection_box.start(global_renderer);
     }
 
     pub fn update(&mut self, dt: f32) {
-        self.player.update(dt, &mut self.planet, &self.blocks_manager.as_ref().unwrap());
+        self.player.update(dt, &mut self.planet, &self.blocks_manager.as_ref().unwrap(), &mut self.particles_manager);
 
         self.sky.update(dt, self.player.get_pos(), self.planet.render_distance);
 
         self.planet.update(self.player.get_pos(), &self.blocks_manager.as_ref().unwrap());
+
+        self.particles_manager.update(dt);
     }
 
     pub fn draw(&mut self, ubo: &mut Ubo, global_renderer: &mut GlobalRenderer) {
@@ -63,6 +68,7 @@ impl World {
         self.sky.draw(global_renderer);
         self.player.selection_box.draw(global_renderer);
         self.planet.draw(&self.player.camera, &self.blocks_manager.as_ref().unwrap(), global_renderer);
+        self.particles_manager.draw(global_renderer, self.player.camera.rot);
 
         self.player.camera.view_changed = false;
     }
@@ -72,6 +78,7 @@ impl World {
         self.planet.stop();
         self.sky.cleanup();
         self.player.selection_box.cleanup();
+        self.particles_manager.cleanup();
     }
 
     pub fn leave(&mut self) {

@@ -1,5 +1,6 @@
 use ash::vk;
 use ash::vk::{Handle, ShaderStageFlags};
+use crate::math::Vec4;
 use crate::render::PipelineLayout;
 use crate::resources::ShadersCompiler;
 use super::descriptor_set::DescriptorSet;
@@ -17,13 +18,12 @@ pub struct PipelineSettings {
     pub enable_depth_test: bool,
     pub topology: vk::PrimitiveTopology,
 
-    pub push_constant: vk::PushConstantRange,
-
     bindings_info: [vk::VertexInputBindingDescription; vkutl::MAX_VERTEX_BINDING_COUNT],
     attributes_info: [vk::VertexInputAttributeDescription; vkutl::MAX_VERTEX_ATTRIBUTES_COUNT],
 
     pub pipeline_layout: PipelineLayout,
 
+    current_location: u32,
     current_binding: u32,
     current_attributes_index: u32
 }
@@ -47,13 +47,12 @@ impl PipelineSettings {
             enable_depth_test: true,
             topology: vk::PrimitiveTopology::TRIANGLE_LIST,
 
-            push_constant: vk::PushConstantRange::default(),
-
             bindings_info: [vk::VertexInputBindingDescription::default(); vkutl::MAX_VERTEX_BINDING_COUNT],
             attributes_info: [vk::VertexInputAttributeDescription::default(); vkutl::MAX_VERTEX_ATTRIBUTES_COUNT],
 
             pipeline_layout: PipelineLayout::new(),
 
+            current_location: 0,
             current_binding: 0,
             current_attributes_index: 0,
         }
@@ -87,18 +86,28 @@ impl PipelineSettings {
         self
     }
 
-    pub fn attrib_info(&mut self, location: u32, format: vk::Format, offset: usize) -> &mut Self {
+    pub fn add_attrib(&mut self, format: vk::Format, offset: usize) -> &mut Self {
         let index = self.current_attributes_index;
         self.current_attributes_index += 1;
 
         assert!(self.current_binding <= vkutl::MAX_VERTEX_ATTRIBUTES_COUNT as u32, "max attributes count is: {}", vkutl::MAX_VERTEX_ATTRIBUTES_COUNT);
 
         self.attributes_info[index as usize] = vk::VertexInputAttributeDescription{
-            location,
+            location: self.current_location,
             binding: self.current_binding - 1,
             format,
             offset: offset as u32
         };
+
+        self.current_location += 1;
+        self
+    }
+
+    pub fn add_attrib_matrix(&mut self, offset: usize) -> &mut Self {
+        self.add_attrib(vk::Format::R32G32B32A32_SFLOAT, offset + 0 * size_of::<Vec4>());
+        self.add_attrib(vk::Format::R32G32B32A32_SFLOAT, offset + 1 * size_of::<Vec4>());
+        self.add_attrib(vk::Format::R32G32B32A32_SFLOAT, offset + 2 * size_of::<Vec4>());
+        self.add_attrib(vk::Format::R32G32B32A32_SFLOAT, offset + 3 * size_of::<Vec4>());
 
         self
     }
@@ -120,12 +129,4 @@ impl PipelineSettings {
     //pub fn set_dynamic_states(&mut self, states: &'a [vk::DynamicState]) {
     //    self.dynamic_states = Some(states);
     //}
-
-    pub fn set_push_constant(&mut self, stage_flags: ShaderStageFlags, size: usize, offset: u32) {
-        self.push_constant = vk::PushConstantRange {
-            stage_flags,
-            offset,
-            size: size as u32
-        }
-    }
 }

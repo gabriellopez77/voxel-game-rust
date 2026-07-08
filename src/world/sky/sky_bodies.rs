@@ -175,15 +175,14 @@ impl SkyBodies {
         let stars_material = self.stars_material.as_mut().unwrap();
         let sun_moon_material = self.sun_moon_material.as_mut().unwrap();
 
-        stars_material.update_push_constant(0, size_of::<Matrix4>(), self.matrix.as_ptr());
-        stars_material.update_push_constant(size_of::<Matrix4>(), size_of::<f32>(), &self.stars_alpha);
-
-        sun_moon_material.update_push_constant(size_of::<Matrix4>(), size_of::<f32>(), &self.stars_alpha);
-
         if self.stars_alpha > 0.0 {
+            stars_material.update_push_constant(0, &self.matrix);
+            stars_material.update_push_constant(size_of::<Matrix4>(), &self.stars_alpha);
             global_renderer.draw_obj_instanced(self.stars_material.as_ref().unwrap(), Self::STARS_COUNT);
         }
 
+        sun_moon_material.update_push_constant(0, &self.matrix);
+        sun_moon_material.update_push_constant(size_of::<Matrix4>(), &self.stars_alpha);
         global_renderer.draw_obj_instanced(self.sun_moon_material.as_ref().unwrap(), 2);
     }
 }

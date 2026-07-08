@@ -48,7 +48,7 @@ impl SelectionBox {
         if !self.visible { return }
 
         let material = self.material.as_mut().unwrap();
-        material.update_push_constant(0, size_of::<Vec3>(), &self.position);
+        material.update_push_constant(0, &self.position);
         global_renderer.draw_obj(material);
 
     }

@@ -14,18 +14,19 @@ pub mod color4b;
 
 pub mod matrix4;
 
-pub mod utils;
+pub mod math;
 
 pub mod key_frame;
 
-pub use utils::*;
 
 pub use {
+    math::*,
+
     vec2::Vec2,
     vec2i::Vec2i,
     vec2u8::Vec2u8,
     vec2i16::Vec2i16,
-    
+
     vec3::Vec3,
     vec3i::Vec3i,
 

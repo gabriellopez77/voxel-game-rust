@@ -11,7 +11,6 @@ pub struct LoadingScreen {
 
 impl ScreenBase for LoadingScreen {
     fn start(&mut self, args: &ScreenStartArgs) {
-        self.background.set_texture(&args.resources.ui_sprites_texture, "white_color");
         self.background.color = Color4b::new(0, 94, 97, 255);
 
         self.loading_text.set_font(args.resources.get_font("default"));

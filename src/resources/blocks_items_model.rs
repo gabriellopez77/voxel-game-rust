@@ -40,8 +40,8 @@ pub struct BlockItemModel {
     pub west_vertices: Vec<BlockModelMesh>,
     pub east_vertices: Vec<BlockModelMesh>,
 
-    pub icon_tex_coords: TexCoords,
-    pub particle_tex_coords: TexCoords,
+    pub icon_coords: TexCoords,
+    pub particle_coords: TexCoords,
 
     pub ambient_occlusion: bool,
 }
@@ -65,8 +65,8 @@ impl BlockItemModel {
             west_vertices: Vec::new(),
             east_vertices: Vec::new(),
 
-            icon_tex_coords: TexCoords::ZERO,
-            particle_tex_coords: TexCoords::ZERO,
+            icon_coords: TexCoords::ZERO,
+            particle_coords: TexCoords::ZERO,
             ambient_occlusion: false,
         };
 
@@ -86,8 +86,8 @@ impl BlockItemModel {
             west_vertices: Vec::new(),
             east_vertices: Vec::new(),
 
-            icon_tex_coords: TexCoords::ZERO,
-            particle_tex_coords: TexCoords::ZERO,
+            icon_coords: TexCoords::ZERO,
+            particle_coords: TexCoords::ZERO,
             ambient_occlusion: false,
         };
 
@@ -433,14 +433,14 @@ impl BlockItemModel {
         used_textures.insert("#missing".into(), texture.get_coords("error_404"));
 
         // load error particle texture
-        self.particle_tex_coords = texture.get_coords("error_404");
+        self.particle_coords = texture.get_coords("error_404");
 
         for (tex_alias, tex_path) in textures_info {
             let coords = texture.get_coords(&remove_unnecessary_path(&tex_path));
 
             // load particle texture
             if tex_alias == "particle" {
-                self.particle_tex_coords = coords;
+                self.particle_coords = coords;
             }
             else if tex_alias == "$side" {
                 used_textures.insert("#north".into(), coords);

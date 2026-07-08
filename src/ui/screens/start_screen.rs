@@ -13,7 +13,6 @@ pub struct StartScreen {
 
 impl ScreenBase for StartScreen {
     fn start(&mut self, args: &ScreenStartArgs) {
-        self.background.set_texture(&args.resources.ui_sprites_texture, "white_color");
         self.background.color = Color4b::new(0, 94, 97, 255);
 
         self.start_button.set_size(145.0, 25.0);

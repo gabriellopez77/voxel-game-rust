@@ -17,6 +17,7 @@ pub struct GlobalRenderer {
     opaque_draw_list: Vec<DrawInfo>,
     alpha_draw_list: Vec<DrawInfo>,
     ui_draw_list: Vec<DrawInfo>,
+    particle_draw_list: Vec<DrawInfo>,
 
     push_constant_list: Vec<(u8, [u8; vkutl::MAX_PUSH_CONSTANT_SIZE])>,
 
@@ -39,6 +40,7 @@ impl GlobalRenderer {
             opaque_draw_list: Vec::new(),
             alpha_draw_list: Vec::new(),
             ui_draw_list: Vec::new(),
+            particle_draw_list: Vec::new(),
 
             push_constant_list: Vec::new(),
 
@@ -118,6 +120,7 @@ impl GlobalRenderer {
             MaterialType::Alpha => self.alpha_draw_list.push(draw_info),
             MaterialType::Sky => self.sky_draw_list.push(draw_info),
             MaterialType::Ui => self.ui_draw_list.push(draw_info),
+            MaterialType::Particle => self.particle_draw_list.push(draw_info),
         }
     }
 
@@ -128,6 +131,7 @@ impl GlobalRenderer {
         self.opaque_draw_list.clear();
         self.alpha_draw_list.clear();
         self.ui_draw_list.clear();
+        self.particle_draw_list.clear();
         self.push_constant_list.clear();
 
         self.frame_index = self.app.frame_index;
@@ -146,6 +150,7 @@ impl GlobalRenderer {
         self.render(&self.opaque_draw_list);
         self.render(&self.chunks_alpha_draw_list);
         self.render(&self.alpha_draw_list);
+        self.render(&self.particle_draw_list);
         self.render(&self.ui_draw_list);
         //println!("{}", now.elapsed().as_micros());
     }

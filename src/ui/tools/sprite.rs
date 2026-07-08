@@ -28,7 +28,7 @@ impl Sprite {
             position: Vec2::ZERO,
             size: Vec2::ZERO,
             uv: TexCoords::ZERO,
-            texture_idx: 0,
+            texture_idx: u8::MAX,
         }
     }
 

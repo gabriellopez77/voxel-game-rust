@@ -13,7 +13,7 @@ pub struct Texture {
 
     size: Vec2,
 
-    textures_coords: HashMap<String, TexCoords>
+    textures_coords: HashMap<String, (Vec2, TexCoords)>
 }
 
 impl Texture {
@@ -60,7 +60,7 @@ impl Texture {
             tex.textures_coords.insert(name, coords);
         }
 
-        // valid atlas
+        // valided atlas
         assert!(tex.textures_coords.contains_key("error_404"), "atlas does not have error texture!");
 
         return tex;
@@ -72,10 +72,17 @@ impl Texture {
 
     /// return normalized tex coords
     pub fn get_coords(&self, name: &str) -> TexCoords {
-        if let Some(tex) = self.textures_coords.get(name) { return *tex; }
+        if let Some(tex) = self.textures_coords.get(name) { return tex.1; }
 
-        // is guaranteed that atlas contains the 'error_404' texture coords
-        return self.textures_coords["error_404"];
+        // is guaranteed that atlas contains the 'error_404'
+        return self.textures_coords["error_404"].1;
+    }
+
+    pub fn get_atlas_tex_size(&self, name: &str) -> Vec2 {
+        if let Some(tex) = self.textures_coords.get(name) { return tex.0; }
+
+        // is guaranteed that atlas contains the 'error_404
+        return self.textures_coords["error_404"].0;
     }
 
     pub fn get_size(&self) -> Vec2 { self.size }

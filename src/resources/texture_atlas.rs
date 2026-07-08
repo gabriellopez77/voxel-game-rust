@@ -3,11 +3,11 @@ use crate::math::Vec2;
 use crate::resources::TexCoords;
 
 
-pub fn create(images_path: &[PathBuf], width: i32, height: i32) -> (Vec<u8>, Vec<(String, TexCoords)>) {
+pub fn create(images_path: &[PathBuf], width: i32, height: i32) -> (Vec<u8>, Vec<(String, (Vec2, TexCoords))>) {
     let mut root = Node::new(0, 0, width, height);
 
     let buffer_size = (width * height * 4) as usize;
-    let mut images_coords: Vec<(String, TexCoords)> = Vec::with_capacity(images_path.len());
+    let mut images_coords: Vec<(String, (Vec2, TexCoords))> = Vec::with_capacity(images_path.len());
     let mut atlas_pixels: Vec<u8> = vec![0; buffer_size];
 
     for path in images_path {
@@ -21,7 +21,7 @@ pub fn create(images_path: &[PathBuf], width: i32, height: i32) -> (Vec<u8>, Vec
                 rect.y + rect.height
             ).normalized(Vec2::new(width as f32, height as f32));
 
-            images_coords.push((file_name, coords));
+            images_coords.push((file_name, (Vec2::new(image.width() as f32, image.height() as f32), coords)));
         }
         else { println!("Error to Insert: {file_name}") }
     }
@@ -41,7 +41,7 @@ fn add_image(root: &mut Box<Node>, image_info: &image::DynamicImage, atlas_pixel
             Some(x) => x,
             None => &image_info.to_rgba8()
         };
-        
+
         write_image(&data, rect, atlas_pixels, atlas_width);
 
         return Some(rect);

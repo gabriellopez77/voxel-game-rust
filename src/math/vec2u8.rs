@@ -12,7 +12,7 @@ impl Vec2u8 {
     pub const ZERO: Vec2u8 = Vec2u8 { x: 0, y: 0 };
 
     pub fn new(x: u8, y: u8) -> Self { Self { x, y, } }
-    pub fn from1f(value: u8) -> Self { Self { x: value, y: value } }
+    pub fn from1(value: u8) -> Self { Self { x: value, y: value } }
 
     pub fn as_ptr(&self) -> *const u8 { &self.x }
 }

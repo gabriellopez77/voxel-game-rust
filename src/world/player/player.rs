@@ -1,5 +1,6 @@
 ﻿use std::array;
 
+use crate::world::particles::{ParticlesManager, ParticlesSpawnArgs};
 use crate::{inputs, math};
 use crate::inputs::MouseButton;
 use crate::math::Vec3;
@@ -10,9 +11,7 @@ use crate::world::player::camera::Camera;
 use crate::world::player::{EntityInventory, ItemStack, SelectionBox};
 use crate::world::player::entitiy_inventory::{PLAYER_HOTBAR_SLOTS_COUNT, PLAYER_SLOTS_COUNT_TOTAL};
 
-//public const
-const FRICTION: f32 = 10.0;
-const EPSILON: f32 = 0.01;
+
 const GRAVITY: f32 = 35.0;
 const JUMP_FORCE: f32 = 10.0;
 const FLY_Y_SPEED: f32 = 120.0;
@@ -84,7 +83,7 @@ impl Player {
         self.inventory[8] = ItemStack::new(blocks_manager.dirt.get_base(), 64);
     }
 
-    pub fn update(&mut self, dt: f32, planet: &mut Planet, blocks_manager: &BlocksManager) {
+    pub fn update(&mut self, dt: f32, planet: &mut Planet, blocks_manager: &BlocksManager, particles_manager: &mut ParticlesManager) {
         self.process_input(dt);
         self.process_collision(dt, planet, blocks_manager);
 
@@ -95,7 +94,7 @@ impl Player {
         ));
 
 
-        let ray_pos = self.update_ray_casting(planet, blocks_manager, self.camera.get_pos(), self.camera.get_dir());
+        let ray_pos = self.update_ray_casting(planet, blocks_manager, self.camera.get_pos(), self.camera.get_dir(), particles_manager);
         self.selection_box.update(dt, ray_pos);
 
 
@@ -110,7 +109,7 @@ impl Player {
         }
     }
 
-    fn update_ray_casting(&mut self, planet: &Planet, blocks_manager: &BlocksManager, start: Vec3, dir: Vec3) -> Option<Vec3> {
+    fn update_ray_casting(&mut self, planet: &Planet, blocks_manager: &BlocksManager, start: Vec3, dir: Vec3, particles_manager: &mut ParticlesManager) -> Option<Vec3> {
         const RAY_LENGHT: f32 = 4.5;
         const RAY_STEP: f32 = 0.1;
 
@@ -134,6 +133,7 @@ impl Player {
                     // break block
                     if inputs::mouse_button_pressed(MouseButton::Left) {
                         chunk.borrow_mut().chunk_data.set_block(chunk_block, blocks_manager.air.get_properties(0));
+                        particles_manager.spawn(ParticlesSpawnArgs::BlockDestroy(block_properties, (chunk_pos * Chunk::CHUNK_SIZE + chunk_block).as_vec3()));
                         break;
                     }
 
@@ -205,15 +205,15 @@ impl Player {
     }
 
     fn process_collision(&mut self, dt: f32, planet: &mut Planet, blocks_manager: &BlocksManager) {
-        self.velocity.x -= self.velocity.x * (FRICTION * dt);
-        self.velocity.y -= if self.flying_mode { self.velocity.y * (FRICTION * dt) } else { GRAVITY * dt };
-        self.velocity.z -= self.velocity.z * (FRICTION * dt);
+        self.velocity.x -= self.velocity.x * (math::FRICTION * dt);
+        self.velocity.y -= if self.flying_mode { self.velocity.y * (math::FRICTION * dt) } else { GRAVITY * dt };
+        self.velocity.z -= self.velocity.z * (math::FRICTION * dt);
 
 
         // epsilon
-        if self.velocity.x.abs() < EPSILON { self.velocity.x = 0.0 }
-        if self.velocity.y.abs() < EPSILON { self.velocity.y = 0.0 }
-        if self.velocity.z.abs() < EPSILON { self.velocity.z = 0.0 }
+        if self.velocity.x.abs() < math::EPSILON { self.velocity.x = 0.0 }
+        if self.velocity.y.abs() < math::EPSILON { self.velocity.y = 0.0 }
+        if self.velocity.z.abs() < math::EPSILON { self.velocity.z = 0.0 }
 
         let org = self.aabb;
 
@@ -225,15 +225,15 @@ impl Player {
         let yaOrg = ya;
         let zaOrg = za;
 
-        let cubes = planet.get_cubes(blocks_manager, &self.aabb.expand(xa, ya, za));
+        //let cubes = planet.get_cubes(blocks_manager, &self.aabb.expand(xa, ya, za));
 
-        for cube in cubes { ya = cube.clip_y_collide(&self.aabb, ya) }
+        //for cube in cubes { ya = cube.clip_y_collide(&self.aabb, ya) }
         self.aabb.move_at(0.0, ya, 0.0);
 
-        for cube in cubes { xa = cube.clip_x_collide(&self.aabb, xa) }
+        //for cube in cubes { xa = cube.clip_x_collide(&self.aabb, xa) }
         self.aabb.move_at(xa, 0.0, 0.0);
 
-        for cube in cubes { za = cube.clip_z_collide(&self.aabb, za) }
+        //for cube in cubes { za = cube.clip_z_collide(&self.aabb, za) }
         self.aabb.move_at(0.0, 0.0, za);
 
 
@@ -253,15 +253,15 @@ impl Player {
             let normal = self.aabb;
             self.aabb.set(&org);
 
-            let cubes = planet.get_cubes(blocks_manager, &self.aabb.expand(xa, ya, za));
+            //let cubes = planet.get_cubes(blocks_manager, &self.aabb.expand(xa, ya, za));
 
-            for cube in cubes { ya = cube.clip_y_collide(&self.aabb, ya) }
+            //for cube in cubes { ya = cube.clip_y_collide(&self.aabb, ya) }
             self.aabb.move_at(0.0, ya, 0.0);
 
-            for cube in cubes { xa = cube.clip_x_collide(&self.aabb, xa) }
+            //for cube in cubes { xa = cube.clip_x_collide(&self.aabb, xa) }
             self.aabb.move_at(xa, 0.0, 0.0);
 
-            for cube in cubes { za = cube.clip_z_collide(&self.aabb, za) }
+            //for cube in cubes { za = cube.clip_z_collide(&self.aabb, za) }
             self.aabb.move_at(0.0, 0.0, za);
 
             if xaN * xaN + zaN * zaN >= xa * xa + za * za {

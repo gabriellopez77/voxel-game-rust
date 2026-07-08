@@ -11,6 +11,7 @@ pub enum MaterialType {
     Alpha,
     Ui,
     Sky,
+    Particle,
 }
 
 pub struct Material {
@@ -67,7 +68,9 @@ impl Material {
         self.vao.update_buffer(&self.app, BuffersTypes::Instance, arr);
     }
 
-    pub fn update_push_constant<T>(&mut self, offset: usize, size: usize, data: *const T) {
+    pub fn update_push_constant<T>(&mut self, offset: usize, data: *const T) {
+        let size = size_of::<T>();
+
         debug_assert!(offset + size <= vkutl::MAX_PUSH_CONSTANT_SIZE, "push constant size not valid");
 
         unsafe { std::ptr::copy_nonoverlapping(data as _, self.push_data.as_mut_ptr().add(offset), size) };
