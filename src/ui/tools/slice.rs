@@ -1,5 +1,5 @@
 use crate::{
-    math::{Color4b, Vec2, Vec2i16, Vec4}, render::{SpritesVertices, Texture, UiRenderer}, resources::TexCoords, ui::tools::UiElement
+    math::{Color4b, Vec2, Vec2i16, Vec4}, render::{SpritesVertices, Texture, UiRenderer}, resources::{ResourceManager, TexCoords}, ui::tools::UiElement
 };
 
 
@@ -10,7 +10,7 @@ pub struct Slice {
 
     pub color: Color4b,
 
-    corner: u16,
+    corner: u8,
 
     slice_tex: [TexCoords; 9],
     slice_size: [Vec2; 9],
@@ -41,7 +41,7 @@ impl Slice {
             size: Vec2::ZERO,
             texture_idx: 0,
 
-            color: Color4b::ZERO,
+            color: Color4b::WHITE,
 
             corner: 0,
 
@@ -70,87 +70,46 @@ impl Slice {
         }
     }
 
-    pub fn set_texture(&mut self, tex: &Texture, name: &'static str, corner: u16) {
+    pub fn set_texture_from_coords(&mut self, coords: TexCoords, corner: u8, corner_norm: f32) {
         self.corner = corner;
+        self.texture_idx = ResourceManager::UI_SPRITES_TEXTURE_IDX;
 
-        let coords = tex.get_coords(name);
-        let tex_size = tex.get_size();
-
-        let cx = corner as f32 / tex_size.x;
-        let cy = corner as f32 / tex_size.y;
+        let cx = corner_norm;
+        let cy = corner_norm;
 
         let top = coords.miny;
         let bottom = coords.maxy;
         let left = coords.minx;
         let right = coords.maxx;
 
-        self.slice_tex[0] = TexCoords::new(
-            left,
-		    top,
-		    left + cx,
-		    top + cy
-        );
-        self.slice_tex[1] = TexCoords::new(
-            left + cx,
-		    top,
-		    right - cx,
-		    top + cy
-        );
-        self.slice_tex[2] = TexCoords::new(
-            right - cx,
-		    top,
-		    right,
-		    top + cy
-        );
+        self.slice_tex[0] = TexCoords::new(left, top, left + cx, top + cy);
+        self.slice_tex[1] = TexCoords::new(left + cx, top, right - cx, top + cy);
+        self.slice_tex[2] = TexCoords::new(right - cx, top, right, top + cy);
 
+        self.slice_tex[3] = TexCoords::new(left, top + cy, left + cx, bottom - cy);
+        self.slice_tex[4] = TexCoords::new(left + cx, top + cy, right - cx, bottom - cy);
+        self.slice_tex[5] = TexCoords::new(right - cx, top + cy, right, bottom - cy);
 
-        self.slice_tex[3] = TexCoords::new(
-            left,
-		    top + cy,
-		    left + cx,
-		    bottom - cy
-        );
-        self.slice_tex[4] = TexCoords::new(
-            left + cx,
-		    top + cy,
-		    right - cx,
-		    bottom - cy
-        );
-        self.slice_tex[5] = TexCoords::new(
-            right - cx,
-		    top + cy,
-		    right,
-		    bottom - cy
-        );
-
-
-        self.slice_tex[6] = TexCoords::new(
-            left,
-		    bottom - cy,
-		    left + cx,
-		    bottom
-        );
-        self.slice_tex[7] = TexCoords::new(
-            left + cx,
-            bottom - cy,
-            right - cx,
-            bottom
-        );
-        self.slice_tex[8] = TexCoords::new(
-            right - cx,
-		    bottom - cy,
-		    right,
-		    bottom
-        );
+        self.slice_tex[6] = TexCoords::new(left, bottom - cy, left + cx, bottom);
+        self.slice_tex[7] = TexCoords::new( left + cx, bottom - cy, right - cx, bottom);
+        self.slice_tex[8] = TexCoords::new(right - cx, bottom - cy, right, bottom);
 
         self.update_size();
         self.update_position();
     }
 
+    pub fn set_texture(&mut self, tex: &Texture, name: &'static str, corner: u8) {
+        self.corner = corner;
+
+        let coords = tex.get_coords(name);
+        let cx = corner as f32 / tex.get_size().x;
+
+        self.set_texture_from_coords(coords, corner, cx);
+    }
+
     fn update_size(&mut self) {
         let slice_size = &mut self.slice_size;
         let corner = self.corner as f32;
-        let pos = self.position;
         let size = self.size;
 
         if size.x == 0.0|| size.y == 0.0 { return }

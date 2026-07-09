@@ -14,6 +14,7 @@ use crate::math::{Matrix4, Vec3, Vec4};
 use crate::render::{ChunkVertices, CloudsVertices, DescriptorSet, GlobalRenderer, GraphicsPipeline, ParticlesVertices, PipelineSettings, SkyBodiesVertices, SpritesVertices, TextVertices, Texture, Ubo, VulkanApp};
 use crate::render::raw_buffer::BufferFlags;
 use crate::resources::{BlockItemModel, FontInfo, ShadersCompiler};
+use crate::ui::ButtonsStyles;
 
 
 pub struct ResourceManager {
@@ -33,10 +34,13 @@ pub struct ResourceManager {
     pipelines: HashMap<&'static str, Rc<RefCell<GraphicsPipeline>>>,
     fonts: HashMap<&'static str, Rc<FontInfo>>,
     models: HashMap<String, Rc<BlockItemModel>>,
+
+    pub ui_buttons_styles: ButtonsStyles,
 }
 
 impl ResourceManager {
     pub const WORLD_TEXTURE_IDX: u8 = 0;
+    pub const UI_SPRITES_TEXTURE_IDX: u8 = 1;
 
     pub fn new() -> Self {
         let project_path: &'static str = env!("CARGO_MANIFEST_DIR");
@@ -58,35 +62,28 @@ impl ResourceManager {
             pipelines: HashMap::new(),
             fonts: HashMap::new(),
             models: HashMap::new(),
+
+            ui_buttons_styles: ButtonsStyles::new(),
         }
     }
 
     pub fn start(&mut self, app: &mut VulkanApp, global_renderer: &mut GlobalRenderer) {
-        let mut path = self.textures_path.clone();
-
         // read atlas and textures
         {
-            path.push_str(r"\blocks");
-            let images = get_filtered_files_in_directory(&path, "png");
+            let images = get_files_in_directory(&format!("{}/blocks", self.textures_path), "png");
             self.world_texture = Texture::create_from_atlas(app, &images, 256, 256);
         }
         {
-            path.clear();
-            path.push_str(&self.textures_path);
-            path.push_str(r"\ui");
-            let images = get_filtered_files_in_directory(&path, "png");
-
+            let mut images = get_files_in_directory(&format!("{}/ui", self.textures_path), "png");
+            let mut buttons_image = get_files_in_directory(&format!("{}/ui/buttons", self.textures_path), "png");
+            images.append(&mut buttons_image);
             self.ui_sprites_texture = Texture::create_from_atlas(app, &images, 256, 256);
         }
         {
-            path.clear();
-            path.push_str(&self.textures_path);
-            path.push_str(r"\fonts");
-            let images = get_filtered_files_in_directory(&path, "png");
+            let images = get_files_in_directory(&format!("{}/fonts", self.textures_path), "png");
             self.ui_fonts_texture = Texture::create_from_atlas(app, &images, 256, 256);
         }
         {
-            path.clear();
             let images = [
                 PathBuf::from_str(&format!(r"{}\misc\moon.png", self.textures_path)).unwrap(),
                 //PathBuf::from_str(&format!(r"{}\misc\stars.png", self.textures_path)).unwrap(),
@@ -97,18 +94,15 @@ impl ResourceManager {
             self.sky_bodies_texture = Texture::create_from_atlas(app, &images, 96, 96);
         }
 
+
         // load fonts
         {
-            path.clear();
-            path.push_str(&self.textures_path);
-            path.push_str(r"\fonts\default_font.json");
+            let path = format!("{}/fonts/default_font.json", self.textures_path);
             self.fonts.insert("default", Rc::new(FontInfo::create_from_file(&path, "default_font", &self.ui_fonts_texture)));
         }
 
-        // load models
-
-        self.models.clear();
         self.read_models();
+        self.ui_buttons_styles.load_styles(&format!("{}/ui/buttons/buttons.json", self.textures_path), &self.ui_sprites_texture);
 
 
         self.global_ubo = Ubo::new();
@@ -194,7 +188,6 @@ impl ResourceManager {
         {
             let mut settings = PipelineSettings::new(app, &mut shaders_compiler, r"clouds");
             settings.enable_blend = true;
-            settings.enable_depth_test = true;
             settings.add_descriptor_set(&self.global_descriptor);
             settings.vertex_info(6 * size_of::<i8>(), false)
                .add_attrib(vk::Format::R8G8B8_SINT, 0)
@@ -207,7 +200,6 @@ impl ResourceManager {
         }
         {
             let mut settings = PipelineSettings::new(app, &mut shaders_compiler, r"skyDome");
-            settings.enable_blend = false;
             settings.enable_depth_test = false;
             settings.add_descriptor_set(&self.global_descriptor);
             settings.vertex_info(size_of::<Vec3>(), false)
@@ -218,7 +210,6 @@ impl ResourceManager {
         {
             let mut settings = PipelineSettings::new(app, &mut shaders_compiler, r"selectionBox");
             settings.enable_blend = true;
-            settings.enable_depth_test = true;
             settings.add_descriptor_set(&self.global_descriptor);
             settings.vertex_info(6, false)
                 .add_attrib(vk::Format::R8G8B8_SINT, 0);
@@ -243,7 +234,6 @@ impl ResourceManager {
         {
             let mut settings = PipelineSettings::new(app, &mut shaders_compiler, r"particles");
             settings.enable_blend = true;
-            settings.enable_depth_test = true;
             settings.add_descriptor_set(&self.global_descriptor);
             settings.vertex_info(5 * size_of::<f32>(), false)
                 .add_attrib(vk::Format::R32G32B32_SFLOAT, 0)
@@ -299,7 +289,7 @@ impl ResourceManager {
     }
 
     fn read_models(&mut self) {
-        let block_paths = get_filtered_files_in_directory(&format!(r"{}\blocks", self.models_path), "json");
+        let block_paths = get_files_in_directory(&format!(r"{}\blocks", self.models_path), "json");
 
         // load error model
         self.models.insert("error_404".to_string(), Rc::new(BlockItemModel::read_error_model(&self.world_texture)));
@@ -318,7 +308,7 @@ impl ResourceManager {
             self.models.insert(name, Rc::new(model));
         }
 
-        let items_paths = get_filtered_files_in_directory(&format!(r"{}\items", self.models_path), "json");
+        let items_paths = get_files_in_directory(&format!(r"{}\items", self.models_path), "json");
 
         for path in &items_paths {
             let name = path.file_stem().unwrap().to_str().unwrap().to_string();
@@ -336,23 +326,7 @@ impl ResourceManager {
     }
 }
 
-pub fn get_files_in_directory(path: &str) -> Vec<PathBuf> {
-    let dir = std::fs::read_dir(path).expect("Error to read Dir");
-    let mut files_path: Vec<PathBuf> = vec!();
-
-
-    for file in dir {
-        let path = match file {
-            Ok(f) => f.path(),
-            Err(err) => panic!("Error to read Dir: {}", err.to_string()),
-        };
-        files_path.push(path);
-    }
-
-    return files_path;
-}
-
-pub fn get_filtered_files_in_directory(path: &str, filter: &str) -> Vec<PathBuf> {
+pub fn get_files_in_directory(path: &str, extension: &str) -> Vec<PathBuf> {
     let dir = match std::fs::read_dir(path) {
         Ok(d) => d,
         Err(err) => panic!("Error to read Dir: '{path}': {}", err.to_string()),
@@ -364,7 +338,7 @@ pub fn get_filtered_files_in_directory(path: &str, filter: &str) -> Vec<PathBuf>
         let file_path = file.unwrap().path();
         let file_extension = file_path.extension();
 
-        if file_extension.is_some()  && file_extension.unwrap() == filter {
+        if file_extension.is_some()  && file_extension.unwrap() == extension {
             files_path.push(file_path);
         }
     }
@@ -376,7 +350,6 @@ pub fn get_filtered_files_in_directory(path: &str, filter: &str) -> Vec<PathBuf>
 pub fn gen_sphere(stacks: f32, slices: f32) -> (Vec<Vec3>, Vec<u32>) {
     let mut vertices: Vec<Vec3> = Vec::with_capacity(((stacks + 1.0) * (slices + 1.0)) as usize);
     let mut indices: Vec<u32> = Vec::with_capacity((stacks * slices * 6.0) as usize);
-
 
     for i in 0..=stacks as i32 {
         let theta = i as f32 / stacks * f32::consts::PI;

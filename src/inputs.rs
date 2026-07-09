@@ -137,6 +137,14 @@ pub enum MouseButton {
     Right = 1,
 }
 
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum InputActions {
+    Pressed,
+    Repeat,
+    Release,
+    Noting,
+}
+
 static mut MOUSE_SCROLL_DELTA: i32 = 0;
 static mut KEYS: [bool; Keys::LAST_KEY as usize] = [false; Keys::LAST_KEY as usize];
 static mut LAST_KEYS: [bool; Keys::LAST_KEY as usize] = [false; Keys::LAST_KEY as usize];
@@ -190,3 +198,11 @@ pub fn key_release(key: Keys) -> bool { unsafe { !KEYS[key as usize] && LAST_KEY
 pub fn mouse_button_down(button: MouseButton) -> bool { unsafe { KEYS[button as usize] } }
 pub fn mouse_button_pressed(button: MouseButton) -> bool { unsafe { KEYS[button as usize] && !LAST_KEYS[button as usize] } }
 pub fn mouse_button_release(button: MouseButton) -> bool { unsafe { !KEYS[button as usize] && LAST_KEYS[button as usize] } }
+
+pub fn get_mouse_button_action(button: MouseButton) -> InputActions {
+    if mouse_button_pressed(button) { return InputActions::Pressed }
+    if mouse_button_down(button) { return InputActions::Repeat }
+    if mouse_button_release(button) { return InputActions::Release }
+
+    return InputActions::Noting;
+}

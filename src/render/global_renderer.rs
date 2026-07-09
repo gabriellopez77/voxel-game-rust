@@ -139,10 +139,8 @@ impl GlobalRenderer {
 
     pub fn end(&mut self) {
         //let now = std::time::Instant::now();
-        self.sky_draw_list.sort();
         self.opaque_draw_list.sort();
         self.alpha_draw_list.sort();
-        self.ui_draw_list.sort();
         //println!("{}", now.elapsed().as_micros());
         //let now = std::time::Instant::now();
         self.render(&self.sky_draw_list);

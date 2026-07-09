@@ -13,6 +13,7 @@ pub struct GraphicsPipeline {
 impl GraphicsPipeline {
     pub fn create(app: &VulkanApp, mut settings: PipelineSettings, global_render: &mut GlobalRenderer) -> Self {
         const DYNAMIC_STATES: [vk::DynamicState; 2] = [ vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR ];
+
         let shader_stages = [
             vk::PipelineShaderStageCreateInfo::default()
                 .stage(vk::ShaderStageFlags::VERTEX)
@@ -113,28 +114,6 @@ impl GraphicsPipeline {
         Self {
             pipeline_layout: settings.pipeline_layout,
             pipeline,
-        }
-    }
-
-    pub fn bind(&self, app: &VulkanApp) {
-        let command_buffer = app.get_current_command_buffer();
-
-        //println!("OPA");
-        unsafe {
-            // bind all descritpor sets used by this pipeline
-            if self.pipeline_layout.use_descriptor_sets() {
-            //let now = std::time::Instant::now();
-                app.ash_device.cmd_bind_descriptor_sets(command_buffer,
-                    vk::PipelineBindPoint::GRAPHICS,
-                    self.pipeline_layout.get_layout(),
-                    0,
-                    &self.pipeline_layout.descriptors_sets[app.frame_index][0..self.pipeline_layout.descriptors_count as usize],
-                    &[]
-                );
-            //println!("{}", now.elapsed().as_micros());
-            }
-
-            app.ash_device.cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, self.pipeline);
         }
     }
 

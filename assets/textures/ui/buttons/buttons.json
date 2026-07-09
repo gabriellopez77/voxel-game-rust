@@ -1,45 +1,45 @@
 {
     "white_button": {
-        "hover_tex": [0, 0, 16, 16],
-        "hover_corner": 4,
-        
-        "default_tex": [0, 16, 16, 32],
-        "default_corner": 4,
-        
-        "pressed_tex": [0, 32, 16, 48],
-        "pressed_corner": 5
+        "hoverTex": [0, 0, 16, 16],
+        "hoverCorner": 4,
+
+        "defaultTex": [0, 16, 16, 16],
+        "defaultCorner": 4,
+
+        "pressedTex": [0, 32, 16, 16],
+        "pressedCorner": 5
     },
 
     "green_button": {
-        "hover_tex": [0, 0, 16, 16],
-        "hover_corner": 4,
-        
-        "default_tex": [0, 16, 16, 32],
-        "default_corner": 4,
-        
-        "pressed_tex": [0, 32, 16, 48],
-        "pressed_corner": 5
+        "hoverTex": [0, 0, 16, 16],
+        "hoverCorner": 4,
+
+        "defaultTex": [0, 16, 16, 16],
+        "defaultCorner": 4,
+
+        "pressedTex": [0, 32, 16, 16],
+        "pressedCorner": 5
     },
 
     "red_button": {
-        "hover_tex": [0, 0, 16, 16],
-        "hover_corner": 4,
-        
-        "default_tex": [0, 16, 16, 32],
-        "default_corner": 4,
-        
-        "pressed_tex": [0, 32, 16, 48],
-        "pressed_corner": 5
+        "hoverTex": [0, 0, 16, 16],
+        "hoverCorner": 4,
+
+        "defaultTex": [0, 16, 16, 16],
+        "defaultCorner": 4,
+
+        "pressedTex": [0, 32, 16, 16],
+        "pressedCorner": 5
     },
 
-    "world_list_button": {
-        "hover_tex": [0, 0, 16, 16],
-        "hover_corner": 4,
-        
-        "default_tex": [0, 16, 16, 32],
-        "default_corner": 4,
-        
-        "pressed_tex": [0, 32, 16, 48],
-        "pressed_corner": 5
+    "black_button": {
+        "hoverTex": [0, 0, 16, 16],
+        "hoverCorner": 4,
+
+        "defaultTex": [0, 16, 16, 16],
+        "defaultCorner": 4,
+
+        "pressedTex": [0, 32, 16, 16],
+        "pressedCorner": 5
     }
 }

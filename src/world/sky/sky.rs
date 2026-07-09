@@ -3,6 +3,7 @@ use crate::math::{Color3b, KeyFrame, Vec3};
 use crate::render::{GlobalRenderer, Material, material};
 use crate::render::raw_buffer::BufferFlags;
 use crate::world::Chunk;
+use crate::world::player::Camera;
 use crate::world::sky::{Clouds, SkyBodies};
 
 
@@ -28,6 +29,9 @@ pub struct Sky {
 
     update_delay: f32,
 
+    underwater_fog_distance: f32,
+    underwater_fog_density: f32,
+    underwater_fog_color: Color3b,
 }
 
 impl Sky {
@@ -78,7 +82,12 @@ impl Sky {
             }),
 
             time: Self::TIME_MORNING,
+
             update_delay: 0.0,
+
+            underwater_fog_distance: 0.2,
+            underwater_fog_density: 0.7,
+            underwater_fog_color: Color3b::new(24, 106, 178),
         }
     }
     pub fn start(&mut self, resources_manager: &ResourceManager, global_renderer: &mut GlobalRenderer) {
@@ -89,9 +98,7 @@ impl Sky {
         self.material = Some(material);
 
         self.set_fog(true);
-        self.set_sky_color(Color3b::new(5, 94, 255));
-        self.set_fog_color(Color3b::new(128, 204, 255));
-        self.set_fog_density(16.0);
+
 
         self.sky_color_gradient.frames = vec![
             ((00.0 * Self::MINUTES_SCALE + 00.0) / Self::CYCLE_TIME, Color3b::from_hex(0x010003)),
@@ -139,9 +146,7 @@ impl Sky {
         self.clouds.cleanup();
     }
 
-    pub fn update(&mut self, dt: f32, player_pos: Vec3, render_distance: i32) {
-        self.set_fog_distance(render_distance as f32 - 1.0);
-
+    pub fn update(&mut self, dt: f32, camera: &Camera, render_distance: i32) {
         self.time += dt;
         self.update_delay += dt;
 
@@ -150,16 +155,27 @@ impl Sky {
         let factor = self.time / Self::CYCLE_TIME;
 
         if self.update_delay > Self::UPDATE_DELAY {
-            self.set_sky_color(self.sky_color_gradient.get(factor));
-            self.set_fog_color(self.fog_color_gradient.get(factor));
-            self.set_clouds_color(self.clouds_color_gradient.get(factor));
 
             self.sky_bodies.update(factor);
 
             self.update_delay = 0.0;
         }
 
-        self.clouds.update(player_pos, render_distance);
+        self.set_sky_color(self.sky_color_gradient.get(factor));
+        self.set_clouds_color(self.clouds_color_gradient.get(factor));
+
+        if camera.is_underwater {
+            self.set_fog_color(self.underwater_fog_color);
+            self.set_fog_distance(self.underwater_fog_distance);
+            self.set_fog_density(self.underwater_fog_density);
+        }
+        else {
+            self.set_fog_color(self.fog_color_gradient.get(factor));
+            self.set_fog_distance(render_distance as f32 - 1.0);
+            self.set_fog_density(16.0);
+        }
+
+        self.clouds.update(camera.get_pos(), render_distance);
     }
 
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {

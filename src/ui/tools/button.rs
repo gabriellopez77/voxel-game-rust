@@ -1,4 +1,4 @@
-use crate::{inputs, math::{Color3b, Vec2}, render::UiRenderer, ui::tools::{Slice, Text, UiElement}};
+use crate::{inputs::{self, InputActions}, math::{Color3b, Vec2}, render::UiRenderer, ui::{buttons_styles::ButtonStyleInfo, tools::{Slice, Text, UiElement}}};
 
 
 pub struct Button {
@@ -10,6 +10,8 @@ pub struct Button {
 
     locked: bool,
     pressed: bool,
+
+    style: Option<ButtonStyleInfo>,
 }
 
 impl UiElement for Button {
@@ -42,25 +44,51 @@ impl Button {
 
             locked: false,
             pressed: false,
+
+            style: None,
         }
     }
 
-    pub fn set_texture(&mut self) {
-
+    pub fn set_style(&mut self, style: ButtonStyleInfo) {
+        self.style = Some(style);
     }
 
     pub fn update(&mut self, mouse_pos: Vec2) -> bool {
+        self.pressed = false;
         if self.locked { return false }
 
         let hover = self.mouse_hover(mouse_pos);
+        let action = inputs::get_mouse_button_action(inputs::MouseButton::Left);
 
+        let style = self.style.as_ref().unwrap();
 
-        return inputs::mouse_button_pressed(inputs::MouseButton::Left) && hover;
+        if hover {
+            if action == InputActions::Repeat {
+                self.pressed = true;
+                self.background.set_texture_from_coords(style.pressed_tex, style.pressed_corner, style.pressed_corner_norm);
+            }
+            else {
+                self.background.set_texture_from_coords(style.hover_tex, style.hover_corner, style.hover_corner_norm);
+            }
+        }
+        else {
+            self.background.set_texture_from_coords(style.default_tex, style.default_corner, style.default_corner_norm);
+        }
+
+        return hover && action == InputActions::Release;
     }
 
     pub fn draw(&mut self, renderer: &mut UiRenderer) {
         self.background.draw(renderer);
+
+        let temp_pos = self.text.get_pos();
+
+        if self.pressed {
+            self.text.set_posv(temp_pos + Vec2::new(0.0, 2.0));
+        }
+
         self.text.draw(renderer);
+        self.text.set_posv(temp_pos);
     }
 
     pub fn lock(&mut self) {

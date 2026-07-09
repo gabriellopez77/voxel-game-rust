@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::{math::{Color3b, Vec2, Vec2i16}, render::{TextVertices, UiRenderer}, ui::tools::UiElement};
+use crate::{math::{Color3b, Vec2, Vec2i16, Vec3}, render::{TextVertices, UiRenderer}, ui::tools::UiElement};
 use crate::resources::FontInfo;
 
 
@@ -44,6 +44,8 @@ pub struct Text {
 impl UiElement for Text {
     fn get_pos(&self) -> Vec2 { self.position }
     fn set_pos(&mut self, x: f32, y: f32) {
+        if self.position == Vec2::new(x, y) { return }
+
         self.position = Vec2::new(x, y);
         self.pos_modified = true;
     }

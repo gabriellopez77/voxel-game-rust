@@ -171,6 +171,9 @@ impl RawBuffer {
         assert!(self.size >= size, "Invalid data size");
         debug_assert!(!data.is_null(), "Data is null!");
 
+        // is not possible update zero bytes
+        if size == 0 { return }
+
         let index = if self.flags.contains(BufferFlags::DUPLICATE) { app.frame_index } else { 0 };
 
         self.update_with_index(app, index, size, offset,  data);

@@ -87,11 +87,7 @@ impl Player {
         self.process_input(dt);
         self.process_collision(dt, planet, blocks_manager);
 
-        self.camera.update(Vec3::new(
-            self.aabb.get_pos().x + self.aabb.get_size().x / 2.0,
-            self.aabb.get_pos().y + 1.7,
-            self.aabb.get_pos().z + self.aabb.get_size().z / 2.0,
-        ));
+        self.camera.update(&self.aabb, planet, blocks_manager);
 
 
         let ray_pos = self.update_ray_casting(planet, blocks_manager, self.camera.get_pos(), self.camera.get_dir(), particles_manager);
@@ -221,61 +217,61 @@ impl Player {
         let mut ya = self.velocity.y * dt;
         let mut za = self.velocity.z * dt;
 
-        let xaOrg = xa;
-        let yaOrg = ya;
-        let zaOrg = za;
+        let xa_org = xa;
+        let ya_org = ya;
+        let za_org = za;
 
-        //let cubes = planet.get_cubes(blocks_manager, &self.aabb.expand(xa, ya, za));
+        let cubes = planet.get_cubes(blocks_manager, &self.aabb.expand(xa, ya, za));
 
-        //for cube in cubes { ya = cube.clip_y_collide(&self.aabb, ya) }
+        for cube in cubes { ya = cube.clip_y_collide(&self.aabb, ya) }
         self.aabb.move_at(0.0, ya, 0.0);
 
-        //for cube in cubes { xa = cube.clip_x_collide(&self.aabb, xa) }
+        for cube in cubes { xa = cube.clip_x_collide(&self.aabb, xa) }
         self.aabb.move_at(xa, 0.0, 0.0);
 
-        //for cube in cubes { za = cube.clip_z_collide(&self.aabb, za) }
+        for cube in cubes { za = cube.clip_z_collide(&self.aabb, za) }
         self.aabb.move_at(0.0, 0.0, za);
 
 
-        let og = self.on_ground || (yaOrg != ya && yaOrg < 0.0);
+        let og = self.on_ground || (ya_org != ya && ya_org < 0.0);
 
         let foot_size = 0.5f32;
 
-        if foot_size > 0.0 && og && ((xaOrg != xa) || (zaOrg != za)) {
-            let xaN = xa;
-            let yaN = ya;
-            let zaN = za;
+        if foot_size > 0.0 && og && ((xa_org != xa) || (za_org != za)) {
+            let xa_n = xa;
+            let ya_n = ya;
+            let za_n = za;
 
-            xa = xaOrg;
+            xa = xa_org;
             ya = foot_size;
-            za = zaOrg;
+            za = za_org;
 
             let normal = self.aabb;
             self.aabb.set(&org);
 
-            //let cubes = planet.get_cubes(blocks_manager, &self.aabb.expand(xa, ya, za));
+            let cubes = planet.get_cubes(blocks_manager, &self.aabb.expand(xa, ya, za));
 
-            //for cube in cubes { ya = cube.clip_y_collide(&self.aabb, ya) }
+            for cube in cubes { ya = cube.clip_y_collide(&self.aabb, ya) }
             self.aabb.move_at(0.0, ya, 0.0);
 
-            //for cube in cubes { xa = cube.clip_x_collide(&self.aabb, xa) }
+            for cube in cubes { xa = cube.clip_x_collide(&self.aabb, xa) }
             self.aabb.move_at(xa, 0.0, 0.0);
 
-            //for cube in cubes { za = cube.clip_z_collide(&self.aabb, za) }
+            for cube in cubes { za = cube.clip_z_collide(&self.aabb, za) }
             self.aabb.move_at(0.0, 0.0, za);
 
-            if xaN * xaN + zaN * zaN >= xa * xa + za * za {
-                xa = xaN;
-                ya = yaN;
-                za = zaN;
+            if xa_n * xa_n + za_n * za_n >= xa * xa + za * za {
+                xa = xa_n;
+                ya = ya_n;
+                za = za_n;
                 self.aabb.set(&normal);
             }
         }
 
-        self.on_ground = yaOrg != ya && yaOrg < 0.0;
+        self.on_ground = ya_org != ya && ya_org < 0.0;
 
-        if xaOrg != xa { self.velocity.x = 0.0 }
-        if yaOrg != ya { self.velocity.y = 0.0 }
-        if zaOrg != za { self.velocity.z = 0.0 }
+        if xa_org != xa { self.velocity.x = 0.0 }
+        if ya_org != ya { self.velocity.y = 0.0 }
+        if za_org != za { self.velocity.z = 0.0 }
     }
 }

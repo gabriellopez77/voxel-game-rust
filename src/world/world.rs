@@ -39,7 +39,7 @@ impl World {
     pub fn update(&mut self, dt: f32) {
         self.player.update(dt, &mut self.planet, &self.blocks_manager.as_ref().unwrap(), &mut self.particles_manager);
 
-        self.sky.update(dt, self.player.get_pos(), self.planet.render_distance);
+        self.sky.update(dt, &self.player.camera, self.planet.render_distance);
 
         self.planet.update(self.player.get_pos(), &self.blocks_manager.as_ref().unwrap());
 

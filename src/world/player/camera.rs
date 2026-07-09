@@ -1,7 +1,8 @@
-﻿use crate::math::{Vec3, Vec2, Matrix4};
+﻿use crate::math::{self, Matrix4, Vec2, Vec3, Vec3i};
 
 use crate::inputs;
-use crate::world::Chunk;
+use crate::world::blocks::BlocksManager;
+use crate::world::{Aabb, Chunk, Planet};
 
 
 #[derive(Copy, Clone)]
@@ -16,6 +17,8 @@ impl Plane {
 
 pub struct Camera {
     position: Vec3,
+    chunk_block: Vec3i,
+    chunk_pos: Vec3i,
 
     direction: Vec3,
     pub rot: Vec2,
@@ -25,15 +28,21 @@ pub struct Camera {
     pub projection_matrix: Matrix4,
     pub projection_view_matrix: Matrix4,
     pub view_no_translate_matrix: Matrix4,
+
     frustum_planes: [Plane; 6],
 
     last_mouse_pos: Vec2,
+
+    pub is_underwater: bool,
 }
 
 impl Camera {
     pub fn new() -> Self {
         Self {
             position: Vec3::ZERO,
+            chunk_block: Vec3i::ZERO,
+            chunk_pos: Vec3i::ZERO,
+
             direction: Vec3::new(1.0, 0.0, 0.0),
             rot: Vec2::ZERO,
             view_changed: false,
@@ -46,6 +55,8 @@ impl Camera {
             frustum_planes: [Plane{normal: Vec3::ZERO, d: 0.0}; 6],
 
             last_mouse_pos: Vec2::ZERO,
+
+            is_underwater: false,
         }
     }
 
@@ -61,12 +72,26 @@ impl Camera {
         self.direction
     }
 
-    pub fn update(&mut self, new_pos: Vec3) {
+    pub fn update(&mut self, player_aabb: &Aabb, planet: &Planet, blocks_manager: &BlocksManager) {
+        let new_pos = Vec3::new(
+            player_aabb.get_pos().x + player_aabb.get_size().x / 2.0,
+            player_aabb.get_pos().y + 1.7,
+            player_aabb.get_pos().z + player_aabb.get_size().z / 2.0,
+        );
+
         if self.position != new_pos {
             self.view_changed = true;
         }
 
         self.position = new_pos;
+        self.chunk_pos = math::get_chunk_pos(new_pos);
+        self.chunk_block = math::get_chunk_block(self.chunk_pos, new_pos);
+
+        self.is_underwater = if let Some(chunk) = planet.get_chunk(self.chunk_pos) {
+            let block_info =chunk.borrow().chunk_data.get_block_info(self.chunk_block);
+
+            blocks_manager.get_properties_from_block_info(block_info).base_properties.id == blocks_manager.water_block.get_base().id
+        } else { false };
 
         self.process_rotation();
 

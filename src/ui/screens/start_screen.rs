@@ -15,15 +15,17 @@ impl ScreenBase for StartScreen {
     fn start(&mut self, args: &ScreenStartArgs) {
         self.background.color = Color4b::new(0, 94, 97, 255);
 
+        self.start_button.set_style(args.resources.ui_buttons_styles.get("white_button"));
         self.start_button.set_size(145.0, 25.0);
         self.start_button.text.set_font(args.resources.get_font("default"));
         self.start_button.text.set_text("Start");
-        self.start_button.text.set_color(Color3b::new(255, 255, 76));
+        self.start_button.text.set_color(Color3b::new(76, 76, 76));
 
+        self.quit_button.set_style(args.resources.ui_buttons_styles.get("red_button"));
         self.quit_button.set_size(145.0, 25.0);
         self.quit_button.text.set_font(args.resources.get_font("default"));
         self.quit_button.text.set_text("Quit");
-        self.quit_button.text.set_color(Color3b::new(76, 76, 76));
+        self.quit_button.text.set_color(Color3b::WHITE);
     }
 
     fn update(&mut self, dt: f32, args: &mut ScreenUpdateArgs) {

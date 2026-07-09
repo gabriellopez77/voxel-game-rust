@@ -2,7 +2,8 @@ use std::rc::Rc;
 
 use rand::{RngExt, rngs::ThreadRng};
 
-use crate::{math::{Vec2, Vec3, Vec3i}, render::{GlobalRenderer, Material, PARTICLES_VERTICES, ParticlesVertices, SPRITES_INDICES, material::MaterialType::{self, Particle}, raw_buffer::BufferFlags}, resources::{ResourceManager, TexCoords, resources_manager}, utils::{NullSafePtr, SafePtr}, world::{blocks::{BlockProperties, block_properties}, particles::{BlockDestroy, ParticleBase, ParticleFunc}}};
+use crate::{math::{Vec2, Vec3, Vec3i}, render::{GlobalRenderer, Material, PARTICLES_VERTICES, ParticlesVertices, SPRITES_INDICES, material::MaterialType::{self}, raw_buffer::BufferFlags}, resources::{ResourceManager}, utils::{NullSafePtr}, world::{blocks::{BlockProperties}, particles::{BlockDestroy, ParticleBase, ParticleFunc}}};
+
 
 struct ParticlesInfo {
     func: Rc<dyn ParticleFunc>,
