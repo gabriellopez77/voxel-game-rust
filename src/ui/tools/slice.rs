@@ -1,5 +1,5 @@
 use crate::{
-    math::{Color4b, Vec2, Vec2i16, Vec4}, render::{SpritesVertices, Texture, UiRenderer}, resources::{ResourceManager, TexCoords}, ui::tools::UiElement
+    math::{Color4b, Vec2, Vec2i16}, render::{SpritesVertices, Texture, UiRenderer}, resources::{ResourceManager, TexCoords}, ui::tools::UiElement
 };
 
 
@@ -151,31 +151,31 @@ impl Slice {
         let size = self.size;
 
 
-        slice_pos[0].x = (pos.x).ceil();
-        slice_pos[0].y = (pos.y).ceil();
+        slice_pos[0].x = (pos.x).floor();
+        slice_pos[0].y = (pos.y).floor();
 
-        slice_pos[1].x = (pos.x + corner).ceil();
-        slice_pos[1].y = (pos.y).ceil();
+        slice_pos[1].x = (pos.x + corner).floor();
+        slice_pos[1].y = (pos.y).floor();
 
-        slice_pos[2].x = (pos.x + size.x - corner).ceil();
-        slice_pos[2].y = (pos.y).ceil();
+        slice_pos[2].x = (pos.x + size.x - corner).floor();
+        slice_pos[2].y = (pos.y).floor();
 
-        slice_pos[3].x = (pos.x).ceil();
-        slice_pos[3].y = (pos.y + corner).ceil();
+        slice_pos[3].x = (pos.x).floor();
+        slice_pos[3].y = (pos.y + corner).floor();
 
-        slice_pos[4].x = (pos.x + corner).ceil();
-        slice_pos[4].y = (pos.y + corner).ceil();
+        slice_pos[4].x = (pos.x + corner).floor();
+        slice_pos[4].y = (pos.y + corner).floor();
 
-        slice_pos[5].x = (pos.x + size.x - corner).ceil();
-        slice_pos[5].y = (pos.y + corner).ceil();
+        slice_pos[5].x = (pos.x + size.x - corner).floor();
+        slice_pos[5].y = (pos.y + corner).floor();
 
-        slice_pos[6].x = (pos.x).ceil();
-        slice_pos[6].y = (pos.y + size.y - corner).ceil();
+        slice_pos[6].x = (pos.x).floor();
+        slice_pos[6].y = (pos.y + size.y - corner).floor();
 
-        slice_pos[7].x = (pos.x + corner).ceil();
-        slice_pos[7].y = (pos.y + size.y - corner).ceil();
+        slice_pos[7].x = (pos.x + corner).floor();
+        slice_pos[7].y = (pos.y + size.y - corner).floor();
 
-        slice_pos[8].x = (pos.x + size.x - corner).ceil();
-        slice_pos[8].y = (pos.y + size.y - corner).ceil();
+        slice_pos[8].x = (pos.x + size.x - corner).floor();
+        slice_pos[8].y = (pos.y + size.y - corner).floor();
     }
 }

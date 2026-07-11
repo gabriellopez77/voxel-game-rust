@@ -38,12 +38,12 @@ impl UiElement for ElementsGrid {
 }
 
 impl ElementsGrid {
-    pub fn new(capacity: usize, alignment: Alignment, sequence_limit: i32, spacing: f32) -> Self {
+    pub fn new(alignment: Alignment, sequence_limit: i32, spacing: f32) -> Self {
         Self {
             position: Vec2::ZERO,
             size: Vec2::ZERO,
 
-            elements: Vec::with_capacity(capacity),
+            elements: Vec::new(),
 
             alignment,
             sequence_limit,
@@ -82,7 +82,7 @@ impl ElementsGrid {
                 slice_max_offset_size = self.get_slice_max_offset(i);
             }
 
-            let mut element = &mut self.elements[i];
+            let element = &mut self.elements[i];
 
             element.set_posv(start + offset);
             let element_size = element.get_size();

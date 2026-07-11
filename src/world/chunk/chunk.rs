@@ -1,10 +1,10 @@
 ﻿use std::cell::RefCell;
 use std::sync::atomic::AtomicI32;
-use crate::math::{self, Vec2, Vec3, Vec3i};
+use crate::math::{self, Vec3, Vec3i};
 use crate::render::{BlockModelMesh, ChunkRenderer, ChunkVertices, GlobalRenderer};
 use crate::world::blocks::{BlockProperties, BlockTypes, BlocksManager};
-use crate::world::WorldGen;
 use crate::world::chunk::{ChunkData, ChunkMeshResult, NeighborsDataCopy};
+use crate::world::world_gen::WorldGen;
 
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -80,12 +80,6 @@ impl Chunk {
         let chunk_data = &*mesh_result.chunk_data.borrow();
         let neighbors_data = &mesh_result.neighbors_data;
 
-        let mut last_block_info = chunk_data.get_block_infoi(0, 0, 0);
-        let mut block_functions = blocks_manager.get(last_block_info.id);
-        let mut block_properties = block_functions.get_properties(last_block_info.state);
-        let mut model = &block_properties.base_properties.model;
-        let mut ambient_occlusion = model.ambient_occlusion;
-
         let chunk_pos = chunk_data.position.as_vec3() * Self::CHUNK_SIZEF;
 
         for x in 0..Chunk::CHUNK_SIZE.x {
@@ -94,17 +88,14 @@ impl Chunk {
             let block_info = chunk_data.get_block_infoi(x, y, z);
 
             // air does not have model
-            if block_info.id == 0 { continue; }
+            if block_info.id == 0 { continue }
 
-            if last_block_info.id != block_info.id || last_block_info.state != block_info.state {
-                block_functions = blocks_manager.get(block_info.id);
-                block_properties = block_functions.get_properties(block_info.state);
-                model = &block_properties.base_properties.model;
-                ambient_occlusion = model.ambient_occlusion;
-            }
-            last_block_info = block_info;
+            let block_functions = blocks_manager.get(block_info.id);
+            let block_properties = block_functions.get_properties(block_info.state);
+            let model = &block_properties.base_properties.model;
+            let ambient_occlusion = model.ambient_occlusion;
 
-            let chunk_block = Vec3{x: x as f32, y: y as f32, z: z as f32};
+            let chunk_block = Vec3::new(x as f32, y as f32, z as f32);
             let mut vertices = &mut mesh_result.vertices[block_properties.renderer_type as usize];
             let mut draw = false;
 

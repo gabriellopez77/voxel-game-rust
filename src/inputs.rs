@@ -3,6 +3,72 @@
 use crate::math::Vec2;
 
 
+pub struct Inputs {
+    keys: [bool; Keys::LAST_KEY as usize],
+    last_keys: [bool; Keys::LAST_KEY as usize],
+
+    mouse_pos: Vec2,
+
+    mouse_scroll_delta: i32,
+}
+
+impl Inputs {
+    pub fn new() -> Self {
+        Self {
+            keys: [false; Keys::LAST_KEY as usize],
+            last_keys: [false; Keys::LAST_KEY as usize],
+
+            mouse_pos: Vec2::ZERO,
+
+            mouse_scroll_delta: 0,
+        }
+    }
+
+    pub fn new_frame(&mut self) {
+        self.mouse_scroll_delta = 0;
+
+        for i in 0..Keys::LAST_KEY as usize {
+            self.last_keys[i] = false;
+            self.last_keys[i] |= self.keys[i];
+        }
+    }
+
+    pub fn roll_event(&mut self, event: &WindowEvent) {
+        match event {
+            WindowEvent::Key(key, _, action, _) => {
+                self.keys[*key as usize] = (*action != glfw::Action::Release) && (*key != glfw::Key::Unknown);
+            }
+            WindowEvent::MouseButton(button, action, _) => {
+                self.keys[*button as usize] = *action != glfw::Action::Release
+            }
+            WindowEvent::CursorPos(x, y) => { self.mouse_pos = Vec2::new(*x as f32, *y as f32) }
+            WindowEvent::Scroll(_, y) => { self.mouse_scroll_delta = *y as i32 }
+            _ => {}
+        }
+    }
+
+    pub fn get_mouse_pos(&self) -> Vec2 { self.mouse_pos }
+
+
+    pub fn get_mouse_scroll(&self) -> i32 { self.mouse_scroll_delta }
+
+    pub fn key_down(&self, key: Keys) -> bool { self.keys[key as usize] }
+    pub fn key_pressed(&self, key: Keys) -> bool { self.keys[key as usize] && !self.last_keys[key as usize] }
+    pub fn key_release(&self, key: Keys) -> bool { !self.keys[key as usize] && self.last_keys[key as usize] }
+
+    pub fn mouse_down(&self, button: MouseButton) -> bool { self.keys[button as usize] }
+    pub fn mouse_pressed(&self, button: MouseButton) -> bool { self.keys[button as usize] && !self.last_keys[button as usize] }
+    pub fn mouse_release(&self, button: MouseButton) -> bool { !self.keys[button as usize] && self.last_keys[button as usize] }
+
+    pub fn get_mouse_action(&self, button: MouseButton) -> InputActions {
+        if self.mouse_pressed(button) { return InputActions::Pressed }
+        if self.mouse_down(button) { return InputActions::Repeat }
+        if self.mouse_release(button) { return InputActions::Release }
+
+        return InputActions::Noting;
+    }
+}
+
 #[derive(Copy, Clone, Eq, PartialEq)]
 #[allow(unused)]
 pub enum Keys {
@@ -143,66 +209,4 @@ pub enum InputActions {
     Repeat,
     Release,
     Noting,
-}
-
-static mut MOUSE_SCROLL_DELTA: i32 = 0;
-static mut KEYS: [bool; Keys::LAST_KEY as usize] = [false; Keys::LAST_KEY as usize];
-static mut LAST_KEYS: [bool; Keys::LAST_KEY as usize] = [false; Keys::LAST_KEY as usize];
-
-static mut MOUSE_POS: Vec2 = Vec2{ x: 0.0, y: 0.0 };
-static mut LAST_MOUSE_POS: Vec2 = Vec2{ x: 0.0, y: 0.0 };
-
-pub fn get_mouse_pos() -> Vec2 { unsafe {MOUSE_POS} }
-pub fn get_mouse_delta()  -> Vec2 { unsafe {MOUSE_POS - LAST_MOUSE_POS} }
-
-pub fn roll_event(event: &WindowEvent) {
-    unsafe {
-        match event {
-            WindowEvent::Key(key, _, action, _) => {
-                KEYS[*key as usize] = (*action != glfw::Action::Release) && (*key != glfw::Key::Unknown);
-            }
-            WindowEvent::MouseButton(button, action, _) => {
-                KEYS[*button as usize] = *action != glfw::Action::Release
-            }
-            WindowEvent::CursorPos(x, y) => {
-                LAST_MOUSE_POS = MOUSE_POS;
-                MOUSE_POS = Vec2::new(*x as f32, *y as f32);
-            }
-            WindowEvent::Scroll(_, y) => {
-                MOUSE_SCROLL_DELTA = *  y as i32;
-            }
-            _ => {}
-        }
-    }
-}
-
-pub fn new_frame() {
-    unsafe {
-        MOUSE_SCROLL_DELTA = 0;
-
-        LAST_MOUSE_POS = MOUSE_POS;
-
-        for i in 0..Keys::LAST_KEY as usize {
-            LAST_KEYS[i] = false;
-            LAST_KEYS[i] |= KEYS[i];
-        }
-    }
-}
-
-pub fn get_mouse_scroll() -> i32 { unsafe { MOUSE_SCROLL_DELTA } }
-
-pub fn key_down(key: Keys) -> bool { unsafe { KEYS[key as usize] } }
-pub fn key_pressed(key: Keys) -> bool { unsafe { KEYS[key as usize] && !LAST_KEYS[key as usize] } }
-pub fn key_release(key: Keys) -> bool { unsafe { !KEYS[key as usize] && LAST_KEYS[key as usize] } }
-
-pub fn mouse_button_down(button: MouseButton) -> bool { unsafe { KEYS[button as usize] } }
-pub fn mouse_button_pressed(button: MouseButton) -> bool { unsafe { KEYS[button as usize] && !LAST_KEYS[button as usize] } }
-pub fn mouse_button_release(button: MouseButton) -> bool { unsafe { !KEYS[button as usize] && LAST_KEYS[button as usize] } }
-
-pub fn get_mouse_button_action(button: MouseButton) -> InputActions {
-    if mouse_button_pressed(button) { return InputActions::Pressed }
-    if mouse_button_down(button) { return InputActions::Repeat }
-    if mouse_button_release(button) { return InputActions::Release }
-
-    return InputActions::Noting;
 }

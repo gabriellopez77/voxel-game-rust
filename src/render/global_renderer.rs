@@ -29,7 +29,7 @@ pub struct GlobalRenderer {
 impl GlobalRenderer {
     pub fn new(app: &mut VulkanApp) -> Self {
         Self {
-            app: MutSafePtr::from(app),
+            app: MutSafePtr::new(app),
             resources_manager: NullSafePtr::null(),
 
             chunks_pipeline: None,
@@ -52,7 +52,7 @@ impl GlobalRenderer {
 
     pub fn start(&mut self, resources_manager: &ResourceManager) {
         self.chunks_pipeline = Some(resources_manager.get_pipeline("chunks"));
-        self.resources_manager = NullSafePtr::from(resources_manager);
+        self.resources_manager = NullSafePtr::new(resources_manager);
     }
 
     pub fn create_pipeline_layout(&mut self, layout: &mut PipelineLayout) {

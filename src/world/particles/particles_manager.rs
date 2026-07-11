@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use rand::{RngExt, rngs::ThreadRng};
 
-use crate::{math::{Vec2, Vec3, Vec3i}, render::{GlobalRenderer, Material, PARTICLES_VERTICES, ParticlesVertices, SPRITES_INDICES, material::MaterialType::{self}, raw_buffer::BufferFlags}, resources::{ResourceManager}, utils::{NullSafePtr}, world::{blocks::{BlockProperties}, particles::{BlockDestroy, ParticleBase, ParticleFunc}}};
+use crate::{math::{Vec2, Vec3}, render::{GlobalRenderer, Material, PARTICLES_VERTICES, ParticlesVertices, SPRITES_INDICES, material::MaterialType::{self}, raw_buffer::BufferFlags}, resources::{ResourceManager}, utils::{NullSafePtr}, world::{blocks::{BlockProperties}, particles::{BlockDestroy, ParticleBase, ParticleFunc}}};
 
 
 struct ParticlesInfo {
@@ -47,8 +47,9 @@ impl ParticlesManager {
         let mut material = global_renderer.create_material("particles", MaterialType::Particle);
         material.set_mesh(&PARTICLES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
         material.create_instance_buffer(size_of::<ParticlesVertices>() * Self::MAX_PARTICLES_COUNT, None, BufferFlags::RAM | BufferFlags::DUPLICATE);
+
         self.material = Some(material);
-        self.resources = NullSafePtr::from(resources_manager);
+        self.resources = NullSafePtr::new(resources_manager);
     }
 
     pub fn update(&mut self, dt: f32) {

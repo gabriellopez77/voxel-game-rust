@@ -90,18 +90,20 @@ pub fn create_buffer(app: &VulkanApp, size: u64, usage: vk::BufferUsageFlags,
     };
 }
 
-pub unsafe fn copy_data_to_staging_buffer(app: &VulkanApp, size: u64, data: *const u8, allocation: &mut vk_mem::Allocation,
-                                          keep_maped: bool) -> *mut u8 {
-    let mapped_mem_ptr = app.vma_allocator.map_memory(allocation).expect("Failed to map memory!");
+pub fn copy_data_to_staging_buffer(app: &VulkanApp, size: u64, data: *const u8, allocation: &mut vk_mem::Allocation,
+                                   keep_maped: bool) -> *mut u8 {
+    unsafe {
+        let mapped_mem_ptr = app.vma_allocator.map_memory(allocation).expect("Failed to map memory!");
 
-    // copy data to staging buffer
-    std::ptr::copy_nonoverlapping(data, mapped_mem_ptr, size as usize);
+        // copy data to staging buffer
+        std::ptr::copy_nonoverlapping(data, mapped_mem_ptr, size as usize);
 
-    if !keep_maped {
-        app.vma_allocator.unmap_memory(allocation);
+        if !keep_maped {
+            app.vma_allocator.unmap_memory(allocation);
+        }
+
+        return if keep_maped { mapped_mem_ptr } else { std::ptr::null_mut() };
     }
-
-    return if keep_maped { mapped_mem_ptr } else { std::ptr::null_mut() };
 }
 
 pub fn copy_buffer_async(app: &VulkanApp, src: vk::Buffer, dst: vk::Buffer, size: u64, src_offset: u64, dst_offset: u64) {

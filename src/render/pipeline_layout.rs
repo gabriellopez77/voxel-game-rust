@@ -1,6 +1,6 @@
 use ash::vk::{self, Handle};
 
-use crate::render::{DescriptorSet, GlobalRenderer, VulkanApp, global_renderer, vkutl};
+use crate::render::{DescriptorSet, VulkanApp, vkutl};
 
 
 #[derive(Clone)]
@@ -33,10 +33,6 @@ impl PipelineLayout {
         }
 
         return true;
-    }
-
-    pub fn use_descriptor_sets(&self) -> bool {
-        self.descriptors_count != 0
     }
 
     pub fn get_layout(&self) -> vk::PipelineLayout {

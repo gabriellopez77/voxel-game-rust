@@ -1,11 +1,9 @@
-use std::cell::RefCell;
-use std::rc::Rc;
 use rand::RngExt;
 use crate::math;
 use crate::math::{KeyFrame, Matrix4, Vec3, Vec4};
 use crate::render::material::MaterialType;
 use crate::render::raw_buffer::BufferFlags;
-use crate::render::{CENTER_SPRITES_VERTICES, GlobalRenderer, Material, SPRITES_INDICES, SkyBodiesVertices, VulkanApp};
+use crate::render::{CENTER_SPRITES_VERTICES, GlobalRenderer, Material, SPRITES_INDICES, SkyBodiesVertices};
 use crate::resources::{ResourceManager, TexCoords};
 use crate::world::sky::Sky;
 

@@ -24,7 +24,7 @@ impl<T: ?Sized> Clone for SafePtr<T> {
 }
 
 impl<T: ?Sized> SafePtr<T> {
-    pub fn from(ptr: &T) -> Self {
+    pub fn new(ptr: &T) -> Self {
         Self { ptr: ptr as *const T }
     }
 }

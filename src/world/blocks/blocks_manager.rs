@@ -4,6 +4,7 @@ use crate::utils::SafePtr;
 use crate::world::chunk::chunk_data::ChunkBlockInfo;
 use crate::world::blocks::*;
 use crate::world::items::*;
+use crate::world::player::PlayerInventory;
 
 
 pub struct BlocksManager {
@@ -24,28 +25,30 @@ pub struct BlocksManager {
     pub red_flower: Box<dyn BlockFunctions>,
     pub yellow_flower: Box<dyn BlockFunctions>,
     pub dead_bush: Box<dyn BlockFunctions>,
+    pub sandstone: Box<dyn BlockFunctions>,
 }
 
 impl BlocksManager {
-    pub fn new(resources: &ResourceManager) -> Self {
+    pub fn new(resources: &ResourceManager, inventory: &mut PlayerInventory) -> Self {
         let mut blocks: Vec<SafePtr<dyn BlockFunctions>> = Vec::new();
 
         Self {
-            air: Self::add::<Air>("air", "AIR", resources, &mut blocks),
-            dirt: Self::add::<Dirt>("dirt", "Dirt", resources, &mut blocks),
-            stone: Self::add::<Stone>("stone", "Stone", resources, &mut blocks),
-            grass_block: Self::add::<GrassBlock>("grass_block", "Grass Block", resources, &mut blocks),
-            bedrock: Self::add::<Bedrock>("bedrock", "Bedrock", resources, &mut blocks),
-            cobblestone: Self::add::<Cobblestone>("cobblestone", "Cobblestone", resources, &mut blocks),
-            sand: Self::add::<Sand>("sand", "Sand", resources, &mut blocks),
-            snow_block: Self::add::<SnowBlock>("snow_block", "Snow Block", resources, &mut blocks),
-            ice_block: Self::add::<IceBlock>("ice_block", "Ice Block", resources, &mut blocks),
-            water_block: Self::add::<WaterBlock>("water_block", "Water", resources, &mut blocks),
-            snow_layer: Self::add::<SnowLayer>("snow_layer", "Snow Layer", resources, &mut blocks),
-            short_grass: Self::add::<ShortGrass>("short_grass", "Short Grass", resources, &mut blocks),
-            red_flower: Self::add::<RedFlower>("red_flower", "Red Flower", resources, &mut blocks),
-            yellow_flower: Self::add::<YellowFlower>("yellow_flower", "Red Flower", resources, &mut blocks),
-            dead_bush: Self::add::<DeadBush>("dead_bush", "Dead Bush", resources, &mut blocks),
+            air: Self::add::<Air>("air", "AIR", &mut blocks, resources, inventory),
+            dirt: Self::add::<Dirt>("dirt", "Dirt", &mut blocks, resources, inventory),
+            stone: Self::add::<Stone>("stone", "Stone", &mut blocks, resources, inventory),
+            grass_block: Self::add::<GrassBlock>("grass_block", "Grass Block", &mut blocks, resources, inventory),
+            bedrock: Self::add::<Bedrock>("bedrock", "Bedrock", &mut blocks, resources, inventory),
+            cobblestone: Self::add::<Cobblestone>("cobblestone", "Cobblestone", &mut blocks, resources, inventory),
+            sand: Self::add::<Sand>("sand", "Sand", &mut blocks, resources, inventory),
+            snow_block: Self::add::<SnowBlock>("snow_block", "Snow Block", &mut blocks, resources, inventory),
+            ice_block: Self::add::<IceBlock>("ice_block", "Ice Block", &mut blocks, resources, inventory),
+            water_block: Self::add::<WaterBlock>("water_block", "Water", &mut blocks, resources, inventory),
+            snow_layer: Self::add::<SnowLayer>("snow_layer", "Snow Layer", &mut blocks, resources, inventory),
+            short_grass: Self::add::<ShortGrass>("short_grass", "Short Grass", &mut blocks, resources, inventory),
+            red_flower: Self::add::<RedFlower>("red_flower", "Red Flower", &mut blocks, resources, inventory),
+            yellow_flower: Self::add::<YellowFlower>("yellow_flower", "Red Flower", &mut blocks, resources, inventory),
+            dead_bush: Self::add::<DeadBush>("dead_bush", "Dead Bush", &mut blocks, resources, inventory),
+            sandstone: Self::add::<Sandstone>("sandstone", "Sandstone", &mut blocks, resources, inventory),
 
             blocks,
         }
@@ -67,14 +70,22 @@ impl BlocksManager {
         return &self.blocks[item_base.id as usize].get_properties(item_base.state);
     }
 
-    fn add<T>(internal_name: &'static str, name: &'static str, resources: &ResourceManager,
-              blocks: &mut Vec<SafePtr<dyn BlockFunctions>>) -> Box<dyn BlockFunctions>
+    fn add<T>(internal_name: &'static str, name: &'static str, blocks: &mut Vec<SafePtr<dyn BlockFunctions>>,
+              resources: &ResourceManager, inventory: &mut PlayerInventory) -> Box<dyn BlockFunctions>
     where
         T: ItemCreation<ItemType: BlockFunctions>,
         for<'a> T::ItemType: 'a,
     {
-        let block_box = Box::new(T::new(internal_name, name, blocks.len(), resources));
-        blocks.push(SafePtr::from(block_box.as_ref()));
+        let mut creation_args = ItemCreationArgs {
+            internal_name,
+            name,
+            id: blocks.len(),
+            resources,
+            inventory,
+        };
+
+        let block_box = Box::new(T::new(&mut creation_args));
+        blocks.push(SafePtr::new(block_box.as_ref()));
 
         return block_box;
     }

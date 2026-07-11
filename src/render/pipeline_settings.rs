@@ -1,5 +1,5 @@
 use ash::vk;
-use ash::vk::{Handle, ShaderStageFlags};
+use ash::vk::Handle;
 use crate::math::Vec4;
 use crate::render::PipelineLayout;
 use crate::resources::ShadersCompiler;

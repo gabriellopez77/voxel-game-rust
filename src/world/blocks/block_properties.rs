@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::render::chunk_renderer::RendererType;
-use crate::resources::{BlockItemModel, TexCoords};
+use crate::resources::{BlockItemModel};
 use crate::world::{Aabb, items::*};
 
 
@@ -36,7 +36,7 @@ pub struct BlockProperties {
 }
 
 impl BlockProperties {
-    pub fn new(internal_name: &'static str, name: &'static str, model: Rc<BlockItemModel>, index: usize, state: u8) -> Self {
+    pub fn new(args: &ItemCreationArgs, state: u8) -> Self {
         Self {
             can_replaced: false,
             is_transparent: false,
@@ -48,10 +48,10 @@ impl BlockProperties {
             selection_box: Some(Aabb::CUBE),
 
             base_properties: Arc::new(ItemBaseProperties::new(
-                internal_name,
-                name,
-                model,
-                index,
+                args.internal_name,
+                args.name,
+                args.resources.get_model(args.internal_name),
+                args.id,
                 state,
                 ItemBaseType::Block
             )),

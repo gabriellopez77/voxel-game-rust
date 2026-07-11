@@ -1,4 +1,4 @@
-use crate::{resources::ResourceManager, world::{blocks::{BlockFunctions, BlockProperties}, items::ItemCreation}};
+use crate::{world::{blocks::{BlockFunctions, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
 
 
 pub struct DeadBush {
@@ -14,8 +14,10 @@ impl BlockFunctions for DeadBush {
 impl ItemCreation for DeadBush {
     type ItemType = Self;
 
-    fn new(internal_name: &'static str, name: &'static str, id: usize, resources: &ResourceManager) -> Self {
-        let mut properties = BlockProperties::new(internal_name, name, resources.get_model(internal_name), id, 0);
+    fn new(args: &mut ItemCreationArgs) -> Self {
+        let mut properties = BlockProperties::new(args, 0);
+        args.inventory.register_item(properties.base_properties.clone());
+
         properties.can_replaced = true;
         properties.is_transparent = true;
         properties.light_filter = 0;

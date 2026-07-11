@@ -1,9 +1,13 @@
 use std::rc::Rc;
+use crate::inputs::{self, Inputs};
 use crate::math::Vec2;
 use crate::render::{Texture, UiRenderer};
 use crate::resources::FontInfo;
-use crate::ui::tools::{Sprite, UiElement, inventory::SlotData};
-use crate::world::player::EntityInventory;
+use crate::ui::screens::UiCommon;
+use crate::ui::tools::Slice;
+use crate::ui::tools::{UiElement, inventory::SlotData};
+use crate::world::player::PlayerInventory;
+use crate::world::player::player_inventory::SlotType;
 
 
 pub struct ItemSlot {
@@ -11,7 +15,7 @@ pub struct ItemSlot {
     size: Vec2,
 
     slot_data: SlotData,
-    background: Sprite,
+    background: Slice,
 }
 
 impl UiElement for ItemSlot {
@@ -40,16 +44,24 @@ impl ItemSlot {
             size: Vec2::ZERO,
 
             slot_data: SlotData::new(),
-            background: Sprite::new(),
+            background: Slice::new(),
         }
     }
 
-    pub fn start(&mut self, slot_index: i32, tex: &Texture, name: &'static str, text_font: Rc<FontInfo>) {
-        self.background.set_texture(tex, name);
-        self.slot_data.start(slot_index, text_font);
+    pub fn start(&mut self, slot_type: SlotType, slot_index: usize, tex: &Texture, name: &'static str, text_font: Rc<FontInfo>) {
+        self.background.set_texture(tex, name, 2);
+        self.slot_data.start(slot_type, slot_index as i32, text_font);
     }
 
-    pub fn update(&mut self, inventory: &dyn EntityInventory) {
+    pub fn update(&mut self, inventory: &mut PlayerInventory, mouse_pos: Vec2, inputs: &Inputs, ui_common: &mut UiCommon) {
+        if self.mouse_hover(mouse_pos) {
+            ui_common.slot_hover.set(self);
+
+            if inputs.mouse_pressed(inputs::MouseButton::Left) {
+                inventory.process_left_click(self.slot_data.slot_index, self.slot_data.slot_type);
+            }
+        }
+
         self.slot_data.update(inventory);
     }
 

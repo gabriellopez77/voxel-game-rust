@@ -1,11 +1,19 @@
-use std::{cell::RefCell, rc::Rc};
-use crate::resources::{BlockItemModel, ResourceManager, TexCoords};
+use std::rc::Rc;
+use crate::{resources::{BlockItemModel, ResourceManager, TexCoords}, world::player::PlayerInventory};
 
+
+pub struct ItemCreationArgs<'a> {
+    pub internal_name: &'static str,
+    pub name: &'static str,
+    pub id: usize,
+    pub resources: &'a ResourceManager,
+    pub inventory: &'a mut PlayerInventory,
+}
 
 pub trait ItemCreation {
     type ItemType;
 
-    fn new(internal_name: &'static str, name: &'static str, index: usize, resources: &ResourceManager) -> Self::ItemType;
+    fn new(args: &mut ItemCreationArgs) -> Self::ItemType;
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]

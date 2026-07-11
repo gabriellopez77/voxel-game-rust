@@ -16,6 +16,7 @@ pub mod short_grass;
 pub mod red_flower;
 pub mod yellow_flower;
 pub mod dead_bush;
+pub mod sandstone;
 
 pub use {
     blocks_manager::BlocksManager,
@@ -36,4 +37,5 @@ pub use {
     red_flower::*,
     yellow_flower::*,
     dead_bush::*,
+    sandstone::*,
 };

@@ -1,5 +1,4 @@
-use std::cell::RefCell;
-use std::{collections::HashMap, rc::Rc};
+use std::collections::HashMap;
 
 use ash::vk;
 use crate::utils::NullSafePtr;
@@ -69,7 +68,7 @@ impl Ubo {
 
         self.buffer.create(app, self.size, std::ptr::null(), vk::BufferUsageFlags::UNIFORM_BUFFER, flags);
 
-        self.app = NullSafePtr::from(app);
+        self.app = NullSafePtr::new(app);
     }
 
     pub fn destroy(&mut self, app: &mut VulkanApp) {

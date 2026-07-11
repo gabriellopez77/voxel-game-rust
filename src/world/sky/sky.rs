@@ -1,5 +1,5 @@
 use crate::resources::{ResourceManager, resources_manager};
-use crate::math::{Color3b, KeyFrame, Vec3};
+use crate::math::{Color3b, KeyFrame};
 use crate::render::{GlobalRenderer, Material, material};
 use crate::render::raw_buffer::BufferFlags;
 use crate::world::Chunk;
@@ -58,25 +58,25 @@ impl Sky {
             clouds_color: Color3b::ZERO,
 
             sky_color_gradient: KeyFrame::new(|factor, current, next| {
-                let r = (current.r as f32 + (next.r as f32 - current.r as f32) * factor);
-                let g = (current.g as f32 + (next.g as f32 - current.g as f32) * factor);
-                let b = (current.b as f32 + (next.b as f32 - current.b as f32) * factor);
+                let r = current.r as f32 + (next.r as f32 - current.r as f32) * factor;
+                let g = current.g as f32 + (next.g as f32 - current.g as f32) * factor;
+                let b = current.b as f32 + (next.b as f32 - current.b as f32) * factor;
 
                 return Color3b::new(r as u8, g as u8, b as u8);
             }),
 
             fog_color_gradient: KeyFrame::new(|factor, current, next| {
-                let r = (current.r as f32 + (next.r as f32 - current.r as f32) * factor);
-                let g = (current.g as f32 + (next.g as f32 - current.g as f32) * factor);
-                let b = (current.b as f32 + (next.b as f32 - current.b as f32) * factor);
+                let r = current.r as f32 + (next.r as f32 - current.r as f32) * factor;
+                let g = current.g as f32 + (next.g as f32 - current.g as f32) * factor;
+                let b = current.b as f32 + (next.b as f32 - current.b as f32) * factor;
 
                 return Color3b::new(r as u8, g as u8, b as u8);
             }),
 
             clouds_color_gradient: KeyFrame::new(|factor, current, next| {
-                let r = (current.r as f32 + (next.r as f32 - current.r as f32) * factor);
-                let g = (current.g as f32 + (next.g as f32 - current.g as f32) * factor);
-                let b = (current.b as f32 + (next.b as f32 - current.b as f32) * factor);
+                let r = current.r as f32 + (next.r as f32 - current.r as f32) * factor;
+                let g = current.g as f32 + (next.g as f32 - current.g as f32) * factor;
+                let b = current.b as f32 + (next.b as f32 - current.b as f32) * factor;
 
                 return Color3b::new(r as u8, g as u8, b as u8);
             }),
@@ -161,17 +161,18 @@ impl Sky {
             self.update_delay = 0.0;
         }
 
-        self.set_sky_color(self.sky_color_gradient.get(factor));
         self.set_clouds_color(self.clouds_color_gradient.get(factor));
 
         if camera.is_underwater {
+            self.set_sky_color(self.underwater_fog_color);
             self.set_fog_color(self.underwater_fog_color);
             self.set_fog_distance(self.underwater_fog_distance);
             self.set_fog_density(self.underwater_fog_density);
         }
         else {
+            self.set_sky_color(self.sky_color_gradient.get(factor));
             self.set_fog_color(self.fog_color_gradient.get(factor));
-            self.set_fog_distance(render_distance as f32 - 1.0);
+            self.set_fog_distance(render_distance as f32 - 0.5);
             self.set_fog_density(16.0);
         }
 

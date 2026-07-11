@@ -2,6 +2,7 @@
 
 use crate::inputs;
 use crate::world::blocks::BlocksManager;
+use crate::world::player::player::PlayerStates;
 use crate::world::{Aabb, Chunk, Planet};
 
 
@@ -72,7 +73,7 @@ impl Camera {
         self.direction
     }
 
-    pub fn update(&mut self, player_aabb: &Aabb, planet: &Planet, blocks_manager: &BlocksManager) {
+    pub fn update(&mut self, player_aabb: &Aabb, planet: &Planet, mouse_pos: Vec2, player_state: PlayerStates) {
         let new_pos = Vec3::new(
             player_aabb.get_pos().x + player_aabb.get_size().x / 2.0,
             player_aabb.get_pos().y + 1.7,
@@ -90,10 +91,10 @@ impl Camera {
         self.is_underwater = if let Some(chunk) = planet.get_chunk(self.chunk_pos) {
             let block_info =chunk.borrow().chunk_data.get_block_info(self.chunk_block);
 
-            blocks_manager.get_properties_from_block_info(block_info).base_properties.id == blocks_manager.water_block.get_base().id
+            planet.blocks_manager.get_properties_from_block_info(block_info).base_properties.id == planet.blocks_manager.water_block.get_base().id
         } else { false };
 
-        self.process_rotation();
+        self.process_rotation(mouse_pos, player_state);
 
         if !self.view_changed { return }
 
@@ -126,14 +127,16 @@ impl Camera {
         return true;
     }
 
-    fn process_rotation(&mut self) {
-        let last_rotate = self.rot;
-
+    fn process_rotation(&mut self, mouse_pos: Vec2, player_state: PlayerStates) {
         const SENSITIVYTY: f32 = 0.2;
 
-        let delta = (inputs::get_mouse_pos() - self.last_mouse_pos) * SENSITIVYTY;
-        self.last_mouse_pos = inputs::get_mouse_pos();
+        let delta = (mouse_pos - self.last_mouse_pos) * SENSITIVYTY;
 
+        self.last_mouse_pos = mouse_pos;
+        if player_state == PlayerStates::Menu { return }
+
+
+        let last_rotate = self.rot;
         self.rot.x += delta.x;
         self.rot.y -= delta.y;
 

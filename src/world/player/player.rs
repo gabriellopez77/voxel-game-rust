@@ -1,15 +1,14 @@
-﻿use std::array;
-
+﻿use crate::game::GameEvents;
+use crate::ui::ui_manager::ScreensId;
 use crate::world::particles::{ParticlesManager, ParticlesSpawnArgs};
+use crate::world::world::WorldUpdateArgs;
 use crate::{inputs, math};
-use crate::inputs::MouseButton;
+use crate::inputs::{Inputs, MouseButton};
 use crate::math::Vec3;
-use crate::world::blocks::BlocksManager;
 use crate::world::{Aabb, Chunk, Planet};
 use crate::world::chunk::ChunkGetter;
 use crate::world::player::camera::Camera;
-use crate::world::player::{EntityInventory, ItemStack, SelectionBox};
-use crate::world::player::entitiy_inventory::{PLAYER_HOTBAR_SLOTS_COUNT, PLAYER_SLOTS_COUNT_TOTAL};
+use crate::world::player::{PlayerInventory, SelectionBox};
 
 
 const GRAVITY: f32 = 35.0;
@@ -18,11 +17,16 @@ const FLY_Y_SPEED: f32 = 120.0;
 const FLY_X_SPEED: f32 = 320.0;
 const SPEED: f32 = 50.0;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum PlayerStates {
+    Active,
+    Menu,
+}
+
 pub struct Player {
     pub camera: Camera,
 
-    selected_hotbar_slot: i32,
-    inventory: [ItemStack; PLAYER_SLOTS_COUNT_TOTAL],
+    pub inventory: PlayerInventory,
 
     pub selection_box: SelectionBox,
 
@@ -31,16 +35,7 @@ pub struct Player {
 
     flying_mode: bool,
     on_ground: bool,
-}
-
-impl EntityInventory for Player {
-    fn get_slot(&self, index: i32) -> &ItemStack {
-        &self.inventory[index as usize]
-    }
-
-    fn get_selected_hotbar_index(&self) -> i32 {
-        self.selected_hotbar_slot
-    }
+    state: PlayerStates,
 }
 
 impl Player {
@@ -48,8 +43,7 @@ impl Player {
         Self {
             camera: Camera::new(),
 
-            selected_hotbar_slot: 0,
-            inventory: array::from_fn(|_| ItemStack::EMPTY),
+            inventory: PlayerInventory::new(),
 
             selection_box: SelectionBox::new(),
 
@@ -58,6 +52,7 @@ impl Player {
 
             flying_mode: false,
             on_ground: false,
+            state: PlayerStates::Menu,
         }
     }
 
@@ -69,48 +64,42 @@ impl Player {
         self.aabb.get_pos()
     }
 
-    pub fn start(&mut self, blocks_manager: &BlocksManager) {
+    pub fn start(&mut self) {
         self.camera.start();
-
-        self.inventory[0] = ItemStack::new(blocks_manager.grass_block.get_base(), 64);
-        self.inventory[1] = ItemStack::new(blocks_manager.cobblestone.get_base(), 64);
-        self.inventory[2] = ItemStack::new(blocks_manager.bedrock.get_base(), 64);
-        self.inventory[3] = ItemStack::new(blocks_manager.stone.get_base(), 64);
-        self.inventory[4] = ItemStack::new(blocks_manager.ice_block.get_base(), 64);
-        self.inventory[5] = ItemStack::new(blocks_manager.red_flower.get_base(), 64);
-        self.inventory[6] = ItemStack::new(blocks_manager.snow_layer.get_base(), 64);
-        self.inventory[7] = ItemStack::new(blocks_manager.water_block.get_base(), 64);
-        self.inventory[8] = ItemStack::new(blocks_manager.dirt.get_base(), 64);
     }
 
-    pub fn update(&mut self, dt: f32, planet: &mut Planet, blocks_manager: &BlocksManager, particles_manager: &mut ParticlesManager) {
-        self.process_input(dt);
-        self.process_collision(dt, planet, blocks_manager);
+    pub fn update(&mut self, args: &mut WorldUpdateArgs, planet: &mut Planet, particles_manager: &mut ParticlesManager) {
+        self.state = if args.current_screen_id == ScreensId::HudScreen {
+             PlayerStates::Active
+        } else { PlayerStates::Menu };
 
-        self.camera.update(&self.aabb, planet, blocks_manager);
+        self.process_input(args);
+        self.process_collision(args.dt, planet);
 
-
-        let ray_pos = self.update_ray_casting(planet, blocks_manager, self.camera.get_pos(), self.camera.get_dir(), particles_manager);
-        self.selection_box.update(dt, ray_pos);
-
-
-        // update hotbar slot
-        self.selected_hotbar_slot -= inputs::get_mouse_scroll();
-
-        if self.selected_hotbar_slot < 0 {
-            self.selected_hotbar_slot = (PLAYER_HOTBAR_SLOTS_COUNT - 1) as i32;
+        if self.state == PlayerStates::Active {
+            self.inventory.process_hotbar_scroll(args.inputs.get_mouse_scroll());
         }
-        else if self.selected_hotbar_slot >= PLAYER_HOTBAR_SLOTS_COUNT as i32 {
-            self.selected_hotbar_slot = 0;
+
+        self.camera.update(&self.aabb, planet, args.inputs.get_mouse_pos(), self.state);
+
+
+        let ray_pos = self.update_ray_casting(planet, particles_manager, args.inputs);
+        self.selection_box.update(args.dt, ray_pos);
+
+        if args.inputs.key_pressed(inputs::Keys::E) {
+            args.events_queue.push_back(GameEvents::ChangeScreen(ScreensId::InventoryScreen));
         }
     }
 
-    fn update_ray_casting(&mut self, planet: &Planet, blocks_manager: &BlocksManager, start: Vec3, dir: Vec3, particles_manager: &mut ParticlesManager) -> Option<Vec3> {
+    fn update_ray_casting(&mut self, planet: &Planet, particles_manager: &mut ParticlesManager, inputs: &Inputs) -> Option<Vec3> {
         const RAY_LENGHT: f32 = 4.5;
         const RAY_STEP: f32 = 0.1;
 
+        let start = self.camera.get_pos();
+        let dir = self.camera.get_dir();
+
         let mut target_pos: Option<Vec3> = None;
-        let mut ch = ChunkGetter::new(None);
+        let mut ch = ChunkGetter::new();
 
         let mut step = 0.0f32;
         while step < RAY_LENGHT {
@@ -123,12 +112,12 @@ impl Player {
                 let chunk_block = math::get_chunk_block(chunk_pos, pos);
                 let block_info = chunk.borrow().chunk_data.get_block_info(chunk_block);
 
-                let block_properties = blocks_manager.get_properties_from_block_info(block_info);
+                let block_properties = planet.blocks_manager.get_properties_from_block_info(block_info);
 
                 if block_properties.selection_box.is_some() {
                     // break block
-                    if inputs::mouse_button_pressed(MouseButton::Left) {
-                        chunk.borrow_mut().chunk_data.set_block(chunk_block, blocks_manager.air.get_properties(0));
+                    if inputs.mouse_pressed(MouseButton::Left) && self.state == PlayerStates::Active {
+                        chunk.borrow_mut().chunk_data.set_block(chunk_block, planet.blocks_manager.air.get_properties(0));
                         particles_manager.spawn(ParticlesSpawnArgs::BlockDestroy(block_properties, (chunk_pos * Chunk::CHUNK_SIZE + chunk_block).as_vec3()));
                         break;
                     }
@@ -143,9 +132,12 @@ impl Player {
 
         if target_pos.is_none() { return None }
 
-        let hand_slot_item = self.get_selected_hotbar_slot();
+        let hand_slot_item = self.inventory.get_selected_hotbar_slot();
 
-        if !inputs::mouse_button_pressed(MouseButton::Right) || hand_slot_item.is_empty() || !hand_slot_item.get_item().is_block() {
+        if !inputs.mouse_pressed(MouseButton::Right) ||
+            hand_slot_item.is_empty() ||
+           !hand_slot_item.get_item().is_block() ||
+            self.state == PlayerStates::Menu {
             return target_pos;
         }
 
@@ -161,12 +153,12 @@ impl Player {
             let chunk_block = math::get_chunk_block(chunk_pos, pos);
             let block_info = chunk.borrow().chunk_data.get_block_info(chunk_block);
 
-            let block_properties = blocks_manager.get_properties_from_block_info(block_info);
+            let block_properties = planet.blocks_manager.get_properties_from_block_info(block_info);
 
             if block_properties.can_replaced {
-                let hand_slot_item = self.get_selected_hotbar_slot().get_item();
+                let hand_slot_item = self.inventory.get_selected_hotbar_slot().get_item();
 
-                let block_properties = blocks_manager.get_properties_from_item_base(hand_slot_item);
+                let block_properties = planet.blocks_manager.get_properties_from_item_base(hand_slot_item);
                 chunk.borrow_mut().chunk_data.set_block(chunk_block, block_properties);
             }
         }
@@ -174,33 +166,35 @@ impl Player {
         return target_pos;
     }
 
-    fn process_input(&mut self, dt: f32) {
+    fn process_input(&mut self, args: &mut WorldUpdateArgs) {
+        if self.state == PlayerStates::Menu { return }
+
         let mut dir = Vec3::ZERO;
 
         let yaw = self.camera.rot.x.to_radians();
         let front = Vec3 { x: yaw.cos(), y: 0.0, z: yaw.sin() };
 
-        if inputs::key_down(inputs::Keys::W) { dir = dir + front };
-        if inputs::key_down(inputs::Keys::A) { dir = dir - front.cross(Vec3::UP) };
-        if inputs::key_down(inputs::Keys::S) { dir = dir - front };
-        if inputs::key_down(inputs::Keys::D) { dir = dir + front.cross(Vec3::UP) };
-        if inputs::key_down(inputs::Keys::Space) && self.on_ground { self.velocity.y = JUMP_FORCE };
+        if args.inputs.key_down(inputs::Keys::W) { dir = dir + front };
+        if args.inputs.key_down(inputs::Keys::A) { dir = dir - front.cross(Vec3::UP) };
+        if args.inputs.key_down(inputs::Keys::S) { dir = dir - front };
+        if args.inputs.key_down(inputs::Keys::D) { dir = dir + front.cross(Vec3::UP) };
+        if args.inputs.key_down(inputs::Keys::Space) && self.on_ground { self.velocity.y = JUMP_FORCE };
 
-        if inputs::key_pressed(inputs::Keys::F) { self.flying_mode = !self.flying_mode }
+        if args.inputs.key_pressed(inputs::Keys::F) { self.flying_mode = !self.flying_mode }
 
         if self.flying_mode {
-            if inputs::key_down(inputs::Keys::LeftShift) { self.velocity.y -= FLY_Y_SPEED * dt };
-            if inputs::key_down(inputs::Keys::Space) { self.velocity.y += FLY_Y_SPEED * dt };
+            if args.inputs.key_down(inputs::Keys::LeftShift) { self.velocity.y -= FLY_Y_SPEED * args.dt };
+            if args.inputs.key_down(inputs::Keys::Space) { self.velocity.y += FLY_Y_SPEED * args.dt };
         }
 
 
         if dir.length() > 1.0 { dir = dir.normalized() }
 
         let speed = if self.flying_mode { FLY_X_SPEED } else { SPEED };
-        self.velocity += dir * (speed * dt);
+        self.velocity += dir * (speed * args.dt);
     }
 
-    fn process_collision(&mut self, dt: f32, planet: &mut Planet, blocks_manager: &BlocksManager) {
+    fn process_collision(&mut self, dt: f32, planet: &mut Planet) {
         self.velocity.x -= self.velocity.x * (math::FRICTION * dt);
         self.velocity.y -= if self.flying_mode { self.velocity.y * (math::FRICTION * dt) } else { GRAVITY * dt };
         self.velocity.z -= self.velocity.z * (math::FRICTION * dt);
@@ -221,7 +215,7 @@ impl Player {
         let ya_org = ya;
         let za_org = za;
 
-        let cubes = planet.get_cubes(blocks_manager, &self.aabb.expand(xa, ya, za));
+        let cubes = planet.get_cubes(&self.aabb.expand(xa, ya, za));
 
         for cube in cubes { ya = cube.clip_y_collide(&self.aabb, ya) }
         self.aabb.move_at(0.0, ya, 0.0);
@@ -249,7 +243,7 @@ impl Player {
             let normal = self.aabb;
             self.aabb.set(&org);
 
-            let cubes = planet.get_cubes(blocks_manager, &self.aabb.expand(xa, ya, za));
+            let cubes = planet.get_cubes(&self.aabb.expand(xa, ya, za));
 
             for cube in cubes { ya = cube.clip_y_collide(&self.aabb, ya) }
             self.aabb.move_at(0.0, ya, 0.0);

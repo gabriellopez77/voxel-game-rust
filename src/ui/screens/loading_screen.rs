@@ -18,7 +18,7 @@ impl ScreenBase for LoadingScreen {
 
     }
 
-    fn update(&mut self, dt: f32, args: &mut ScreenUpdateArgs) {
+    fn update(&mut self, args: &mut ScreenUpdateArgs) {
 
     }
 

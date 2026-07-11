@@ -31,7 +31,7 @@ unsafe impl Send for Material {}
 impl Material {
     pub fn new(app: &mut VulkanApp, pipeline: Rc<RefCell<GraphicsPipeline>>, material_type: MaterialType) -> Self {
         Self {
-            app: MutSafePtr::from(app),
+            app: MutSafePtr::new(app),
 
             pipeline: pipeline,
             vao: VerticesAttributes::new(),

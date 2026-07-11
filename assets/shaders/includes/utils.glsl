@@ -39,3 +39,49 @@ float calculateShading2(vec3 normal)
     float light1 = max(0.f, dot(lightDir1, normal));
     return min(1.f, (light0 + light1) * LIGHT_POWER + AMBIENT_LIGHT_POWER);
 }
+
+mat4 buildTransform(vec3 position, vec3 scale, vec3 rotation)
+{
+    mat4 scaleMatrix = mat4(
+        scale.x, 0.0,      0.0,      0.0,
+        0.0,      scale.y, 0.0,      0.0,
+        0.0,      0.0,      scale.z, 0.0,
+        0.0,      0.0,      0.0,      1.0
+    );
+
+    vec3 rad = rotation;
+    vec3 s = sin(rad);
+    vec3 c = cos(rad);
+
+    mat4 rotX = mat4(
+        1.0, 0.0,  0.0,  0.0,
+        0.0, c.x,  s.x,  0.0,
+        0.0, -s.x, c.x,  0.0,
+        0.0, 0.0,  0.0,  1.0
+    );
+
+    mat4 rotY = mat4(
+        c.y,  0.0, -s.y, 0.0,
+        0.0,  1.0, 0.0,  0.0,
+        s.y,  0.0, c.y,  0.0,
+        0.0,  0.0, 0.0,  1.0
+    );
+
+    mat4 rotZ = mat4(
+        c.z,  s.z,  0.0, 0.0,
+        -s.z, c.z,  0.0, 0.0,
+        0.0,  0.0,  1.0, 0.0,
+        0.0,  0.0,  0.0, 1.0
+    );
+
+    mat4 rotationMatrix = rotY * rotX * rotZ;
+
+    mat4 translationMatrix = mat4(
+        1.0,           0.0,           0.0,           0.0,
+        0.0,           1.0,           0.0,           0.0,
+        0.0,           0.0,           1.0,           0.0,
+        position.x, position.y, position.z, 1.0
+    );
+
+    return translationMatrix * rotationMatrix * scaleMatrix;
+}

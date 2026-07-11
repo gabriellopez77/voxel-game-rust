@@ -14,7 +14,7 @@ pub struct UiRenderer {
 }
 
 impl UiRenderer {
-    pub const MAX_SPRITES_COUNT: usize = 500;
+    pub const MAX_SPRITES_COUNT: usize = 750;
 
     pub fn new() -> Self {
         Self {

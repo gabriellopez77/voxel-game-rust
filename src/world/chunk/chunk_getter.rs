@@ -10,7 +10,7 @@ pub struct ChunkGetter {
 }
 
 impl ChunkGetter {
-    pub fn new(chunk: Option<Arc<RefCell<Chunk>>>) -> Self {
+    pub fn new() -> Self {
         Self {
             chunk: None,
             last_chunk_pos: Vec3i::ZERO,
@@ -21,7 +21,7 @@ impl ChunkGetter {
         if self.chunk.is_none() || self.last_chunk_pos != chunk_pos {
             self.chunk = planet.get_chunk(chunk_pos);
         }
-        
+
         self.last_chunk_pos = chunk_pos;
     }
 

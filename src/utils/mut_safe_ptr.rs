@@ -30,7 +30,7 @@ impl<T: ?Sized> Clone for MutSafePtr<T> {
 }
 
 impl<T: ?Sized> MutSafePtr<T> {
-    pub fn from(ptr: &mut T) -> Self {
+    pub fn new(ptr: &mut T) -> Self {
         Self { ptr: ptr }
     }
 

@@ -1,4 +1,4 @@
-use crate::{resources::ResourceManager, world::items::ItemCreation};
+use crate::{world::items::{ItemCreation, ItemCreationArgs}};
 
 use super::block_properties::*;
 
@@ -16,8 +16,8 @@ impl BlockFunctions for Air {
 impl ItemCreation for Air {
     type ItemType = Self;
 
-    fn new(internal_name: &'static str, name: &'static str, id: usize, resources: &ResourceManager) -> Self {
-        let mut properties = BlockProperties::new(internal_name, name, resources.get_model(internal_name), id, 0);
+    fn new(args: &mut ItemCreationArgs) -> Self {
+        let mut properties = BlockProperties::new(args, 0);
         properties.can_replaced = true;
         properties.is_transparent = true;
         properties.collision_box = None;

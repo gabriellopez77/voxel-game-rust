@@ -28,7 +28,7 @@ impl<T: ?Sized> Clone for NullSafePtr<T> {
 impl<T: ?Sized> NullSafePtr<T> {
     pub fn null() -> Self { Self { ptr: unsafe { std::mem::zeroed() } } }
 
-    pub fn from(ptr: &T) -> Self {
+    pub fn new(ptr: &T) -> Self {
         Self { ptr: ptr as *const T }
     }
 }

@@ -2,6 +2,7 @@ use std::sync::Arc;
 use crate::world::items::ItemBaseProperties;
 
 
+#[derive(Clone)]
 pub struct ItemStack {
     item: Option<Arc<ItemBaseProperties>>,
     count: i32,
@@ -19,7 +20,7 @@ impl ItemStack {
     }
 
     pub fn is_full(&self) -> bool { self.count == Self::MAX_STACK_COUNT }
-    pub fn is_empty(&self) -> bool { self.count == 0 }
+    pub fn is_empty(&self) -> bool { self.item.is_none() || self.count == 0 }
     pub fn get_count(&self) -> i32 { self.count }
 
     pub fn set(&mut self, item: Arc<ItemBaseProperties>, count: i32) {
@@ -28,11 +29,7 @@ impl ItemStack {
     }
 
     pub fn get_item(&self) -> &Arc<ItemBaseProperties> {
-        if let Some(item) = &self.item {
-            return item;
-        }
-
-        panic!("ItemStack is none");
+        self.item.as_ref().expect("ItemStack is none")
     }
 
     pub fn is_same(&self, other: &ItemStack) -> bool {
@@ -49,7 +46,7 @@ impl ItemStack {
 
     pub fn swap(&mut self, other: &mut ItemStack) {
         let temp_item = self.item.take();
-        let temp_count = other.count;
+        let temp_count = self.count;
 
         self.item = other.item.take();
         self.count = other.count;

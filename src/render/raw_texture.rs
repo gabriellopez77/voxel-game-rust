@@ -27,44 +27,42 @@ impl RawTexture {
     }
 
     pub fn create(&mut self, app: &mut VulkanApp,  width: u32, height: u32, data: &[u8], filter: vk::Filter, repeat_mode: vk::SamplerAddressMode) {
-        unsafe {
-            let mut allocation_info = vk_mem::AllocationCreateInfo::default();
-            allocation_info.usage = vk_mem::MemoryUsage::Auto;
-            allocation_info.preferred_flags = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
-            allocation_info.flags = vk_mem::AllocationCreateFlags::HOST_ACCESS_SEQUENTIAL_WRITE | vk_mem::AllocationCreateFlags::MAPPED;
+        let mut allocation_info = vk_mem::AllocationCreateInfo::default();
+        allocation_info.usage = vk_mem::MemoryUsage::Auto;
+        allocation_info.preferred_flags = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
+        allocation_info.flags = vk_mem::AllocationCreateFlags::HOST_ACCESS_SEQUENTIAL_WRITE | vk_mem::AllocationCreateFlags::MAPPED;
 
-            let (staging_buffer, mut staging_allocation) = vkutl::create_buffer(
-                app,
-                data.len() as _,
-                vk::BufferUsageFlags::TRANSFER_SRC,
-                &allocation_info, false
-            );
+        let (staging_buffer, mut staging_allocation) = vkutl::create_buffer(
+            app,
+            data.len() as _,
+            vk::BufferUsageFlags::TRANSFER_SRC,
+            &allocation_info, false
+        );
 
-            vkutl::copy_data_to_staging_buffer(app, data.len() as u64, data.as_ptr() as _, &mut staging_allocation, false);
+        vkutl::copy_data_to_staging_buffer(app, data.len() as u64, data.as_ptr() as _, &mut staging_allocation, false);
 
-            // create image in vram
-            (self.image, self.image_allocation) = vkutl::create_image(
-                app,
-                width, height,
-                vk::Format::R8G8B8A8_UNORM,
-                vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED,
-                false
-            );
+        // create image in vram
+        (self.image, self.image_allocation) = vkutl::create_image(
+            app,
+            width, height,
+            vk::Format::R8G8B8A8_UNORM,
+            vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED,
+            false
+        );
 
 
-            vkutl::transition_image_layout(app, self.image, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
+        vkutl::transition_image_layout(app, self.image, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
 
-            vkutl::copy_buffer_to_image(app, width, height, staging_buffer, self.image);
+        vkutl::copy_buffer_to_image(app, width, height, staging_buffer, self.image);
 
-            vkutl::transition_image_layout(app, self.image, vk::ImageLayout::TRANSFER_DST_OPTIMAL, vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL);
+        vkutl::transition_image_layout(app, self.image, vk::ImageLayout::TRANSFER_DST_OPTIMAL, vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL);
 
-            self.image_view = vkutl::create_image_view(app, self.image, vk::Format::R8G8B8A8_UNORM, vk::ImageAspectFlags::COLOR);
+        self.image_view = vkutl::create_image_view(app, self.image, vk::Format::R8G8B8A8_UNORM, vk::ImageAspectFlags::COLOR);
 
-            self.create_sampler(app, filter, repeat_mode);
+        self.create_sampler(app, filter, repeat_mode);
 
-            // destroy staging buffer
-            app.add_to_bargabe_list(GarbageType::Buffer(staging_buffer, staging_allocation, false));
-        }
+        // destroy staging buffer
+        app.add_to_bargabe_list(GarbageType::Buffer(staging_buffer, staging_allocation, false));
     }
 
     pub fn destroy(&mut self, app: &mut VulkanApp) {

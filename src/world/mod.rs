@@ -10,7 +10,6 @@ pub mod aabb;
 pub mod particles;
 
 pub use {
-    world_gen::WorldGen,
     chunk::Chunk,
     planet::Planet,
     player::player::Player,

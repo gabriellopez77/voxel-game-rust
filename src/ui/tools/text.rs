@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::{math::{Color3b, Vec2, Vec2i16, Vec3}, render::{TextVertices, UiRenderer}, ui::tools::UiElement};
+use crate::{math::{Color3b, Vec2, Vec2i16}, render::{TextVertices, UiRenderer}, ui::tools::UiElement};
 use crate::resources::FontInfo;
 
 
@@ -149,6 +149,7 @@ impl Text {
         self.pos_modified = false;
 
         let font_info = self.font_info.as_ref().expect("Text font not set!");
+        let pos = self.get_pos();
 
         for ch in self.text.get().chars() {
             // breakline
@@ -161,7 +162,6 @@ impl Text {
 
             let char_info = font_info.get_info(ch);
 
-            let pos = self.get_pos();
             let text_vertices = TextVertices{
                 position: Vec2i16::new(pos.x as i16, pos.y as i16),
                 size: char_info.size,

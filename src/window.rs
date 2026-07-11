@@ -1,5 +1,5 @@
 use glfw::WindowEvent;
-use crate::inputs;
+use crate::inputs::{self, Inputs};
 use crate::game::Game;
 use crate::render::VulkanApp;
 
@@ -46,19 +46,23 @@ impl Window {
         vulkan_app.start(&self.window);
 
         let mut game = Game::new(&mut vulkan_app);
-
+        let mut inputs = Inputs::new();
 
         let mut first_time = true;
         let mut last_frame = 0.0f32;
 
         while !self.window.should_close() {
             // update keyboard and mouse inupts
-            inputs::new_frame();
+            inputs.new_frame();
 
             // poll window events
             self.glfw_instance.poll_events();
 
             for (_, event) in glfw::flush_messages(&self.events) {
+                if first_time { continue }
+
+                inputs.roll_event(&event);
+
                 Self::roll_events(&mut self.glfw_instance, &self.window, event, &mut vulkan_app, &mut game);
             }
 
@@ -75,7 +79,7 @@ impl Window {
                     first_time = false;
                 }
 
-                game.update(dt, self);
+                game.update(dt, self, &inputs);
                 game.render();
 
                 vulkan_app.end_frame();
@@ -96,8 +100,6 @@ impl Window {
 
     fn roll_events(glfw_instance: &mut glfw::Glfw, glfw_window: &glfw::PWindow,
                    event: WindowEvent, app: &mut VulkanApp, game: &mut Game) {
-        inputs::roll_event(&event);
-
         match event {
             WindowEvent::FramebufferSize(width, height) => {
                 app.resize(width, height, glfw_instance, glfw_window);

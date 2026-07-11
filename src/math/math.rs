@@ -16,10 +16,6 @@ pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
 }
 
-pub fn align_up(value: i32, alignment: i32) -> i32 {
-    ((value + alignment - 1) / alignment) * alignment
-}
-
 pub fn get_index(x: i32, y: i32, z: i32) -> usize  {
     (z *  Chunk::CHUNK_SIZE.y * Chunk::CHUNK_SIZE.x + (y * Chunk::CHUNK_SIZE.x) + x) as usize
 }
@@ -45,6 +41,14 @@ pub fn get_chunk_block(chunk_pos: Vec3i, global_coords: Vec3) -> Vec3i {
         x: -(chunk_pos.x * Chunk::CHUNK_SIZE.x - global_coords.x.floor() as i32),
         y: -(chunk_pos.y * Chunk::CHUNK_SIZE.y - global_coords.y.floor() as i32),
         z: -(chunk_pos.z * Chunk::CHUNK_SIZE.z - global_coords.z.floor() as i32)
+    }
+}
+
+pub fn get_global_block(global_coords: Vec3) -> Vec3i {
+    Vec3i {
+        x: global_coords.x.floor() as i32,
+        y: global_coords.y.floor() as i32,
+        z: global_coords.z.floor() as i32,
     }
 }
 

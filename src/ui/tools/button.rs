@@ -1,4 +1,4 @@
-use crate::{inputs::{self, InputActions}, math::{Color3b, Vec2}, render::UiRenderer, ui::{buttons_styles::ButtonStyleInfo, tools::{Slice, Text, UiElement}}};
+use crate::{inputs::{self, InputActions, Inputs}, math::Vec2, render::UiRenderer, ui::{buttons_styles::ButtonStyleInfo, tools::{Slice, Text, UiElement}}};
 
 
 pub struct Button {
@@ -53,12 +53,12 @@ impl Button {
         self.style = Some(style);
     }
 
-    pub fn update(&mut self, mouse_pos: Vec2) -> bool {
+    pub fn update(&mut self, mouse_pos: Vec2, inputs: &Inputs) -> bool {
         self.pressed = false;
         if self.locked { return false }
 
         let hover = self.mouse_hover(mouse_pos);
-        let action = inputs::get_mouse_button_action(inputs::MouseButton::Left);
+        let action = inputs.get_mouse_action(inputs::MouseButton::Left);
 
         let style = self.style.as_ref().unwrap();
 

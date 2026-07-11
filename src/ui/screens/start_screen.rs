@@ -28,12 +28,12 @@ impl ScreenBase for StartScreen {
         self.quit_button.text.set_color(Color3b::WHITE);
     }
 
-    fn update(&mut self, dt: f32, args: &mut ScreenUpdateArgs) {
-        if self.start_button.update(args.mouse_pos) {
+    fn update(&mut self, args: &mut ScreenUpdateArgs) {
+        if self.start_button.update(args.mouse_pos, args.inputs) {
             args.game.add_event(GameEvents::LoadChunks);
         }
 
-        if self.quit_button.update(args.mouse_pos) {
+        if self.quit_button.update(args.mouse_pos, args.inputs) {
             args.game.add_event(GameEvents::QuitGame);
         }
     }

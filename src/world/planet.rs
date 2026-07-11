@@ -5,16 +5,19 @@ use crate::math::{Vec3, Vec3i, self};
 
 use crate::render::{ChunkRenderer, ChunkVertices, GlobalRenderer};
 use crate::resources::Worker;
-use crate::utils::{ObjectPool, SafePtr};
+use crate::utils::{NullSafePtr, ObjectPool, SafePtr};
 use crate::world::Aabb;
 use crate::world::blocks::BlocksManager;
 use crate::world::chunk::{ChunkData, ChunkMeshResult, NeighborChunks};
-use crate::world::{Chunk, WorldGen, player::Camera};
+use crate::world::world_gen::WorldGen;
+use crate::world::{Chunk, player::Camera};
 
 
 pub struct Planet {
     chunks: HashMap<Vec3i, Option<Arc<RefCell<Chunk>>>>,
     world_gen: Arc<Mutex<WorldGen>>,
+
+    pub blocks_manager: NullSafePtr<BlocksManager>,
 
     pub render_distance: i32,
 
@@ -44,6 +47,8 @@ impl Planet {
             chunks: HashMap::new(),
             world_gen: Arc::new(Mutex::new(WorldGen::new())),
 
+            blocks_manager: NullSafePtr::null(),
+
             render_distance: 4,
 
             pendings_chunks_count: 0,
@@ -67,9 +72,13 @@ impl Planet {
         }
     }
 
-    pub fn start(&mut self) {
+    pub fn start(&mut self, blocks_manager: &BlocksManager) {
+        self.blocks_manager = NullSafePtr::new(blocks_manager);
+
         self.chunks_mesh_worker.start();
         self.chunks_gen_worker.start();
+
+        self.world_gen.lock().unwrap().start(blocks_manager);
     }
 
     pub fn stop(&mut self) {
@@ -97,12 +106,12 @@ impl Planet {
         self.chunks_gen_worker.clear();
     }
 
-    pub fn update(&mut self, player_pos: Vec3, blocks_manager: &BlocksManager) {
+    pub fn update(&mut self, player_pos: Vec3) {
         let player_chunk = math::get_chunk_pos(player_pos);
 
         if self.last_player_chunk != player_chunk || self.change_chunk_logic {
         //if self.change_chunk_logic {
-            self.change_chunk_logic(player_chunk, blocks_manager);
+            self.change_chunk_logic(player_chunk);
         }
 
         // sort chunks
@@ -121,7 +130,7 @@ impl Planet {
         self.process_chunks_mesh();
     }
 
-    pub fn draw(&mut self, camera: &Camera, blocks_manager: &BlocksManager, global_renderer: &mut GlobalRenderer) {
+    pub fn draw(&mut self, camera: &Camera, global_renderer: &mut GlobalRenderer) {
         self.visible_chunks.clear();
 
         for i in 0..self.ordered_chunks.len() {
@@ -147,7 +156,7 @@ impl Planet {
                 ch.chunk_data.regen_mesh = false;
 
                 // SAFETY: blocks_manager reference is valid for all game time
-                let blocks_manager_ptr = SafePtr::from(blocks_manager);
+                let blocks_manager_ptr = self.blocks_manager.clone();
 
                 let mesh_result = Box::new(RefCell::new(ChunkMeshResult::new(self, &ch)));
 
@@ -168,7 +177,7 @@ impl Planet {
         }
     }
 
-    pub fn get_cubes(&mut self, blocks_manager: &BlocksManager, cube: &Aabb) -> &Vec<Aabb> {
+    pub fn get_cubes(&mut self, cube: &Aabb) -> &Vec<Aabb> {
         self.blocks_aabb_list.clear();
 
         let x0 = (cube.x0).floor() as i32;
@@ -192,7 +201,7 @@ impl Planet {
                 let chunk_block = math::get_chunk_block(chunk_pos, global_coords);
 
                 let block_info = ch.borrow().chunk_data.get_block_info(chunk_block);
-                let block_properties = blocks_manager.get_properties_from_block_info(block_info);
+                let block_properties = self.blocks_manager.get_properties_from_block_info(block_info);
 
 
                 if let Some(ref collision_box) = block_properties.collision_box {
@@ -206,10 +215,10 @@ impl Planet {
         return &self.blocks_aabb_list;
     }
 
-    pub fn load_chunks(&mut self, player_pos: Vec3, blocks_manager: &BlocksManager) {
+    pub fn load_chunks(&mut self, player_pos: Vec3) {
         let chunk_pos = math::get_chunk_pos(player_pos);
 
-        self.change_chunk_logic(chunk_pos, blocks_manager);
+        self.change_chunk_logic(chunk_pos);
     }
 
     pub fn get_chunk(&self, pos: Vec3i) -> Option<Arc<RefCell<Chunk>>> {
@@ -256,7 +265,7 @@ impl Planet {
         }
     }
 
-    fn change_chunk_logic(&mut self, player_chunk_pos: Vec3i, blocks_manager: &BlocksManager) {
+    fn change_chunk_logic(&mut self, player_chunk_pos: Vec3i) {
         self.ordered_chunks.clear();
         self.remove_chunks_list.clear();
 
@@ -299,7 +308,7 @@ impl Planet {
                 }
 
                 // SAFETY: blocks_manager reference is valid for all game time
-                let blocks_manager_ptr = SafePtr::from(blocks_manager);
+                let blocks_manager_ptr = self.blocks_manager.clone();
 
                 let world_gen = self.world_gen.clone();
 

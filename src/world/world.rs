@@ -1,5 +1,13 @@
-use crate::{inputs, render::{GlobalRenderer, Ubo}, resources::ResourceManager, world::{Planet, Player, blocks::BlocksManager, particles::ParticlesManager, sky::Sky}};
+use std::collections::VecDeque;
 
+use crate::{game::GameEvents, inputs::Inputs, render::{GlobalRenderer, Ubo}, resources::ResourceManager, ui::ui_manager::ScreensId, world::{Planet, Player, blocks::BlocksManager, particles::ParticlesManager, sky::Sky}};
+
+pub struct WorldUpdateArgs<'a> {
+    pub events_queue: &'a mut VecDeque<GameEvents>,
+    pub inputs: &'a Inputs,
+    pub dt: f32,
+    pub current_screen_id: ScreensId,
+}
 
 pub struct World {
     pub player: Player,
@@ -25,23 +33,23 @@ impl World {
     }
 
     pub fn start(&mut self, resources_manager: &ResourceManager, global_renderer: &mut GlobalRenderer) {
-        self.blocks_manager = Some(BlocksManager::new(resources_manager));
+        self.blocks_manager = Some(BlocksManager::new(resources_manager, &mut self.player.inventory));
 
-        self.player.start(&self.blocks_manager.as_ref().unwrap());
+        self.player.start();
 
-        self.planet.start();
+        self.planet.start(&self.blocks_manager.as_ref().unwrap());
 
         self.sky.start(resources_manager, global_renderer);
         self.particles_manager.start(resources_manager, global_renderer);
         self.player.selection_box.start(global_renderer);
     }
 
-    pub fn update(&mut self, dt: f32) {
-        self.player.update(dt, &mut self.planet, &self.blocks_manager.as_ref().unwrap(), &mut self.particles_manager);
+    pub fn update(&mut self, dt: f32, args: &mut WorldUpdateArgs) {
+        self.player.update(args, &mut self.planet, &mut self.particles_manager);
 
         self.sky.update(dt, &self.player.camera, self.planet.render_distance);
 
-        self.planet.update(self.player.get_pos(), &self.blocks_manager.as_ref().unwrap());
+        self.planet.update(self.player.get_pos());
 
         self.particles_manager.update(dt);
     }
@@ -67,7 +75,7 @@ impl World {
 
         self.sky.draw(global_renderer);
         self.player.selection_box.draw(global_renderer);
-        self.planet.draw(&self.player.camera, &self.blocks_manager.as_ref().unwrap(), global_renderer);
+        self.planet.draw(&self.player.camera, global_renderer);
         self.particles_manager.draw(global_renderer, self.player.camera.rot);
 
         self.player.camera.view_changed = false;
@@ -87,6 +95,6 @@ impl World {
     }
 
     pub fn load(&mut self) {
-        self.planet.load_chunks(self.player.get_pos(), &self.blocks_manager.as_ref().unwrap());
+        self.planet.load_chunks(self.player.get_pos());
     }
 }
