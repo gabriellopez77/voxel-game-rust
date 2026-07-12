@@ -297,32 +297,33 @@ impl Planet {
         let start = player_chunk_pos - self.render_distance;
         let end = player_chunk_pos + self.render_distance;
 
+        // create new chunks
         for x in start.x..=end.x {
-            for z in start.z..=end.z {
-                let new_chunk_pos = Vec3i::new(x, 0, z);
+        for z in start.z..=end.z {
+            let new_chunk_pos = Vec3i::new(x, 0, z);
 
-                let distance = math::get_chunk_distance(new_chunk_pos, player_chunk_pos);
+            let distance = math::get_chunk_distance(new_chunk_pos, player_chunk_pos);
 
-                if distance > self.render_distance || self.chunks.contains_key(&new_chunk_pos) {
-                    continue
-                }
-
-                // SAFETY: blocks_manager reference is valid for all game time
-                let blocks_manager_ptr = self.blocks_manager.clone();
-
-                let world_gen = self.world_gen.clone();
-
-                // create chunk async
-                self.chunks_gen_worker.add_task(move || {
-                    let new_chunk = Box::new(RefCell::new(Chunk::new(new_chunk_pos)));
-                    new_chunk.borrow_mut().start(&mut world_gen.lock().unwrap(), &*blocks_manager_ptr);
-
-                    return new_chunk;
-                });
-
-                self.pendings_chunks_count += 1;
-                self.chunks.insert(new_chunk_pos, None);
+            if distance > self.render_distance || self.chunks.contains_key(&new_chunk_pos) {
+                continue
             }
+
+            // SAFETY: blocks_manager reference is valid for all game time
+            let blocks_manager_ptr = self.blocks_manager.clone();
+
+            let world_gen = self.world_gen.clone();
+
+            // create chunk async
+            self.chunks_gen_worker.add_task(move || {
+                let new_chunk = Box::new(RefCell::new(Chunk::new(new_chunk_pos)));
+                new_chunk.borrow_mut().start(&mut world_gen.lock().unwrap(), &*blocks_manager_ptr);
+
+                return new_chunk;
+            });
+
+            self.pendings_chunks_count += 1;
+            self.chunks.insert(new_chunk_pos, None);
+        }
         }
 
         self.last_player_chunk = player_chunk_pos;

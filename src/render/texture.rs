@@ -45,9 +45,7 @@ impl Texture {
     }
 
     pub fn create_from_atlas(app: &mut VulkanApp, images: &[PathBuf], width: i32, height: i32) -> Self {
-        let now = std::time::Instant::now();
         let (pixels, coords) = texture_atlas::create(images, width, height);
-        println!("{}", now.elapsed().as_micros());
 
         let mut tex = Self::create_from_pixels(app, &pixels, width, height);
 

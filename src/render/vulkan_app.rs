@@ -1,9 +1,10 @@
-﻿use std::collections::{HashSet, VecDeque};
+﻿use std::collections::HashSet;
 use std::ffi::CStr;
 use ash::{vk, khr::surface};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use super::swapchain_info::SwapChainInfo;
 use super::vkutl;
+
 
 #[derive(Clone, Copy)]
 pub enum GarbageType {
@@ -71,8 +72,8 @@ pub struct VulkanApp {
     pub vma_allocator: vk_mem::Allocator,
 
     // resources garbage
-    garbage_list_queue: Vec<Vec<GarbageType>>,
-    garbage_lists: VecDeque<(usize, Vec<GarbageType>)>,
+    garbage_list_pool: Vec<Vec<GarbageType>>,
+    garbage_lists: Vec<(usize, Vec<GarbageType>)>,
     current_gargabe_list: Vec<GarbageType>,
 
     // cache
@@ -118,8 +119,8 @@ impl VulkanApp {
 
             vma_allocator: unsafe { std::mem::zeroed() }, // SAFETY: we init before using
 
-            garbage_list_queue: Vec::new(),
-            garbage_lists: VecDeque::new(),
+            garbage_list_pool: Vec::new(),
+            garbage_lists: Vec::new(),
             current_gargabe_list: Vec::new(),
 
             families_indices_cache: QueueFamilyIndices::new(),
@@ -526,8 +527,8 @@ impl VulkanApp {
                 .src_subpass(vk::SUBPASS_EXTERNAL)
                 .dst_subpass(0)
                 .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS)
-                .src_access_mask(vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE)
                 .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS)
+                .src_access_mask(vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE)
                 .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE)
         ];
 
@@ -740,16 +741,20 @@ impl VulkanApp {
             self.ash_device.reset_fences(&[self.frame_fence[self.frame_index]]).expect("failed to reset fence!");
         };
 
-        // update all garbage lists
-        if let Some(ref front) = self.garbage_lists.front() && self.frame_count > front.0 + vkutl::SWAPCHAIN_IMAGES_COUNT {
-            let (_, mut list) = self.garbage_lists.pop_front().unwrap();
+        // update garbage lists
+        for i in (0..self.garbage_lists.len()).rev() {
+            if self.frame_count > self.garbage_lists[i].0 + vkutl::SWAPCHAIN_IMAGES_COUNT {
+                let (_, mut garbage_list) = self.garbage_lists.swap_remove(i);
 
-            for garbage in &mut list {
-                self.destroy_garbage(garbage);
+                for garbage in &mut garbage_list {
+                    self.destroy_garbage(garbage);
+                }
+
+                garbage_list.clear();
+
+                // saves the list in pool to avoid allocate new lists
+                self.garbage_list_pool.push(garbage_list);
             }
-
-            list.clear();
-            self.garbage_list_queue.push(list);
         }
 
 
@@ -806,12 +811,11 @@ impl VulkanApp {
     pub fn end_frame(&mut self) {
         if !self.current_gargabe_list.is_empty() {
             // try to take a new allocated list or create a new list
-            let mut new_garbage_list = self.garbage_list_queue.pop().unwrap_or(Vec::new());
+            let new_list = self.garbage_list_pool.pop().unwrap_or(Vec::new());
 
-            // 'self.current_gargabe_list' now is the list of previous frame, then change it by a new list and
-            // move the previous frame list to garbage list
-            std::mem::swap(&mut new_garbage_list, &mut self.current_gargabe_list);
-            self.garbage_lists.push_back((self.frame_count, new_garbage_list));
+            // 'self.current_gargabe_list' now is the list of previous frame, then replace by the new list
+            let old_list = std::mem::replace(&mut self.current_gargabe_list, new_list);
+            self.garbage_lists.push((self.frame_count, old_list));
         }
 
         let graphics_command_buffer = [ self.graphics_command_buffers[self.frame_index] ];

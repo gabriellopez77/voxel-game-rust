@@ -53,8 +53,6 @@ impl ParticlesManager {
     }
 
     pub fn update(&mut self, dt: f32) {
-        if self.particles_info.is_empty() { return }
-
         for i in (0..self.particles_info.len()).rev() {
             let info = &mut self.particles_info[i];
             let p = &mut info.particle;
