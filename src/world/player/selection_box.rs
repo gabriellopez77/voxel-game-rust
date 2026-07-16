@@ -34,7 +34,7 @@ impl SelectionBox {
         self.material.as_mut().unwrap().destroy();
     }
 
-    pub fn update(&mut self, dt: f32, position: Option<Vec3>) {
+    pub fn update(&mut self, position: Option<Vec3>) {
         if let Some(position) = position {
             self.position = position;
             self.visible = true;

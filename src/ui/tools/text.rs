@@ -52,9 +52,7 @@ impl UiElement for Text {
     }
 
     fn get_size(&self) -> Vec2 { self.size }
-    fn set_size(&mut self, x: f32, y: f32) {
-
-    }
+    fn set_size(&mut self, x: f32, y: f32) {}
 }
 
 impl Text {
@@ -172,7 +170,7 @@ impl Text {
         self.pos_modified = false;
 
         let font_info = self.font_info.as_ref().expect("Text font not set!");
-        let pos = self.get_pos();
+        let pos = Vec2i16::new(self.get_pos().x as i16, self.get_pos().y as i16);
 
         for ch in self.text.get().chars() {
             // breakline
@@ -186,7 +184,7 @@ impl Text {
             let char_info = font_info.get_info(ch);
 
             let mut text_vertices = TextVertices {
-                position: Vec2i16::new(pos.x as i16, pos.y as i16),
+                position: pos,
                 size: char_info.size,
                 uv: char_info.uv,
                 advance: Vec2i16::new(advance_x, advance_y - 8),
@@ -195,11 +193,11 @@ impl Text {
 
             // first, add to buffer the shadow character
             if self.shadow {
-                text_vertices.position = Vec2i16::new((pos.x + 1.0) as i16, (pos.y + 1.0) as i16);
+                text_vertices.position = pos + 1;
                 text_vertices.color = self.color * Color3b::from1(64);
                 self.buffer.push(text_vertices);
 
-                text_vertices.position = Vec2i16::new(pos.x as i16, pos.y as i16);
+                text_vertices.position = pos;
                 text_vertices.color = self.color;
             }
 

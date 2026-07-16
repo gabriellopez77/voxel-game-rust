@@ -91,13 +91,13 @@ impl Button {
         self.text.set_posv(temp_pos);
     }
 
-    pub fn lock(&mut self) {
-        self.locked = true;
-        self.background.color.a = 128;
-    }
+    //pub fn lock(&mut self) {
+    //    self.locked = true;
+    //    self.background.color.a = 128;
+    //}
 
-    pub fn unlock(&mut self) {
-        self.locked = false;
-        self.background.color.a = 255;
-    }
+    //pub fn unlock(&mut self) {
+    //    self.locked = false;
+    //    self.background.color.a = 255;
+    //}
 }

@@ -21,15 +21,6 @@ impl Aabb {
         z1: 1.0,
     };
 
-    pub const EMPTY: Self = Self {
-        x0: 0.0,
-        y0: 0.0,
-        z0: 0.0,
-        x1: 0.0,
-        y1: 0.0,
-        z1: 0.0,
-    };
-
     pub fn new(x0: f32, y0: f32, z0: f32, x1: f32, y1: f32, z1: f32) -> Self {
         Self {
             x0,

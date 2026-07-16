@@ -4,7 +4,7 @@ use crate::math::{Vec3i, Vec4};
 
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct Vec3 {
     pub x: f32,
     pub y: f32,

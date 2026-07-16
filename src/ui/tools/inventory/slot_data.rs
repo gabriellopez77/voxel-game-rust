@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use crate::math::Vec2;
-use crate::render::UiRenderer;
+use crate::render::{GlobalRenderer, UiRenderer};
 use crate::resources::{FontInfo, ResourceManager};
 use crate::ui::tools::{Sprite, Text, UiElement};
 use crate::world::player::player_inventory::SlotType;
@@ -85,7 +85,7 @@ impl SlotData {
         }
 
 
-        self.icon.set_texture_from_coords(ResourceManager::WORLD_TEXTURE_IDX, slot.get_item().icon);
+        self.icon.set_texture_from_coords(GlobalRenderer::WORLD_TEXTURE_IDX, slot.get_item().icon);
 
         self.last_count = slot.get_count();
     }

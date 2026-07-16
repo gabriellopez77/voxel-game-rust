@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
-use crate::{game::GameEvents, inputs::Inputs, render::{GlobalRenderer, Ubo}, resources::ResourceManager, ui::ui_manager::ScreensId, world::{Planet, Player, blocks::BlocksManager, particles::ParticlesManager, sky::Sky}};
+use crate::{game::GameEvents, inputs::Inputs, render::{GlobalRenderer}, resources::ResourceManager, ui::ui_manager::ScreensId, world::{Planet, Player, blocks::BlocksManager, particles::ParticlesManager, sky::Sky}};
+
 
 pub struct WorldUpdateArgs<'a> {
     pub events_queue: &'a mut VecDeque<GameEvents>,
@@ -54,23 +55,25 @@ impl World {
         self.particles_manager.update(dt);
     }
 
-    pub fn draw(&mut self, ubo: &mut Ubo, global_renderer: &mut GlobalRenderer) {
+    pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
+        let ubo = &mut global_renderer.global_ubo;
+
         // cam matrix
-        ubo.update("camView", self.player.camera.view_matrix.as_ptr());
-        ubo.update("camViewProj", self.player.camera.projection_view_matrix.as_ptr());
-        ubo.update("camViewNoTranslate", self.player.camera.view_no_translate_matrix.as_ptr());
-        ubo.update("camProj", self.player.camera.projection_matrix.as_ptr());
+        ubo.data.cam_view.0 = self.player.camera.view_matrix;
+        ubo.data.cam_viewproj.0 = self.player.camera.viewproj_matrix;
+        ubo.data.cam_view_no_translate.0 = self.player.camera.view_no_translate_matrix;
+        ubo.data.cam_proj.0 = self.player.camera.projection_matrix;
 
         // sky
-        ubo.update("fogDistance", &self.sky.fog_norm_distance);
-        ubo.update("fogDensity", &self.sky.fog_density);
-        ubo.update("fogEnable", &self.sky.fog_enabled);
-        ubo.update("skyColor", &self.sky.sky_color.normalized());
-        ubo.update("fogColor", &self.sky.fog_color.normalized());
-        ubo.update("cloudsColor", &self.sky.clouds_color.normalized());
+        ubo.data.fog_distance = self.sky.fog_norm_distance;
+        ubo.data.fog_density = self.sky.fog_density;
+        ubo.data.fog_enable = self.sky.fog_enabled as i32;
+        ubo.data.sky_color.0 = self.sky.sky_color.normalized();
+        ubo.data.fog_color.0 = self.sky.fog_color.normalized();
+        ubo.data.clouds_color.0 = self.sky.clouds_color.normalized();
 
         // world
-        ubo.update("renderDistance", &(self.planet.render_distance as f32));
+        ubo.data.render_distance = self.planet.render_distance as f32;
 
 
         self.sky.draw(global_renderer);
@@ -92,6 +95,7 @@ impl World {
     pub fn leave(&mut self) {
         self.player.reset();
         self.planet.cleanup();
+        self.particles_manager.reset();
     }
 
     pub fn load(&mut self) {

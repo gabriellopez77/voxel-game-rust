@@ -12,7 +12,6 @@ pub struct Color3b {
 
 impl Color3b {
     pub const ZERO: Self = Self { r: 0, g: 0, b: 0 };
-    pub const BLACK: Self = Self { r: 0, g: 0, b: 0 };
     pub const WHITE: Self = Self { r: 255, g: 255, b: 255 };
 
     pub fn new(r: u8, g: u8, b: u8) -> Self { Self { r, g, b } }

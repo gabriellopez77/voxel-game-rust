@@ -2,36 +2,27 @@
     path::PathBuf,
     collections::HashMap,
     rc::Rc,
-    cell::RefCell,
-    mem::offset_of,
     str::FromStr,
     f32,
 };
-use ash::vk;
 
 use image::DynamicImage;
-use crate::math::{Matrix4, Vec3};
-use crate::render::{ChunkVertices, CloudsVertices, DescriptorSet, GlobalRenderer, GraphicsPipeline, ParticlesVertices, PipelineSettings, SkyBodiesVertices, SpritesVertices, TextVertices, Texture, Ubo, VulkanApp};
-use crate::render::raw_buffer::BufferFlags;
-use crate::resources::{BlockItemModel, FontInfo, ShadersCompiler};
+use crate::math::Vec3;
+use crate::render::{Texture, VulkanApp};
+use crate::resources::{BlockItemModel, FontInfo};
 use crate::ui::ButtonsStyles;
 
 
 pub struct ResourceManager {
-    shader_path: String,
-    textures_path: String,
-    models_path: String,
-
-    pub global_ubo: Ubo,
+    pub shader_path: String,
+    pub textures_path: String,
+    pub models_path: String,
 
     pub world_texture: Texture,
     pub ui_sprites_texture: Texture,
     pub ui_fonts_texture: Texture,
     pub sky_bodies_texture: Texture,
 
-    pub global_descriptor: DescriptorSet,
-
-    pipelines: HashMap<&'static str, Rc<RefCell<GraphicsPipeline>>>,
     fonts: HashMap<&'static str, Rc<FontInfo>>,
     models: HashMap<String, Rc<BlockItemModel>>,
 
@@ -39,9 +30,6 @@ pub struct ResourceManager {
 }
 
 impl ResourceManager {
-    pub const WORLD_TEXTURE_IDX: u8 = 0;
-    pub const UI_SPRITES_TEXTURE_IDX: u8 = 1;
-
     pub fn new() -> Self {
         let project_path: &'static str = env!("CARGO_MANIFEST_DIR");
 
@@ -50,16 +38,12 @@ impl ResourceManager {
             textures_path: format!(r"{project_path}\assets\textures"),
             models_path: format!(r"{project_path}\assets\models"),
 
-            global_ubo: Ubo::new(),
-
             world_texture: Texture::new(),
             ui_sprites_texture: Texture::new(),
             ui_fonts_texture: Texture::new(),
             sky_bodies_texture: Texture::new(),
 
-            global_descriptor: DescriptorSet::new(),
 
-            pipelines: HashMap::new(),
             fonts: HashMap::new(),
             models: HashMap::new(),
 
@@ -67,7 +51,7 @@ impl ResourceManager {
         }
     }
 
-    pub fn start(&mut self, app: &mut VulkanApp, global_renderer: &mut GlobalRenderer) {
+    pub fn start(&mut self, app: &mut VulkanApp) {
         // read atlas and textures
         {
             let images = get_files_in_directory(&format!("{}/blocks", self.textures_path), "png");
@@ -103,150 +87,6 @@ impl ResourceManager {
 
         self.read_models();
         self.ui_buttons_styles.load_styles(&format!("{}/ui/buttons/buttons.json", self.textures_path), &self.ui_sprites_texture);
-
-
-        self.global_ubo = Ubo::new();
-        self.global_ubo.add::<Matrix4>("uiProj");
-        self.global_ubo.add::<f32>("uiPixelScale");
-        self.global_ubo.add::<Matrix4>("camProj");
-        self.global_ubo.add::<Matrix4>("camView");
-        self.global_ubo.add::<Matrix4>("camViewProj");
-        self.global_ubo.add::<Matrix4>("camViewNoTranslate");
-        self.global_ubo.add::<Vec3>("skyColor");
-        self.global_ubo.add::<Vec3>("fogColor");
-        self.global_ubo.add::<Vec3>("lightColor");
-        self.global_ubo.add::<Vec3>("darknessColor");
-        self.global_ubo.add::<Vec3>("ambientColor");
-        self.global_ubo.add::<Vec3>("cloudsColor");
-        self.global_ubo.add::<f32>("fogDistance");
-        self.global_ubo.add::<f32>("fogDensity");
-        self.global_ubo.add::<i32>("fogEnable");
-        self.global_ubo.add::<f32>("renderDistance");
-        self.global_ubo.create(app, BufferFlags::RAM | BufferFlags::DUPLICATE);
-
-
-        let used_stages_flag = vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT;
-
-        self.global_descriptor.add_indexing_textures(0, used_stages_flag, &mut [
-                &mut self.world_texture.raw_texture,
-                &mut self.ui_sprites_texture.raw_texture,
-                &mut self.ui_fonts_texture.raw_texture,
-                &mut self.sky_bodies_texture.raw_texture,
-            ])
-            .add_ubo(1, used_stages_flag, &self.global_ubo)
-            .create(app);
-
-
-        // create pipelines
-        let mut shaders_compiler = ShadersCompiler::new();
-        shaders_compiler.start(self.shader_path.clone());
-
-        {
-            let mut settings = PipelineSettings::new(app, &mut shaders_compiler, r"chunk");
-            settings.enable_blend = true;
-            settings.add_descriptor_set(&self.global_descriptor);
-            settings.vertex_info(size_of::<ChunkVertices>(), false)
-                .add_attrib(vk::Format::R32G32B32_SFLOAT, offset_of!(ChunkVertices, vertices))
-                .add_attrib(vk::Format::R32G32B32_SFLOAT, offset_of!(ChunkVertices, normal))
-                .add_attrib(vk::Format::R32G32_SFLOAT, offset_of!(ChunkVertices, uv))
-                .add_attrib(vk::Format::R8_UINT, offset_of!(ChunkVertices, flags));
-
-            self.pipelines.insert("chunks", Rc::new(RefCell::new(GraphicsPipeline::create(app, settings, global_renderer))));
-        }
-        {
-            let mut settings = PipelineSettings::new(app, &mut shaders_compiler, r"ui\sprites");
-            settings.enable_blend = true;
-            settings.enable_depth_test = false;
-            settings.add_descriptor_set(&self.global_descriptor);
-            settings.vertex_info(4 * size_of::<f32>(), false)
-                .add_attrib( vk::Format::R32G32B32A32_SFLOAT, 0);
-            settings.vertex_info(size_of::<SpritesVertices>(), true)
-                .add_attrib(vk::Format::R16G16_SINT, offset_of!(SpritesVertices, position))
-                .add_attrib(vk::Format::R16G16_SINT, offset_of!(SpritesVertices, size))
-                .add_attrib(vk::Format::R32G32B32A32_SFLOAT, offset_of!(SpritesVertices, uv))
-                .add_attrib(vk::Format::R8G8B8A8_UINT, offset_of!(SpritesVertices, color))
-                .add_attrib(vk::Format::R8_UINT, offset_of!(SpritesVertices, texture_idx));
-
-            self.pipelines.insert("ui_sprites", Rc::new(RefCell::new(GraphicsPipeline::create(app, settings, global_renderer))));
-        }
-        {
-            let mut settings = PipelineSettings::new(app, &mut shaders_compiler, r"ui\text");
-            settings.enable_blend = true;
-            settings.enable_depth_test = false;
-            settings.add_descriptor_set(&self.global_descriptor);
-            settings.vertex_info(4 * size_of::<f32>(), false)
-                .add_attrib( vk::Format::R32G32B32A32_SFLOAT, 0);
-            settings.vertex_info(size_of::<TextVertices>(), true)
-                .add_attrib(vk::Format::R16G16_SINT, offset_of!(TextVertices, position))
-                .add_attrib(vk::Format::R8G8_UINT, offset_of!(TextVertices, size))
-                .add_attrib(vk::Format::R32G32B32A32_SFLOAT, offset_of!(TextVertices, uv))
-                .add_attrib(vk::Format::R16G16_SINT, offset_of!(TextVertices, advance))
-                .add_attrib(vk::Format::R8G8B8_UINT, offset_of!(TextVertices, color));
-
-            self.pipelines.insert("ui_text", Rc::new(RefCell::new(GraphicsPipeline::create(app, settings, global_renderer))));
-        }
-        {
-            let mut settings = PipelineSettings::new(app, &mut shaders_compiler, r"clouds");
-            settings.enable_blend = true;
-            settings.add_descriptor_set(&self.global_descriptor);
-            settings.vertex_info(6 * size_of::<i8>(), false)
-               .add_attrib(vk::Format::R8G8B8_SINT, 0)
-               .add_attrib(vk::Format::R8G8B8_SINT, 3 * size_of::<i8>());
-            settings.vertex_info(size_of::<CloudsVertices>(), true)
-                .add_attrib(vk::Format::R32G32_SFLOAT, offset_of!(CloudsVertices, position))
-                .add_attrib(vk::Format::R8_UINT, offset_of!(CloudsVertices, cullface));
-
-            self.pipelines.insert("clouds", Rc::new(RefCell::new(GraphicsPipeline::create(app, settings, global_renderer))));
-        }
-        {
-            let mut settings = PipelineSettings::new(app, &mut shaders_compiler, r"skyDome");
-            settings.enable_depth_test = false;
-            settings.add_descriptor_set(&self.global_descriptor);
-            settings.vertex_info(size_of::<Vec3>(), false)
-                .add_attrib(vk::Format::R32G32B32_SFLOAT, 0);
-
-            self.pipelines.insert("skyDome", Rc::new(RefCell::new(GraphicsPipeline::create(app, settings, global_renderer))));
-        }
-        {
-            let mut settings = PipelineSettings::new(app, &mut shaders_compiler, r"selectionBox");
-            settings.enable_blend = true;
-            settings.add_descriptor_set(&self.global_descriptor);
-            settings.vertex_info(6, false)
-                .add_attrib(vk::Format::R8G8B8_SINT, 0);
-
-            self.pipelines.insert("selectionBox", Rc::new(RefCell::new(GraphicsPipeline::create(app, settings, global_renderer))));
-        }
-        {
-            let mut settings = PipelineSettings::new(app, &mut shaders_compiler, r"skyBodies");
-            settings.enable_blend = true;
-            settings.enable_depth_test = false;
-            settings.add_descriptor_set(&self.global_descriptor);
-            settings.vertex_info(5 * size_of::<f32>(), false)
-                .add_attrib(vk::Format::R32G32B32_SFLOAT, 0)
-                .add_attrib(vk::Format::R32G32_SFLOAT, 3 * size_of::<f32>());
-            settings.vertex_info(size_of::<SkyBodiesVertices>(), true)
-                .add_attrib_matrix(offset_of!(SkyBodiesVertices, matrix))
-                .add_attrib(vk::Format::R32G32B32A32_SFLOAT, offset_of!(SkyBodiesVertices, uv))
-                .add_attrib(vk::Format::R32G32B32A32_SFLOAT, offset_of!(SkyBodiesVertices, color));
-
-            self.pipelines.insert("skyBodies", Rc::new(RefCell::new(GraphicsPipeline::create(app, settings, global_renderer))));
-        }
-        {
-            let mut settings = PipelineSettings::new(app, &mut shaders_compiler, r"particles");
-            settings.enable_blend = true;
-            settings.add_descriptor_set(&self.global_descriptor);
-            settings.vertex_info(5 * size_of::<f32>(), false)
-                .add_attrib(vk::Format::R32G32B32_SFLOAT, 0)
-                .add_attrib(vk::Format::R32G32_SFLOAT, 3 * size_of::<f32>());
-            settings.vertex_info(size_of::<ParticlesVertices>(), true)
-                .add_attrib(vk::Format::R32G32B32A32_SFLOAT, offset_of!(ParticlesVertices, position))
-                .add_attrib(vk::Format::R32G32B32A32_SFLOAT, offset_of!(ParticlesVertices, scale))
-                .add_attrib(vk::Format::R32G32B32A32_SFLOAT, offset_of!(ParticlesVertices, rotation))
-                .add_attrib(vk::Format::R32G32B32A32_SFLOAT, offset_of!(ParticlesVertices, uv))
-                .add_attrib(vk::Format::R8_UINT, offset_of!(ParticlesVertices, texture_idx));
-
-            self.pipelines.insert("particles", Rc::new(RefCell::new(GraphicsPipeline::create(app, settings, global_renderer))));
-        }
     }
 
     pub fn cleanup(&mut self, app: &mut VulkanApp) {
@@ -254,17 +94,6 @@ impl ResourceManager {
         self.ui_sprites_texture.destroy(app);
         self.ui_fonts_texture.destroy(app);
         self.sky_bodies_texture.destroy(app);
-
-        self.global_descriptor.destroy(app);
-        self.global_ubo.destroy(app);
-    }
-
-    pub fn get_pipeline(&self, name: &str) -> Rc<RefCell<GraphicsPipeline>> {
-        if let Some(pipeline) = self.pipelines.get(name) {
-            return pipeline.clone()
-        }
-
-        panic!("Resource not found: {}", name);
     }
 
     pub fn get_font(&self, name: &str) -> Rc<FontInfo> {

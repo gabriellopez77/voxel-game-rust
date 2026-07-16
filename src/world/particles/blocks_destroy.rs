@@ -1,4 +1,4 @@
-use crate::{math::{Vec2, Vec3}, world::particles::ParticleFunc};
+use crate::{math::Vec3, world::particles::ParticleFunc};
 
 
 pub struct BlockDestroy {}

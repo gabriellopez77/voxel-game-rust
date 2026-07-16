@@ -1,7 +1,6 @@
 use std::array;
-use std::fmt::Write;
 
-use crate::{math, ui::{ScreenBase, ScreenResizeArgs, ScreenStartArgs, tools::{Slice, Sprite, UiElement, inventory::SlotData}}, world::player::{PlayerInventory, player_inventory::SlotType}};
+use crate::{ui::{ScreenBase, ScreenResizeArgs, ScreenStartArgs, tools::{Slice, Sprite, UiElement, inventory::SlotData}}, world::player::{PlayerInventory, player_inventory::SlotType}};
 use crate::render::UiRenderer;
 use crate::ui::ScreenUpdateArgs;
 use crate::ui::tools::elements_grid::Alignment;
@@ -16,9 +15,6 @@ pub struct HudScreen {
     hotbar_slots: [SlotData; PlayerInventory::HOTBAR_SLOTS_COUNT],
     hotbar_slots_background: [Slice; PlayerInventory::HOTBAR_SLOTS_COUNT],
     hotbar_grid: ElementsGrid,
-
-    fps_text: Text,
-    player_block_pos_text: Text,
 }
 
 impl ScreenBase for HudScreen {
@@ -48,11 +44,6 @@ impl ScreenBase for HudScreen {
             self.hotbar_grid.add(slot);
         }
 
-        self.fps_text.set_font(args.resources.get_font("default"));
-        self.fps_text.set_pos(10.0, 10.0);
-
-        self.player_block_pos_text.set_font(args.resources.get_font("default"));
-        self.player_block_pos_text.set_pos(10.0, 19.0);
 
         self.hotbar_grid.update();
     }
@@ -80,14 +71,6 @@ impl ScreenBase for HudScreen {
         for slot in &mut self.hotbar_slots {
             slot.update(player_inventory);
         }
-
-
-        self.fps_text.set_text_delayed(args.dt, 0.5, |text| { write!(text, "Fps: {}", (1.0 / args.dt) as i32) });
-
-        self.player_block_pos_text.set_text_delayed(args.dt, 0.5, |text| {
-            let block_pos = math::get_global_block(args.game.world.player.get_pos());
-            write!(text, "Block Pos: {}, {}, {}", block_pos.x, block_pos.y, block_pos.z)
-        });
     }
 
     fn draw(&mut self, renderer: &mut UiRenderer) {
@@ -103,10 +86,6 @@ impl ScreenBase for HudScreen {
         for slot in &mut self.hotbar_slots {
             slot.draw(renderer);
         }
-
-
-        self.fps_text.draw(renderer);
-        self.player_block_pos_text.draw(renderer);
     }
 
     fn resize(&mut self, args: &ScreenResizeArgs) {
@@ -136,11 +115,6 @@ impl HudScreen {
             hotbar_slots: array::from_fn(|_| SlotData::new()),
             hotbar_slots_background: array::from_fn(|_| Slice::new()),
             hotbar_grid: ElementsGrid::new(Alignment::Horizontal, 9, 2.0),
-
-            fps_text: Text::new(),
-            player_block_pos_text: Text::new(),
-
-            //delay: 0.0,
         }
     }
 }

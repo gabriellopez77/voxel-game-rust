@@ -156,7 +156,7 @@ impl WorldGen {
 //
                 // Ground
                 else {
-                    if (surface_height > 80) {
+                    if surface_height > 80 {
                         if (y == surface_height || y == surface_height - 1 || y == surface_height - 2) && y > 100 {
                             if self.chance(0, 100) < 2 {
                                 data.set_block_index(current_block_index, blocks_manager.ice_block.get_properties(0))

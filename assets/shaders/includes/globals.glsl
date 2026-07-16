@@ -10,12 +10,12 @@ layout(std140, set = 0, binding = 1) readonly uniform sla {
     mat4 viewNoTranslation;
 
     // world
-    vec3 skyColor;
-    vec3 fogColor;
-    vec3 lightColor;
-    vec3 darknessColor;
-    vec3 ambientColor;
-    vec3 cloudsColor;
+    vec4 skyColor;
+    vec4 fogColor;
+    vec4 lightColor;
+    vec4 darknessColor;
+    vec4 ambientColor;
+    vec4 cloudsColor;
     float fogDistance;
     float fogDensity;
     int fogEnable;

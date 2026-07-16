@@ -1,26 +1,23 @@
-﻿use std::array;
-use std::collections::HashSet;
+﻿use std::collections::HashSet;
 use std::ffi::CStr;
 use ash::{vk, khr::surface};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
-use crate::resources::BufferArena;
-use crate::resources::buffer_arena::RangeInfo;
 
 use super::swapchain_info::SwapChainInfo;
 use super::vkutl;
 
-struct BufferDuplacteUpdateInfo {
-    buffers: [vk::Buffer; vkutl::FRAMES_COUNT],
-    can_free: [bool; vkutl::FRAMES_COUNT],
-    need_update: [bool; vkutl::FRAMES_COUNT],
-    ranges: [RangeInfo; vkutl::FRAMES_COUNT],
-}
-
-impl BufferDuplacteUpdateInfo {
-    pub fn get_info(&self, frame: usize) -> (vk::Buffer, bool, bool) {
-        (self.buffers[frame], self.can_free[frame], self.need_update[frame])
-    }
-}
+//struct BufferDuplacteUpdateInfo {
+//    buffers: [vk::Buffer; vkutl::FRAMES_COUNT],
+//    can_free: [bool; vkutl::FRAMES_COUNT],
+//    need_update: [bool; vkutl::FRAMES_COUNT],
+//    ranges: [RangeInfo; vkutl::FRAMES_COUNT],
+//}
+//
+//impl BufferDuplacteUpdateInfo {
+//    pub fn get_info(&self, frame: usize) -> (vk::Buffer, bool, bool) {
+//        (self.buffers[frame], self.can_free[frame], self.need_update[frame])
+//    }
+//}
 
 #[derive(Clone, Copy)]
 enum GarbageType {
@@ -155,7 +152,7 @@ impl VulkanApp {
         }
     }
 
-    pub fn update_buffer(&mut self, buffers: [vk::Buffer; vkutl::FRAMES_COUNT], data: *const u8, size: usize, offset: usize) {
+    //pub fn update_buffer(&mut self, buffers: [vk::Buffer; vkutl::FRAMES_COUNT], data: *const u8, size: usize, offset: usize) {
         //let range = self.global_staging_buffer_arena[self.frame_index].find_range(size as u32).expect("Arena out of memory!");
 
         //let mut info = BufferDuplacteUpdateInfo {
@@ -170,7 +167,7 @@ impl VulkanApp {
         //info.ranges[self.frame_index] = range;
 
         //self.updates_list.push(info);
-    }
+    //}
 
     pub fn get_current_command_buffer(&self) -> vk::CommandBuffer {
         self.graphics_command_buffers[self.frame_index]

@@ -1,13 +1,17 @@
 use std::collections::VecDeque;
 use std::fmt::Write;
 
-use crate::math::{Color3b, Color4b, KeyFrame};
+use crate::math::{self, Color3b, Color4b, KeyFrame};
 use crate::render::UiRenderer;
 use crate::ui::tools::{Slice, Sprite, Text, UiElement};
 use crate::ui::{ScreenBase, ScreenResizeArgs, ScreenStartArgs, ScreenUpdateArgs};
 
 
 pub struct DebugScreen {
+    fps_text: Text,
+    player_block_pos_text: Text,
+
+    // ms graph
     min_ms_text: Text,
     avg_ms_text: Text,
     max_ms_text: Text,
@@ -18,10 +22,20 @@ pub struct DebugScreen {
 
     fps_graphic_gradient: KeyFrame<Color3b>,
     fps_graphic_lines: VecDeque<(f32, Sprite)>,
+
+
+    in_world: bool,
 }
 
 impl ScreenBase for DebugScreen {
     fn start(&mut self, args: &ScreenStartArgs) {
+        self.fps_text.set_font(args.resources.get_font("default"));
+        self.fps_text.set_pos(10.0, 10.0);
+
+        self.player_block_pos_text.set_font(args.resources.get_font("default"));
+        self.player_block_pos_text.set_pos(10.0, 19.0);
+
+
         self.min_ms_text.set_font(args.resources.get_font("default"));
         self.avg_ms_text.set_font(args.resources.get_font("default"));
         self.max_ms_text.set_font(args.resources.get_font("default"));
@@ -47,6 +61,18 @@ impl ScreenBase for DebugScreen {
     }
 
     fn update(&mut self, args: &mut ScreenUpdateArgs) {
+        self.in_world = args.game.is_in_world();
+
+        if self.in_world {
+            self.player_block_pos_text.set_text_delayed(args.dt, 0.5, |text| {
+                let block_pos = math::get_global_block(args.game.world.player.get_pos());
+                write!(text, "Block Pos: {}, {}, {}", block_pos.x, block_pos.y, block_pos.z)
+            });
+        }
+
+        self.fps_text.set_text_delayed(args.dt, 0.5, |text| { write!(text, "Fps: {}", (1.0 / args.dt) as i32) });
+
+
         if self.fps_graphic_lines.len() > 240 {
             self.fps_graphic_lines.pop_front();
         }
@@ -105,6 +131,13 @@ impl ScreenBase for DebugScreen {
     }
 
     fn draw(&mut self, renderer: &mut UiRenderer) {
+        if self.in_world {
+            self.player_block_pos_text.draw(renderer);
+        }
+
+        self.fps_text.draw(renderer);
+
+
         self.background.draw(renderer);
 
         for (_, line) in &mut self.fps_graphic_lines {
@@ -129,6 +162,10 @@ impl ScreenBase for DebugScreen {
 impl DebugScreen {
     pub fn new() -> Self {
         Self {
+            fps_text: Text::new(),
+            player_block_pos_text: Text::new(),
+
+
             min_ms_text: Text::new(),
             avg_ms_text: Text::new(),
             max_ms_text: Text::new(),
@@ -146,6 +183,8 @@ impl DebugScreen {
             }),
 
             fps_graphic_lines: VecDeque::with_capacity(240),
+
+            in_world: false,
         }
     }
 }

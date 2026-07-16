@@ -5,7 +5,7 @@ use crate::math::{Vec3, Vec3i, self};
 
 use crate::render::{ChunkRenderer, ChunkVertices, GlobalRenderer};
 use crate::resources::Worker;
-use crate::utils::{NullSafePtr, ObjectPool, SafePtr};
+use crate::utils::{NullSafePtr, ObjectPool};
 use crate::world::Aabb;
 use crate::world::blocks::BlocksManager;
 use crate::world::chunk::{ChunkData, ChunkMeshResult, NeighborChunks};
@@ -87,7 +87,7 @@ impl Planet {
     }
 
     pub fn cleanup(&mut self) {
-        for (key, chunk) in &mut self.chunks {
+        for (_, chunk) in &mut self.chunks {
             if let Some(chunk) = chunk {
                 chunk.borrow_mut().erase();
             }

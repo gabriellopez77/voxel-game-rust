@@ -8,8 +8,8 @@ use super::{vkutl, VulkanApp};
 
 
 pub struct PipelineSettings {
-    pub vertex_shader_module: vk::ShaderModule,
-    pub fragment_shader_module: vk::ShaderModule,
+    pub vertex_shader_path: String,
+    pub fragment_shader_path: String,
 
     //pub dynamic_states: Option<&'a [vk::DynamicState]>,
 
@@ -29,16 +29,13 @@ pub struct PipelineSettings {
 }
 
 impl PipelineSettings {
-    pub fn new(app: &VulkanApp, compiler: &mut ShadersCompiler, name: &'static str) -> Self {
-        let ver_full_path = format!("{name}.vsh");
-        let fragt_full_path = format!("{name}.fsh");
-
-        let vert_module = Self::compile_shader(app, compiler, shaderc::ShaderKind::Vertex, &ver_full_path);
-        let frag_module = Self::compile_shader(app, compiler, shaderc::ShaderKind::Fragment, &fragt_full_path);
+    pub fn new(name: &'static str) -> Self {
+        let vert_full_path = format!("{name}.vsh");
+        let frag_full_path = format!("{name}.fsh");
 
         Self {
-            vertex_shader_module: vert_module,
-            fragment_shader_module: frag_module,
+            vertex_shader_path: vert_full_path,
+            fragment_shader_path: frag_full_path,
 
             //dynamic_states: None,
 
@@ -58,18 +55,7 @@ impl PipelineSettings {
         }
     }
 
-    fn compile_shader(app: &VulkanApp, compiler: &mut ShadersCompiler, kind: shaderc::ShaderKind, path: &str) -> vk::ShaderModule {
-        let binary_code = compiler.compile(path, kind);
 
-        let mut module_info = vk::ShaderModuleCreateInfo::default();
-        module_info.p_code = binary_code.as_ptr() as _;
-        module_info.code_size = binary_code.len() as _;
-
-        return unsafe {
-            app.ash_device.create_shader_module(&module_info, None)
-                .expect("Failed to create shader module!")
-        };
-    }
 
     pub fn vertex_info(&mut self, stride: usize, is_instance: bool) -> &mut Self {
         let binding = self.current_binding;

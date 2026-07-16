@@ -11,7 +11,7 @@ float calculateFog(vec3 viewSpace)
 
 void applyFog(inout vec3 fragColor, float factor)
 {
-    fragColor = mix(globalUbo.fogColor, fragColor, factor);
+    fragColor = mix(globalUbo.fogColor.rgb, fragColor, factor);
 }
 
 float calculateShading(vec3 normal)

@@ -123,29 +123,32 @@ pub unsafe fn begin_single_time_command(app: &VulkanApp, command_pool: vk::Comma
         .command_buffer_count(1)
         .command_pool(command_pool);
 
-    let command_buffer = app.ash_device.allocate_command_buffers(&alloc_info).expect("Failed to allocate command buffer!");
+    let command_buffer = unsafe {
+        app.ash_device.allocate_command_buffers(&alloc_info).expect("Failed to allocate command buffer!")
+    };
 
     let begin_info= vk::CommandBufferBeginInfo::default()
         .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
 
-    app.ash_device.begin_command_buffer(command_buffer[0], &begin_info).unwrap();
+    unsafe { app.ash_device.begin_command_buffer(command_buffer[0], &begin_info).unwrap() };
 
     return command_buffer[0];
 }
 
-pub unsafe fn end_single_time_command(app: &VulkanApp, command_buffer: vk::CommandBuffer,
-                                      command_pool: vk::CommandPool, queue: vk::Queue) {
-    app.ash_device.end_command_buffer(command_buffer).unwrap();
+pub unsafe fn end_single_time_command(app: &VulkanApp, cmd: vk::CommandBuffer, cmd_pool: vk::CommandPool, queue: vk::Queue) {
+    unsafe { app.ash_device.end_command_buffer(cmd).unwrap() };
 
-    let command_buffer = [command_buffer];
+    let command_buffer = [cmd];
 
     let submit_info = vk::SubmitInfo::default()
         .command_buffers(&command_buffer);
 
-    app.ash_device.queue_submit(queue, &[submit_info], vk::Fence::null()).expect("Failed to submit command buffer!");
-    app.ash_device.queue_wait_idle(queue).unwrap();
+    unsafe {
+        app.ash_device.queue_submit(queue, &[submit_info], vk::Fence::null()).expect("Failed to submit command buffer!");
+        app.ash_device.queue_wait_idle(queue).unwrap();
 
-    app.ash_device.free_command_buffers(command_pool, &command_buffer);
+        app.ash_device.free_command_buffers(cmd_pool, &command_buffer);
+    }
 }
 
 pub fn transition_image_layout(app: &VulkanApp, image: vk::Image, old_layout: vk::ImageLayout, new_layout: vk::ImageLayout) {

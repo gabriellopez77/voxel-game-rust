@@ -11,8 +11,8 @@ void main()
 {
     const float DISTANCE = globalUbo.renderDistance / 8.f;
 
-    out_color.rgb = mix(globalUbo.fogColor, globalUbo.skyColor, Factor);
-    out_color.rgb = mix(globalUbo.skyColor, out_color.rgb, clamp(pow(1.f - Factor, DISTANCE), -1.f, 1.f));
+    out_color.rgb = mix(globalUbo.fogColor.rgb, globalUbo.skyColor.rgb, Factor);
+    out_color.rgb = mix(globalUbo.skyColor.rgb, out_color.rgb, clamp(pow(1.f - Factor, DISTANCE), -1.f, 1.f));
 
     out_color.a = 1.f;
 }

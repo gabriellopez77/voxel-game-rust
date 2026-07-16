@@ -183,9 +183,9 @@ impl DescriptorSet {
         self
     }
 
-    pub fn add_ubo(&mut self, binding: u32, stage: vk::ShaderStageFlags, ubo: &Ubo) -> &mut Self {
+    pub fn add_ubo(&mut self, binding: u32, stage: vk::ShaderStageFlags, buffers: [vk::Buffer; vkutl::FRAMES_COUNT]) -> &mut Self {
         let layout = LayoutInfo {
-            layout_info: LayoutInfos::Ubo(ubo.buffer.get_all_buffers()),
+            layout_info: LayoutInfos::Ubo(buffers),
 
             binding,
             descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,

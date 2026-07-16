@@ -62,8 +62,8 @@ impl Game {
     }
 
     pub fn start(&mut self, app: &mut VulkanApp) {
-        self.resources_manager.start(app, &mut self.global_renderer);
-        self.global_renderer.start(&self.resources_manager);
+        self.resources_manager.start(app);
+        self.global_renderer.start(&mut self.resources_manager);
 
         self.ui_manager.clone().borrow_mut().start(self);
         self.add_event(GameEvents::ChangeScreen(ScreensId::StartScreen));
@@ -129,16 +129,16 @@ impl Game {
         self.global_renderer.begin();
 
         // update ubo
-        let ubo = &mut self.resources_manager.global_ubo;
+        let ubo = &mut self.global_renderer.global_ubo;
 
         // ui
-        ubo.update("uiProj", self.ui_manager.borrow().projection.as_ptr());
-        ubo.update("uiPixelScale", &self.ui_manager.borrow().pixel_scale);
-
+        ubo.data.ui_proj.0 = self.ui_manager.borrow().projection;
+        ubo.data.ui_pixel_scale = self.ui_manager.borrow().pixel_scale;
+        ubo.flush_all_data();
 
 
         if self.in_world {
-            self.world.draw(ubo, &mut self.global_renderer);
+            self.world.draw(&mut self.global_renderer);
         }
 
         self.ui_manager.borrow_mut().draw(&mut self.global_renderer);
@@ -151,6 +151,7 @@ impl Game {
 
         self.ui_manager.borrow_mut().cleanup();
         self.resources_manager.cleanup(app);
+        self.global_renderer.cleanup();
     }
 
     pub fn resize(&mut self, width: f32, height: f32) {

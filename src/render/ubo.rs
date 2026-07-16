@@ -13,8 +13,8 @@ struct OffsetData {
     size: u64,
 }
 
-pub struct Ubo {
-    pub size: u64,
+pub struct Ubo<T: Copy + Clone + Default> {
+    pub data: T,
 
     pub buffer: RawBuffer,
 
@@ -24,10 +24,10 @@ pub struct Ubo {
     app: NullSafePtr<VulkanApp>
 }
 
-impl Ubo {
+impl<T: Copy + Clone + Default> Ubo<T> {
     pub fn new() -> Self {
         Self {
-            size: 0,
+            data: T::default(),
 
             buffer: RawBuffer::new(),
 
@@ -38,35 +38,10 @@ impl Ubo {
         }
     }
 
-    pub fn add<T>(&mut self, name: &'static str) {
-        let size = size_of::<T>() as u64;
-
-        // align size to opengl memory layout specification
-        let alignment = match size {
-            1..=4 => 4,
-            5..=8 => 8,
-            12..=16 => 16,
-            64 => 16,
-            _ => panic!("Ubo size not supported: {size}"),
-        };
-
-        let offset = Self::align_up(self.size, alignment);
-        self.size = offset + size;
-        self.last_field_size = size;
-
-        // fits int, bool or float in last vec3's padding
-        if self.last_field_size == 12 && size == 4 {
-            self.offsets.insert(name, OffsetData { offset: self.size - 4, size });
-        }
-        else {
-            self.offsets.insert(name, OffsetData { offset, size });
-        }
-    }
-
     pub fn create(&mut self, app: &mut VulkanApp, flags: BufferFlags) {
         debug_assert!(flags.contains(BufferFlags::DUPLICATE), "Ubo buffer need DUPLICATE");
 
-        self.buffer.create(app, self.size, std::ptr::null(), vk::BufferUsageFlags::UNIFORM_BUFFER, flags);
+        self.buffer.create(app, size_of::<T>() as u64, std::ptr::null(), vk::BufferUsageFlags::UNIFORM_BUFFER, flags);
 
         self.app = NullSafePtr::new(app);
     }
@@ -75,10 +50,9 @@ impl Ubo {
         self.buffer.destroy(app);
     }
 
-    pub fn update<T>(&self, name: &'static str, data: *const T) {
-        let offset_data = self.offsets[name];
-
-        self.buffer.update(&self.app, offset_data.size, offset_data.offset as usize, data as _);
+    pub fn flush_all_data(&mut self) {
+        let ptr: *const T = &self.data;
+        self.buffer.update(&self.app, size_of::<T>() as u64, 0, ptr as _);
     }
 
     fn align_up(value: u64, alignment: u64) -> u64 {

@@ -4,7 +4,7 @@ use std::ops::Mul;
 
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct Matrix4 {
     pub values: [Vec4; 4]
 }

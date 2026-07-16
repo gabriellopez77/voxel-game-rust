@@ -73,6 +73,36 @@ pub const CUBE_VERTICES: [i8; 144] = [
     1, 1, 0,   1, 0, 0,
 ];
 
+#[repr(C, align(16))]
+#[derive(Copy, Clone, Default)]
+pub struct AlignedMatrix(pub Matrix4);
+
+#[repr(C, align(16))]
+#[derive(Copy, Clone, Default)]
+pub struct AlignedVec3(pub Vec3);
+
+#[repr(C)]
+#[derive(Copy, Clone, Default)]
+pub struct GlobalUboData {
+    pub ui_proj: AlignedMatrix,
+    pub ui_pixel_scale: f32,
+    pub cam_proj: AlignedMatrix,
+    pub cam_view: AlignedMatrix,
+    pub cam_viewproj: AlignedMatrix,
+    pub cam_view_no_translate: AlignedMatrix,
+    pub sky_color: AlignedVec3,
+    pub fog_color: AlignedVec3,
+    pub light_color: AlignedVec3,
+    pub darkness_color: AlignedVec3,
+    pub ambient_color: AlignedVec3,
+    pub clouds_color: AlignedVec3,
+    pub fog_distance: f32,
+    pub fog_density: f32,
+    pub fog_enable: i32,
+    pub render_distance: f32,
+}
+
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct SpritesVertices {

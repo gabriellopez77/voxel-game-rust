@@ -84,7 +84,7 @@ impl Player {
 
 
         let ray_pos = self.update_ray_casting(planet, particles_manager, args.inputs);
-        self.selection_box.update(args.dt, ray_pos);
+        self.selection_box.update(ray_pos);
 
         if args.inputs.key_pressed(inputs::Keys::E) {
             args.events_queue.push_back(GameEvents::ChangeScreen(ScreensId::InventoryScreen));

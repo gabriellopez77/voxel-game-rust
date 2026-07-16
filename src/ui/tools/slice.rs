@@ -1,5 +1,5 @@
 use crate::{
-    math::{Color4b, Vec2, Vec2i16}, render::{SpritesVertices, Texture, UiRenderer}, resources::{ResourceManager, TexCoords}, ui::tools::UiElement
+    math::{Color4b, Vec2, Vec2i16}, render::{GlobalRenderer, SpritesVertices, Texture, UiRenderer}, resources::{ResourceManager, TexCoords}, ui::tools::UiElement
 };
 
 
@@ -72,7 +72,7 @@ impl Slice {
 
     pub fn set_texture_from_coords(&mut self, coords: TexCoords, corner: u8, corner_norm: f32) {
         self.corner = corner;
-        self.texture_idx = ResourceManager::UI_SPRITES_TEXTURE_IDX;
+        self.texture_idx = GlobalRenderer::UI_SPRITES_TEXTURE_IDX;
 
         let cx = corner_norm;
         let cy = corner_norm;

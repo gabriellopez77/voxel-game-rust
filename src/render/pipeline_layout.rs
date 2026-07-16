@@ -59,6 +59,7 @@ impl PipelineLayout {
             return;
         }
 
+        // every pipelines layouts support push constants
         let push_constant_range = [vk::PushConstantRange {
             stage_flags: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
             offset: 0,

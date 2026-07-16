@@ -1,7 +1,5 @@
 ﻿use crate::math::{self, Matrix4, Vec2, Vec3, Vec3i};
 
-use crate::inputs;
-use crate::world::blocks::BlocksManager;
 use crate::world::player::player::PlayerStates;
 use crate::world::{Aabb, Chunk, Planet};
 
@@ -27,7 +25,7 @@ pub struct Camera {
 
     pub view_matrix: Matrix4,
     pub projection_matrix: Matrix4,
-    pub projection_view_matrix: Matrix4,
+    pub viewproj_matrix: Matrix4,
     pub view_no_translate_matrix: Matrix4,
 
     frustum_planes: [Plane; 6],
@@ -50,7 +48,7 @@ impl Camera {
 
             view_matrix: Matrix4::ZERO,
             projection_matrix: Matrix4::ZERO,
-            projection_view_matrix: Matrix4::ZERO,
+            viewproj_matrix: Matrix4::ZERO,
             view_no_translate_matrix: Matrix4::ZERO,
 
             frustum_planes: [Plane{normal: Vec3::ZERO, d: 0.0}; 6],
@@ -99,7 +97,7 @@ impl Camera {
         if !self.view_changed { return }
 
         self.view_matrix = Matrix4::look_at(self.position, self.position + self.direction);
-        self.projection_view_matrix = self.projection_matrix * self.view_matrix;
+        self.viewproj_matrix = self.projection_matrix * self.view_matrix;
         self.view_no_translate_matrix = self.view_matrix.remove_translation();
         self.update_frustum_planes();
     }
@@ -156,10 +154,10 @@ impl Camera {
     }
 
     fn update_frustum_planes(&mut self) {
-        let row0 = self.projection_view_matrix.get_row0();
-        let row1 = self.projection_view_matrix.get_row1();
-        let row2 = self.projection_view_matrix.get_row2();
-        let row3 = self.projection_view_matrix.get_row3();
+        let row0 = self.viewproj_matrix.get_row0();
+        let row1 = self.viewproj_matrix.get_row1();
+        let row2 = self.viewproj_matrix.get_row2();
+        let row3 = self.viewproj_matrix.get_row3();
 
         // left
         let left = row3 + row0;

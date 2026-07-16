@@ -14,6 +14,6 @@ void main()
 {
     float shading = calculateShading2(Normal);
 
-    FragColor = vec4(globalUbo.cloudsColor * shading, 0.8f);
+    FragColor = vec4(globalUbo.cloudsColor.rgb * shading, 0.8f);
     applyFog(FragColor.rgb, FogFactor);
 }

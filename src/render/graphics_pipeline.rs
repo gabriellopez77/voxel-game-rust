@@ -1,5 +1,6 @@
 ﻿use ash::vk;
-use crate::render::{GlobalRenderer, PipelineLayout};
+use crate::render::PipelineLayout;
+use crate::resources::ShadersCompiler;
 
 use super::vulkan_app::VulkanApp;
 use super::pipeline_settings::PipelineSettings;
@@ -11,22 +12,23 @@ pub struct GraphicsPipeline {
 }
 
 impl GraphicsPipeline {
-    pub fn create(app: &VulkanApp, mut settings: PipelineSettings, global_render: &mut GlobalRenderer) -> Self {
+    pub fn create(app: &VulkanApp, compiler: &mut ShadersCompiler, settings: PipelineSettings) -> Self {
         const DYNAMIC_STATES: [vk::DynamicState; 2] = [ vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR ];
+
+        let vertex_module = Self::compile_shader(app, compiler, shaderc::ShaderKind::Vertex, &settings.vertex_shader_path);
+        let fragment_module = Self::compile_shader(app, compiler, shaderc::ShaderKind::Fragment, &settings.fragment_shader_path);
 
         let shader_stages = [
             vk::PipelineShaderStageCreateInfo::default()
                 .stage(vk::ShaderStageFlags::VERTEX)
-                .module(settings.vertex_shader_module)
+                .module(vertex_module)
                 .name(c"main"),
 
             vk::PipelineShaderStageCreateInfo::default()
                 .stage(vk::ShaderStageFlags::FRAGMENT)
-                .module(settings.fragment_shader_module)
+                .module(fragment_module)
                 .name(c"main")
         ];
-
-        global_render.create_pipeline_layout(&mut settings.pipeline_layout);
 
 
         let bindings = settings.get_bindings();
@@ -107,8 +109,8 @@ impl GraphicsPipeline {
 
         // destroy shaders modules
         unsafe {
-            app.ash_device.destroy_shader_module(settings.vertex_shader_module, None);
-            app.ash_device.destroy_shader_module(settings.fragment_shader_module, None);
+            app.ash_device.destroy_shader_module(vertex_module, None);
+            app.ash_device.destroy_shader_module(fragment_module, None);
         }
 
         Self {
@@ -119,5 +121,18 @@ impl GraphicsPipeline {
 
     pub fn get_pipeline(&self) -> vk::Pipeline {
         self.pipeline
+    }
+
+    fn compile_shader(app: &VulkanApp, compiler: &mut ShadersCompiler, kind: shaderc::ShaderKind, path: &str) -> vk::ShaderModule {
+        let binary_code = compiler.compile(path, kind);
+
+        let mut module_info = vk::ShaderModuleCreateInfo::default();
+        module_info.p_code = binary_code.as_ptr() as _;
+        module_info.code_size = binary_code.len() as _;
+
+        return unsafe {
+            app.ash_device.create_shader_module(&module_info, None)
+                .expect("Failed to create shader module!")
+        };
     }
 }

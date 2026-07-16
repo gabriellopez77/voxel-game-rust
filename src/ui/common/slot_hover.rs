@@ -1,4 +1,4 @@
-use crate::{render::UiRenderer, ui::{ScreenStartArgs, ScreenUpdateArgs, tools::{Slice, UiElement}}};
+use crate::{render::UiRenderer, ui::{ScreenStartArgs, tools::{Slice, UiElement}}};
 
 
 pub struct SlotHover {
@@ -16,10 +16,6 @@ impl SlotHover {
 
     pub fn start(&mut self, args: &ScreenStartArgs) {
         self.background.set_texture(&args.resources.ui_sprites_texture, "inventory_slot_hover", 2);
-    }
-
-    pub fn update(&mut self, args: &mut ScreenUpdateArgs) {
-
     }
 
     pub fn draw(&mut self, renderer: &mut UiRenderer) {

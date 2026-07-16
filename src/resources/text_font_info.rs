@@ -87,10 +87,6 @@ impl FontInfo {
     pub fn get_info(&self, ch: char) -> &CharacterInfo {
         self.characters_info.get(&ch).unwrap_or(&self.unknown_character_info)
     }
-
-    pub fn get_unkown_char_info(&self) -> &CharacterInfo {
-        &self.unknown_character_info
-    }
 }
 
 #[derive(Copy, Clone)]

@@ -87,7 +87,7 @@ impl ParticlesManager {
                 scale: Vec3::new(0.0, p.size.y, p.size.x),
                 rotation: rot,
                 uv: p.uv,
-                texture_idx: ResourceManager::WORLD_TEXTURE_IDX,
+                texture_idx: GlobalRenderer::WORLD_TEXTURE_IDX,
             })
         }
 
@@ -104,7 +104,7 @@ impl ParticlesManager {
 
                 for _ in 0..20 {
                     let mut p = ParticleBase::new();
-                    p.life = self.rand.random_range(0.4..2.4);
+                    p.life = self.rand.random_range(0.4..1.5);
                     p.size = Vec2::from1(self.rand.random_range(0.1..=0.2));
 
                     let tex_size = self.resources.world_texture.get_atlas_tex_size(block_properties.base_properties.internal_name);
@@ -125,8 +125,7 @@ impl ParticlesManager {
                         self.rand.random_range(0.0..=(1.0 - (p.size.x / 2.0))),
                     );
 
-                    p.velocity = ((block_pos + rand_pos) - (block_pos + 0.5)).normalized() * self.rand.random_range(1.0..6.0);
-                    p.velocity.y = p.velocity.y.abs();
+                    p.velocity = ((block_pos + rand_pos) - (block_pos + 0.5)).normalized() * 4.0;
 
                     func.start(&mut p, block_pos + rand_pos);
                     self.add(func, p);
@@ -137,6 +136,10 @@ impl ParticlesManager {
 
     pub fn cleanup(&mut self) {
         self.material.as_mut().unwrap().destroy();
+    }
+
+    pub fn reset(&mut self) {
+        self.particles_info.clear();
     }
 
     fn add(&mut self, func: Rc<dyn ParticleFunc>, p: ParticleBase) {

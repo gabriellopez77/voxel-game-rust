@@ -33,7 +33,7 @@ impl UiCommon {
 
     pub fn start(&mut self, args: &ScreenStartArgs) {
         self.slot_hover.start(args);
-        self.flying_item.star(args);
+        self.flying_item.start(args);
         self.slot_hover_info.start(args);
     }
 
