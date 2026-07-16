@@ -1,3 +1,5 @@
+use std::ops::Mul;
+
 use crate::math::Vec3;
 
 #[repr(C)]
@@ -15,7 +17,7 @@ impl Color3b {
 
     pub fn new(r: u8, g: u8, b: u8) -> Self { Self { r, g, b } }
     pub fn from1(value: u8) -> Self { Self { r: value, g: value, b: value } }
-    
+
     pub fn from_hex(hex: u32) -> Self {
         let r = (hex >> 16) as u8;
         let g = (hex >> 8) as u8;
@@ -32,5 +34,19 @@ impl Color3b {
 impl PartialEq for Color3b {
     fn eq(&self, other: &Self) -> bool {
         other.r == self.r && other.g == self.g && other.b == self.b
+    }
+}
+
+impl Mul for Color3b {
+    type Output = Self;
+
+    fn mul(self, other: Self) -> Self::Output {
+        let result = self.normalized() * other.normalized();
+
+        return Self::new(
+            (result.x * 255.0) as u8,
+            (result.y * 255.0) as u8,
+            (result.z * 255.0) as u8,
+        );
     }
 }

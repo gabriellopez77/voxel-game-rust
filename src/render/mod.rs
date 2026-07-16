@@ -28,7 +28,6 @@ pub use {
     material::Material,
 
     vulkan_app::VulkanApp,
-    swapchain_info::SwapChainInfo,
     pipeline_settings::PipelineSettings,
     vertices_attributes::VerticesAttributes,
     graphics_pipeline::GraphicsPipeline,

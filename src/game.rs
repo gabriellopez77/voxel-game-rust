@@ -48,6 +48,7 @@ impl Game {
         Self {
             resources_manager: ResourceManager::new(),
             global_renderer: GlobalRenderer::new(app),
+
             world: World::new(),
 
             ui_manager: Rc::new(RefCell::new(UiManager::new())),
@@ -95,6 +96,9 @@ impl Game {
             else {
                 self.ui_manager.clone().borrow_mut().return_back(self);
             }
+        }
+        if inputs.key_pressed(inputs::Keys::F3) {
+            self.ui_manager.borrow_mut().toggle_debug_screen_visibily();
         }
 
 

@@ -1,5 +1,5 @@
 use glfw::WindowEvent;
-use crate::inputs::{self, Inputs};
+use crate::inputs::Inputs;
 use crate::game::Game;
 use crate::render::VulkanApp;
 
@@ -72,18 +72,19 @@ impl Window {
             last_frame = time;
 
 
-            if vulkan_app.begin_frame(&self.window) {
-                if first_time {
-                    game.start(&mut vulkan_app);
-                    game.resize(self.width, self.height);
-                    first_time = false;
-                }
+            vulkan_app.begin_frame(&self.window);
 
-                game.update(dt, self, &inputs);
-                game.render();
-
-                vulkan_app.end_frame();
+            if first_time {
+                game.start(&mut vulkan_app);
+                game.resize(self.width, self.height);
+                first_time = false;
             }
+
+            game.update(dt, self, &inputs);
+            game.render();
+
+            vulkan_app.end_frame();
+
         }
 
         game.cleanup(&mut vulkan_app);

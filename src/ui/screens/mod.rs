@@ -4,6 +4,7 @@ pub mod pause_screen;
 pub mod loading_screen;
 pub mod inventory_screen;
 pub mod ui_common;
+pub mod debug_screen;
 
 pub use {
     start_screen::StartScreen,
@@ -12,4 +13,5 @@ pub use {
     loading_screen::LoadingScreen,
     inventory_screen::InventoryScreen,
     ui_common::UiCommon,
+    debug_screen::DebugScreen,
 };

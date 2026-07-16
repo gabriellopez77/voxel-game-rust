@@ -1,8 +1,7 @@
 use crate::game::Game;
-use crate::inputs::Inputs;
 use crate::math::Vec2;
 use crate::render::UiRenderer;
-use crate::ui::common::{FlyingItem, SlotHover};
+use crate::ui::common::{FlyingItem, SlotHover, SlotHoverInfo};
 use crate::ui::{ScreenResizeArgs, ScreenStartArgs};
 
 
@@ -15,12 +14,12 @@ pub struct UiCommonUpdateArgs<'a> {
     pub mouse_pos: Vec2,
 
     pub game: &'a mut Game,
-    pub inputs: &'a Inputs,
 }
 
 pub struct UiCommon {
     pub slot_hover: SlotHover,
     pub flying_item: FlyingItem,
+    pub slot_hover_info: SlotHoverInfo,
 }
 
 impl UiCommon {
@@ -28,12 +27,14 @@ impl UiCommon {
         Self {
             slot_hover: SlotHover::new(),
             flying_item: FlyingItem::new(),
+            slot_hover_info: SlotHoverInfo::new(),
         }
     }
 
     pub fn start(&mut self, args: &ScreenStartArgs) {
         self.slot_hover.start(args);
         self.flying_item.star(args);
+        self.slot_hover_info.start(args);
     }
 
     pub fn update(&mut self, args: &mut UiCommonUpdateArgs) {
@@ -43,6 +44,7 @@ impl UiCommon {
     pub fn draw(&mut self, renderer: &mut UiRenderer) {
         self.slot_hover.draw(renderer);
         self.flying_item.draw(renderer);
+        self.slot_hover_info.draw(renderer);
     }
 
     pub fn resize(&mut self, args: &ScreenResizeArgs) {

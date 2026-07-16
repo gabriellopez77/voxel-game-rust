@@ -18,10 +18,10 @@ impl TextTypes {
         }
     }
 
-    pub fn to_string(&self) -> &String {
+    pub fn get_string_mut(&mut self) -> &mut String {
         match self {
             TextTypes::String(value) => value,
-            _ => panic!("value is not string")
+            _ => panic!("Invalid text type!")
         }
     }
 }
@@ -32,10 +32,11 @@ pub struct Text {
     color: Color3b,
 
     text: TextTypes,
+    delay: f32,
 
     pos_modified: bool,
     color_modified: bool,
-    delay: f32,
+    shadow: bool,
 
     buffer: Vec<TextVertices>,
     font_info: Option<Rc<FontInfo>>,
@@ -64,10 +65,11 @@ impl Text {
             color: Color3b::WHITE,
 
             text: TextTypes::None,
+            delay: 0.0,
 
             pos_modified: false,
             color_modified: false,
-            delay: 0.0,
+            shadow: false,
 
             buffer: Vec::new(),
             font_info: None,
@@ -76,6 +78,10 @@ impl Text {
 
     pub fn set_font(&mut self, font: Rc<FontInfo>) {
         self.font_info = Some(font);
+    }
+
+    pub fn enable_shadow(&mut self) {
+        self.shadow = true;
     }
 
     pub fn set_color(&mut self, color: Color3b) {
@@ -88,9 +94,26 @@ impl Text {
         self.update_mesh();
     }
 
-    pub fn set_text_string(&mut self, text: String) {
-        self.text = TextTypes::String(text);
+    pub fn set_text_string(&mut self, func: impl Fn(&mut String) -> Result<(), std::fmt::Error>) {
+        if !matches!(self.text, TextTypes::String(_)) {
+            self.text = TextTypes::String(String::new());
+        }
+
+        let text = self.text.get_string_mut();
+        text.clear();
+
+        func(text).unwrap();
         self.update_mesh();
+    }
+
+    pub fn set_text_delayed(&mut self, dt: f32, delay: f32, func: impl Fn(&mut String) -> Result<(), std::fmt::Error>) {
+        self.delay -= dt;
+
+        if self.delay < 0.0 {
+            self.delay = delay;
+
+            self.set_text_string(func);
+        }
     }
 
     pub fn set_text_i32(&mut self, value: i32) {
@@ -162,7 +185,7 @@ impl Text {
 
             let char_info = font_info.get_info(ch);
 
-            let text_vertices = TextVertices{
+            let mut text_vertices = TextVertices {
                 position: Vec2i16::new(pos.x as i16, pos.y as i16),
                 size: char_info.size,
                 uv: char_info.uv,
@@ -170,7 +193,18 @@ impl Text {
                 color: self.color
             };
 
+            // first, add to buffer the shadow character
+            if self.shadow {
+                text_vertices.position = Vec2i16::new((pos.x + 1.0) as i16, (pos.y + 1.0) as i16);
+                text_vertices.color = self.color * Color3b::from1(64);
+                self.buffer.push(text_vertices);
+
+                text_vertices.position = Vec2i16::new(pos.x as i16, pos.y as i16);
+                text_vertices.color = self.color;
+            }
+
             self.buffer.push(text_vertices);
+
             advance_x += char_info.advance.x;
             max_advance_x = max_advance_x.max(advance_x);
         }

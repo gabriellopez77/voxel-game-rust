@@ -1,7 +1,6 @@
 use std::ops::BitOr;
 use ash::vk;
 use super::{vkutl, VulkanApp};
-use super::vulkan_app::GarbageType;
 
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -160,10 +159,7 @@ impl RawBuffer {
 
         // if ONCE then we do not update the buffer again, in other words, we can destroy staging buffer
         if self.flags.contains(BufferFlags::ONCE) {
-            app.add_to_bargabe_list(GarbageType::Buffer(self.staging_buffer[0], self.staging_allocation[0], true));
-
-            self.staging_buffer[0] = vk::Buffer::null();
-            self.mapped_memory[0] = std::ptr::null_mut();
+            app.destroy_buffer(&mut self.staging_buffer[0], &mut self.staging_allocation[0], &mut self.mapped_memory[0]);
         }
     }
 
@@ -206,18 +202,12 @@ impl RawBuffer {
 
         // destroy buffers
         for i in 0..vkutl::FRAMES_COUNT {
-            if self.flags.contains(BufferFlags::RAM) {
-                self.mapped_memory[i] = std::ptr::null_mut();
-            }
-
             // unmap and destroy staging buffer
             if self.flags.contains(BufferFlags::VRAM) && !self.flags.contains(BufferFlags::ONCE) {
-                app.add_to_bargabe_list(GarbageType::Buffer(self.staging_buffer[i], self.staging_allocation[i], true));
-                self.staging_buffer[i] = vk::Buffer::null();
+                app.destroy_buffer(&mut self.staging_buffer[i], &mut self.staging_allocation[i], &mut self.mapped_memory[i]);
             }
 
-            app.add_to_bargabe_list(GarbageType::Buffer(self.buffers[i], self.allocations[i], self.flags.contains(BufferFlags::RAM)));
-            self.buffers[i] = vk::Buffer::null();
+            app.destroy_buffer(&mut self.buffers[i], &mut self.allocations[i], &mut self.mapped_memory[i]);
 
             // if not DUPLICATE then we use only first buffer
             if !self.flags.contains(BufferFlags::DUPLICATE) { break }

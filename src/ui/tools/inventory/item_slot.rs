@@ -60,6 +60,8 @@ impl ItemSlot {
             if inputs.mouse_pressed(inputs::MouseButton::Left) {
                 inventory.process_left_click(self.slot_data.slot_index, self.slot_data.slot_type);
             }
+
+            ui_common.slot_hover_info.set(self, inventory.get_slot(self.slot_data.slot_index, self.slot_data.slot_type));
         }
 
         self.slot_data.update(inventory);

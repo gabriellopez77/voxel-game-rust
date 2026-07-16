@@ -1,5 +1,4 @@
 ﻿use ash::vk;
-use crate::render::vulkan_app::GarbageType;
 use super::{raw_texture::RawTexture, ubo::Ubo, vulkan_app::VulkanApp};
 use super::vkutl;
 
@@ -149,7 +148,7 @@ impl DescriptorSet {
     }
 
     pub fn destroy(&mut self, app: &mut VulkanApp) {
-        app.add_to_bargabe_list(GarbageType::DescriptorSetLayout(self.descriptor_set_layout));
+        app.destroy_descriptor_set_layout(&mut self.descriptor_set_layout);
     }
 
     pub fn add_indexing_textures(&mut self, binding: u32, stage: vk::ShaderStageFlags, textures: &mut [&mut RawTexture]) -> &mut Self {

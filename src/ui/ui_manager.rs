@@ -31,12 +31,14 @@ pub struct UiManager {
 
     current_screen_id: ScreensId,
     ui_common: UiCommon,
+    debug_screen: DebugScreen,
     screens: [ScreenInfo; ScreensId::ScreensCount as usize],
 
     screens_background: Sprite,
     background_visible: bool,
     in_world: bool,
     first_change: bool,
+    debug_screen_visible: bool,
 
     in_world_screens_stack: VecDeque<ScreensId>,
     out_world_screens_stack: VecDeque<ScreensId>,
@@ -53,6 +55,7 @@ impl UiManager {
 
             current_screen_id: ScreensId::StartScreen,
             ui_common: UiCommon::new(),
+            debug_screen: DebugScreen::new(),
             screens: [
                 Self::add(ScreensId::StartScreen, StartScreen::new()),
                 Self::add(ScreensId::HudScreen, HudScreen::new()),
@@ -65,6 +68,7 @@ impl UiManager {
             background_visible: false,
             in_world: false,
             first_change: true,
+            debug_screen_visible: false,
 
             in_world_screens_stack: VecDeque::new(),
             out_world_screens_stack: VecDeque::new(),
@@ -82,6 +86,7 @@ impl UiManager {
         };
 
         self.ui_common.start(&start_args);
+        self.debug_screen.start(&start_args);
     }
 
     pub fn cleanup(&mut self) {
@@ -110,6 +115,7 @@ impl UiManager {
 
         self.screens[self.current_screen_id as usize].screen.borrow_mut().resize(&args);
         self.ui_common.resize(&args);
+        self.debug_screen.resize(&args);
     }
 
     pub fn update(&mut self, dt: f32, game: &mut Game, inputs: &Inputs) {
@@ -125,7 +131,6 @@ impl UiManager {
             inputs,
             ui_common: &mut self.ui_common,
         };
-
         self.screens[self.current_screen_id as usize].screen.borrow_mut().update(&mut args);
 
         let mut ui_common_args = UiCommonUpdateArgs {
@@ -137,9 +142,24 @@ impl UiManager {
             mouse_pos: inputs.get_mouse_pos() / self.pixel_scale,
 
             game,
-            inputs,
         };
         self.ui_common.update(&mut ui_common_args);
+
+        if self.debug_screen_visible {
+            let mut args = ScreenUpdateArgs {
+                dt,
+
+                screen_size: self.screen_size,
+                screen_center: self.screen_size / 2.0,
+
+                mouse_pos: inputs.get_mouse_pos() / self.pixel_scale,
+
+                game,
+                inputs,
+                ui_common: &mut self.ui_common,
+            };
+            self.debug_screen.update(&mut args);
+        }
     }
 
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
@@ -149,6 +169,9 @@ impl UiManager {
 
         self.screens[self.current_screen_id as usize].screen.borrow_mut().draw(&mut self.ui_renderer);
         self.ui_common.draw(&mut self.ui_renderer);
+        if self.debug_screen_visible {
+            self.debug_screen.draw(&mut self.ui_renderer);
+        }
 
         self.ui_renderer.draw(global_renderer);
     }
@@ -206,6 +229,10 @@ impl UiManager {
         else {
             self.out_world_screens_stack.push_back(id);
         }
+    }
+
+    pub fn toggle_debug_screen_visibily(&mut self) {
+        self.debug_screen_visible = !self.debug_screen_visible;
     }
 
     pub fn current_screen_is(&self, other: ScreensId) -> bool {
@@ -268,7 +295,7 @@ impl UiManager {
         }
     }
 
-    pub fn add<T>(id: ScreensId, screen: T) -> ScreenInfo
+    fn add<T>(id: ScreensId, screen: T) -> ScreenInfo
     where
         T: ScreenBase,
         for<'a> T: 'a

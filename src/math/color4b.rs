@@ -1,4 +1,4 @@
-﻿use crate::math::Vec4;
+﻿use crate::math::{Color3b, Vec4};
 
 
 #[repr(C)]
@@ -17,7 +17,8 @@ impl Color4b {
 
     pub fn new(r: u8, g: u8, b: u8, a: u8) -> Self { Self { r, g, b, a } }
     pub fn from1(value: u8) -> Self { Self { r: value, g: value, b: value, a: value } }
-    
+    pub fn from3(rgb: Color3b, a: u8) -> Self { Self { r: rgb.r, g: rgb.g, b: rgb.b, a, } }
+
     pub fn from_hex(hex: u32) -> Self {
         let r = (hex >> 24) as u8;
         let g = (hex >> 16) as u8;

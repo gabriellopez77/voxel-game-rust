@@ -9,12 +9,10 @@ pub struct UiRenderer {
 
     sprites_material: Option<Material>,
     text_material: Option<Material>,
-
-    layer: i32,
 }
 
 impl UiRenderer {
-    pub const MAX_SPRITES_COUNT: usize = 750;
+    pub const MAX_SPRITES_COUNT: usize = 1000;
 
     pub fn new() -> Self {
         Self {
@@ -23,8 +21,6 @@ impl UiRenderer {
 
             sprites_material: None,
             text_material: None,
-
-            layer: 0,
         }
     }
 
@@ -58,13 +54,4 @@ impl UiRenderer {
 
     pub fn add_sprite(&mut self, data: SpritesVertices) { self.sprites_instance_data.push(data) }
     pub fn add_text(&mut self, data: TextVertices) { self.text_instance_data.push(data) }
-
-    /// increment current layer value and return last value
-    pub fn inc_layer(&mut self) -> i32 {
-        let last = self.layer;
-
-        self.layer += 1;
-
-        return last;
-    }
 }

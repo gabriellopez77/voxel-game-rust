@@ -1,15 +1,31 @@
-﻿use std::collections::HashSet;
+﻿use std::array;
+use std::collections::HashSet;
 use std::ffi::CStr;
 use ash::{vk, khr::surface};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+use crate::resources::BufferArena;
+use crate::resources::buffer_arena::RangeInfo;
+
 use super::swapchain_info::SwapChainInfo;
 use super::vkutl;
 
+struct BufferDuplacteUpdateInfo {
+    buffers: [vk::Buffer; vkutl::FRAMES_COUNT],
+    can_free: [bool; vkutl::FRAMES_COUNT],
+    need_update: [bool; vkutl::FRAMES_COUNT],
+    ranges: [RangeInfo; vkutl::FRAMES_COUNT],
+}
+
+impl BufferDuplacteUpdateInfo {
+    pub fn get_info(&self, frame: usize) -> (vk::Buffer, bool, bool) {
+        (self.buffers[frame], self.can_free[frame], self.need_update[frame])
+    }
+}
 
 #[derive(Clone, Copy)]
-pub enum GarbageType {
+enum GarbageType {
     Buffer(vk::Buffer, vk_mem::Allocation, bool),
-    Texture(vk::Image, vk_mem::Allocation, vk::ImageView, vk::Sampler),
+    Image(vk::Image, vk_mem::Allocation, vk::ImageView, vk::Sampler),
     DescriptorSetLayout(vk::DescriptorSetLayout),
 }
 
@@ -20,7 +36,7 @@ pub struct QueueFamilyIndices {
 }
 
 impl QueueFamilyIndices {
-    pub fn new () -> Self {
+    pub fn new() -> Self {
         Self {
             graphics: None,
             present: None,
@@ -29,7 +45,7 @@ impl QueueFamilyIndices {
     }
 
     pub fn is_complete(&self) -> bool {
-        self.graphics.is_some() &&self.present.is_some() && self.transfer.is_some()
+        self.graphics.is_some() && self.present.is_some() && self.transfer.is_some()
     }
 }
 
@@ -75,6 +91,14 @@ pub struct VulkanApp {
     garbage_list_pool: Vec<Vec<GarbageType>>,
     garbage_lists: Vec<(usize, Vec<GarbageType>)>,
     current_gargabe_list: Vec<GarbageType>,
+
+    // global staging buffer
+    //global_staging_buffer: [vk::Buffer; vkutl::FRAMES_COUNT],
+    //global_staging_buffer_allocation: [vk_mem::Allocation; vkutl::FRAMES_COUNT],
+    //global_staging_buffer_arena: [BufferArena; vkutl::FRAMES_COUNT],
+
+    // buffers updates
+    //updates_list: Vec<BufferDuplacteUpdateInfo>,
 
     // cache
     pub families_indices_cache: QueueFamilyIndices,
@@ -123,8 +147,29 @@ impl VulkanApp {
             garbage_lists: Vec::new(),
             current_gargabe_list: Vec::new(),
 
+            //global_staging_buffer: [vk::Buffer::null(); vkutl::FRAMES_COUNT],
+            //global_staging_buffer_allocation: unsafe { std::mem::zeroed() },
+            //global_staging_buffer_arena: array::from_fn(|_| BufferArena::new(1 * BufferArena::MB, 1 * BufferArena::KB)),
+
             families_indices_cache: QueueFamilyIndices::new(),
         }
+    }
+
+    pub fn update_buffer(&mut self, buffers: [vk::Buffer; vkutl::FRAMES_COUNT], data: *const u8, size: usize, offset: usize) {
+        //let range = self.global_staging_buffer_arena[self.frame_index].find_range(size as u32).expect("Arena out of memory!");
+
+        //let mut info = BufferDuplacteUpdateInfo {
+        //    buffers,
+        //    can_free: array::from_fn(|_| false),
+        //    need_update: array::from_fn(|_| true),
+        //    ranges: array::from_fn(|_| RangeInfo::EMPTY)
+        //};
+
+        //info.can_free[self.frame_index] = true;
+        //info.need_update[self.frame_index] = false;
+        //info.ranges[self.frame_index] = range;
+
+        //self.updates_list.push(info);
     }
 
     pub fn get_current_command_buffer(&self) -> vk::CommandBuffer {
@@ -135,11 +180,33 @@ impl VulkanApp {
         self.transfer_command_buffers[self.frame_index]
     }
 
-    pub fn add_to_bargabe_list(&mut self, item: GarbageType) {
-        self.current_gargabe_list.push(item);
+    pub fn destroy_buffer(&mut self, buffer: &mut vk::Buffer, allocation: &mut vk_mem::Allocation, mapped_memory: &mut *mut u8) {
+        self.current_gargabe_list.push(GarbageType::Buffer(*buffer, *allocation, !mapped_memory.is_null()));
+
+        *buffer = vk::Buffer::null();
+        *allocation = unsafe { std::mem::zeroed() };
+
+        if !mapped_memory.is_null() {
+            *mapped_memory = std::ptr::null_mut();
+        }
+    }
+    pub fn destroy_descriptor_set_layout(&mut self, layout: &mut vk::DescriptorSetLayout) {
+        self.current_gargabe_list.push(GarbageType::DescriptorSetLayout(*layout));
+
+        *layout = vk::DescriptorSetLayout::null();
     }
 
-    pub fn destroy_garbage(&self, garbage: &mut GarbageType) {
+    pub fn destroy_image(&mut self, image: &mut vk::Image, allocation: &mut vk_mem::Allocation, image_view:
+                         &mut vk::ImageView, sampler: &mut vk::Sampler) {
+        self.current_gargabe_list.push(GarbageType::Image(*image, *allocation, *image_view, *sampler));
+
+        *image = vk::Image::null();
+        *allocation = unsafe { std::mem::zeroed() };
+        *image_view = vk::ImageView::null();
+        *sampler = vk::Sampler::null();
+    }
+
+    fn destroy_garbage(&self, garbage: &mut GarbageType) {
         unsafe {
             match garbage {
                 GarbageType::Buffer(buffer, allocation, need_unmap) => {
@@ -148,12 +215,12 @@ impl VulkanApp {
                     }
 
                     self.vma_allocator.destroy_buffer(*buffer, allocation);
-                },
-                GarbageType::Texture(image, allocation, image_view, image_sampler) => {
+                }
+                GarbageType::Image(image, allocation, image_view, image_sampler) => {
                     self.ash_device.destroy_image_view(*image_view, None);
                     self.ash_device.destroy_sampler(*image_sampler, None);
                     self.vma_allocator.destroy_image(*image, allocation);
-                },
+                }
                 GarbageType::DescriptorSetLayout(layout) => {
                     self.ash_device.destroy_descriptor_set_layout(*layout, None);
                 }
@@ -187,6 +254,20 @@ impl VulkanApp {
         self.create_command_buffers();
         self.create_sync_objects();
         self.create_descriptor_pool();
+
+        //let mut staging_allocation_info = vk_mem::AllocationCreateInfo::default();
+        //staging_allocation_info.usage = vk_mem::MemoryUsage::Auto;
+        //staging_allocation_info.preferred_flags = vk::MemoryPropertyFlags::HOST_VISIBLE;
+        //staging_allocation_info.flags = vk_mem::AllocationCreateFlags::HOST_ACCESS_SEQUENTIAL_WRITE | vk_mem::AllocationCreateFlags::DEDICATED_MEMORY;
+
+        // create staging buffer
+        //for i in 0..vkutl::FRAMES_COUNT {
+            //(self.global_staging_buffer[i], self.global_staging_buffer_allocation[i]) = vkutl::create_buffer(
+            //    self, (100 * BufferArena::MB) as u64,
+            //    vk::BufferUsageFlags::TRANSFER_SRC,
+            //    &staging_allocation_info, false
+            //);
+        //}
     }
 
     pub fn cleanup(&mut self) {
@@ -198,7 +279,15 @@ impl VulkanApp {
             }
 
             SwapChainInfo::clear(self);
+
+            //for i in 0..vkutl::FRAMES_COUNT {
+                //self.vma_allocator.destroy_buffer(
+                //    self.global_staging_buffer[i],
+                //    &mut self.global_staging_buffer_allocation[i]
+                //);
+            //}
         }
+
     }
 
     pub fn resize(&mut self, mut width: i32, mut height: i32, glfw_instance: &mut glfw::Glfw, glfw_window: &glfw::PWindow) {
@@ -703,7 +792,7 @@ impl VulkanApp {
         }
     }
 
-    pub fn begin_frame(&mut self, glfw_window: &glfw::PWindow) -> bool {
+    pub fn begin_frame(&mut self, glfw_window: &glfw::PWindow) {
         // recreate swapchain
         if self.resized {
             self.resized = false;
@@ -729,21 +818,14 @@ impl VulkanApp {
                 vk::Fence::null()
             );
 
-            match acquire_result {
-                Ok((idx, _)) => self.image_index = idx as usize,
-                Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => {
-                    self.resized = true;
-                    return false; // abort this frame
-                }
-                Err(e) => panic!("Falha ao adquirir imagem: {:?}", e),
-            }
+            self.image_index = acquire_result.unwrap().0 as usize;
 
             self.ash_device.reset_fences(&[self.frame_fence[self.frame_index]]).expect("failed to reset fence!");
         };
 
         // update garbage lists
         for i in (0..self.garbage_lists.len()).rev() {
-            if self.frame_count > self.garbage_lists[i].0 + vkutl::SWAPCHAIN_IMAGES_COUNT {
+            if self.frame_count > self.garbage_lists[i].0 {
                 let (_, mut garbage_list) = self.garbage_lists.swap_remove(i);
 
                 for garbage in &mut garbage_list {
@@ -804,8 +886,6 @@ impl VulkanApp {
             self.ash_device.cmd_set_viewport(graphics_command_buffer, 0, &[viewport]);
             self.ash_device.cmd_set_scissor(graphics_command_buffer, 0, &[scissor]);
         };
-
-        return true;
     }
 
     pub fn end_frame(&mut self) {
@@ -815,7 +895,7 @@ impl VulkanApp {
 
             // 'self.current_gargabe_list' now is the list of previous frame, then replace by the new list
             let old_list = std::mem::replace(&mut self.current_gargabe_list, new_list);
-            self.garbage_lists.push((self.frame_count, old_list));
+            self.garbage_lists.push((self.frame_count + vkutl::SWAPCHAIN_IMAGES_COUNT, old_list));
         }
 
         let graphics_command_buffer = [ self.graphics_command_buffers[self.frame_index] ];
@@ -844,14 +924,6 @@ impl VulkanApp {
             .command_buffers(&graphics_command_buffer)
             .signal_semaphores(&graphics_signal_semaphore);
 
-        unsafe {
-            self.ash_device.queue_submit(self.transfer_queue, &[transfer_submit_info], vk::Fence::null())
-                .expect("Failed to submit transfer command buffer!");
-
-            self.ash_device.queue_submit(self.graphics_queue, &[graphics_submit_info], self.frame_fence[self.frame_index])
-                .expect("Failed to submit draw command buffer!");
-        }
-
 
         let swapchain = [ self.swapchain ];
         let image_index = [ self.image_index as u32 ];
@@ -861,15 +933,14 @@ impl VulkanApp {
             .swapchains(&swapchain)
             .image_indices(&image_index);
 
-
         unsafe {
-            match self.ash_swapchain.queue_present(self.present_queue, &present_info) {
-                Ok(_) => {}
-                Err(vk::Result::ERROR_OUT_OF_DATE_KHR) | Err(vk::Result::SUBOPTIMAL_KHR) => {
-                    self.resized = true;
-                }
-                Err(e) => panic!("failed to present image: {:?}", e),
-            }
+            self.ash_device.queue_submit(self.transfer_queue, &[transfer_submit_info], vk::Fence::null())
+                .expect("Failed to submit transfer command buffer!");
+
+            self.ash_device.queue_submit(self.graphics_queue, &[graphics_submit_info], self.frame_fence[self.frame_index])
+                .expect("Failed to submit draw command buffer!");
+
+            self.ash_swapchain.queue_present(self.present_queue, &present_info).expect("failed to present image");
         }
 
         // advance to the next frame

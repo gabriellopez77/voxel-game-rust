@@ -81,13 +81,15 @@ impl FontInfo {
         }
 
 
-        return FontInfo{ characters_info: chars_info, unknown_character_info: unknown_char_info };
+        return FontInfo { characters_info: chars_info, unknown_character_info: unknown_char_info };
     }
 
     pub fn get_info(&self, ch: char) -> &CharacterInfo {
-        if let Some(info) = self.characters_info.get(&ch) { return info }
+        self.characters_info.get(&ch).unwrap_or(&self.unknown_character_info)
+    }
 
-        return &self.unknown_character_info;
+    pub fn get_unkown_char_info(&self) -> &CharacterInfo {
+        &self.unknown_character_info
     }
 }
 

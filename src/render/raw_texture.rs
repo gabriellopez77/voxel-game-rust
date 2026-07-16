@@ -1,5 +1,4 @@
 use ash::vk;
-use super::vulkan_app::GarbageType;
 use super::{vkutl, vulkan_app::VulkanApp};
 
 
@@ -32,7 +31,7 @@ impl RawTexture {
         allocation_info.preferred_flags = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
         allocation_info.flags = vk_mem::AllocationCreateFlags::HOST_ACCESS_SEQUENTIAL_WRITE | vk_mem::AllocationCreateFlags::MAPPED;
 
-        let (staging_buffer, mut staging_allocation) = vkutl::create_buffer(
+        let (mut staging_buffer, mut staging_allocation) = vkutl::create_buffer(
             app,
             data.len() as _,
             vk::BufferUsageFlags::TRANSFER_SRC,
@@ -62,11 +61,11 @@ impl RawTexture {
         self.create_sampler(app, filter, repeat_mode);
 
         // destroy staging buffer
-        app.add_to_bargabe_list(GarbageType::Buffer(staging_buffer, staging_allocation, false));
+        app.destroy_buffer(&mut staging_buffer, &mut staging_allocation, &mut std::ptr::null_mut());
     }
 
     pub fn destroy(&mut self, app: &mut VulkanApp) {
-        app.add_to_bargabe_list(GarbageType::Texture(self.image, self.image_allocation, self.image_view, self.sampler));
+        app.destroy_image(&mut self.image, &mut self.image_allocation, &mut self.image_view, &mut self.sampler);
     }
 
     fn create_sampler(&mut self, app: &VulkanApp, filter: vk::Filter, repeat_mode: vk::SamplerAddressMode) {

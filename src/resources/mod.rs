@@ -5,6 +5,8 @@ pub mod text_font_info;
 pub mod blocks_items_model;
 pub mod shaders_compiler;
 pub mod worker;
+pub mod buffer_arena;
+
 pub use {
     resources_manager::ResourceManager,
     tex_coords::TexCoords,
@@ -12,4 +14,5 @@ pub use {
     blocks_items_model::BlockItemModel,
     shaders_compiler::ShadersCompiler,
     worker::Worker,
+    buffer_arena::BufferArena,
 };

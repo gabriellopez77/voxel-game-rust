@@ -5,9 +5,9 @@ pub struct Worker<T: Send + 'static> {
     finalized_tasks: Arc<Mutex<Vec<T>>>,
     pending_tasks: Arc<Mutex<Vec<Box<dyn FnOnce() -> T + Send + 'static>>>>,
 
-    pair: Arc<(Mutex<bool>, Condvar)>,
-
     need_working_flag: bool,
+
+    pair: Arc<(Mutex<bool>, Condvar)>,
     working_flag: Arc<AtomicBool>,
     stop_flag: Arc<AtomicBool>,
     clear_flag: Arc<AtomicBool>,
@@ -95,9 +95,8 @@ impl<T: Send + 'static> Worker<T> {
 
         return std::thread::spawn(move || {
             let mut process_list = Vec::new();
-            //let mut processed_list = Vec::new();
 
-            loop {
+            'main_loop: loop {
                 let (lock, cvar) = &*pair;
                 let mut mutex = lock.lock().unwrap();
 
@@ -110,6 +109,8 @@ impl<T: Send + 'static> Worker<T> {
                     pending_tasks.lock().unwrap().clear();
                     finalized_tasks.lock().unwrap().clear();
                     clear_flag.store(false, Ordering::Relaxed);
+                    *mutex = false;
+                    working_flag.store(false, Ordering::Relaxed);
                 }
 
                 if stop_flag.load(Ordering::Relaxed) {
@@ -127,20 +128,18 @@ impl<T: Send + 'static> Worker<T> {
                 }
 
                 while let Some(task) = process_list.pop() {
+                    if stop_flag.load(Ordering::Relaxed) {
+                        break 'main_loop;
+                    }
+
+                    if clear_flag.load(Ordering::Relaxed) {
+                        continue 'main_loop;
+                    }
+
                     let result = task();
 
-                    //processed_list.push(result);
                     finalized_tasks.lock().unwrap().push(result);
-
                 }
-
-                //{
-                //    let pl = &mut *finalized_tasks.lock().unwrap();
-
-                //    while let Some(result) = processed_list.pop() {
-                //        pl.push(result);
-                //    }
-                //}
 
                 *mutex = false;
                 working_flag.store(false, Ordering::Relaxed);

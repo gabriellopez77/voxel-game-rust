@@ -12,12 +12,12 @@ impl<T: Copy> KeyFrame<T> {
     }
 
     pub fn get(&self, t: f32) -> T {
-        let start_value = self.frames[self.frames.len() - 1].1;
-        let end_value = self.frames[0].1;
+        let start_value = self.frames[0].1;
+        let end_value = self.frames.last().unwrap().1;
 
         // clamping
         if t <= self.frames[0].0 { return start_value }
-        if t >= self.frames[self.frames.len() - 1].0 { return end_value }
+        if t >= self.frames.last().unwrap().0 { return end_value }
 
         // search in range
         for i in 0..self.frames.len() - 1 {
