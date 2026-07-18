@@ -43,15 +43,14 @@ impl ChunkRenderer {
         self.default_material.set_mesh(
             &mesh_result.vertices[RendererType::Opaque as usize],
             &mesh_result.indices[RendererType::Opaque as usize],
-            BufferFlags::VRAM
+            BufferFlags::VRAM | BufferFlags::ONCE
         );
 
         self.water_material.set_mesh(
             &mesh_result.vertices[RendererType::Alpha as usize],
             &mesh_result.indices[RendererType::Alpha as usize],
-            BufferFlags::VRAM
+            BufferFlags::VRAM | BufferFlags::ONCE
         );
-
 
         //println!("{}", now.elapsed().as_micros());
     }

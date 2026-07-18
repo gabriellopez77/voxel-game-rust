@@ -68,6 +68,10 @@ impl Material {
         self.vao.update_buffer(&self.app, BuffersTypes::Instance, arr);
     }
 
+    pub fn update_instance_data2<T2>(&mut self, arr: &[T2]) {
+        self.vao.update_buffer2(&mut self.app, BuffersTypes::Instance, arr);
+    }
+
     pub fn update_push_constant<T>(&mut self, offset: usize, data: *const T) {
         let size = size_of::<T>();
 

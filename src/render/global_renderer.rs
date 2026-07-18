@@ -63,7 +63,7 @@ impl GlobalRenderer {
             Rc::new(RefCell::new(GraphicsPipeline::create(app, shader_compiler, settings)))
         };
 
-        self.global_ubo.create(&mut self.app, BufferFlags::RAM | BufferFlags::DUPLICATE);
+        self.global_ubo.create(&mut self.app, BufferFlags::RAM);
 
 
         let used_stages_flag = vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT;

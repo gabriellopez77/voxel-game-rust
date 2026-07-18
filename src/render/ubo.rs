@@ -39,8 +39,6 @@ impl<T: Copy + Clone + Default> Ubo<T> {
     }
 
     pub fn create(&mut self, app: &mut VulkanApp, flags: BufferFlags) {
-        debug_assert!(flags.contains(BufferFlags::DUPLICATE), "Ubo buffer need DUPLICATE");
-
         self.buffer.create(app, size_of::<T>() as u64, std::ptr::null(), vk::BufferUsageFlags::UNIFORM_BUFFER, flags);
 
         self.app = NullSafePtr::new(app);

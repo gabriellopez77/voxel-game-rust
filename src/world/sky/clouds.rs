@@ -111,7 +111,7 @@ impl Clouds {
         }
 
         // update instances data
-        self.material.as_mut().unwrap().update_instance_data(&self.instance_data);
+        self.material.as_mut().unwrap().update_instance_data2(&self.instance_data);
     }
 
     pub fn draw(&self, global_renderer: &mut GlobalRenderer) {

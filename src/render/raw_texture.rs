@@ -38,7 +38,7 @@ impl RawTexture {
             &allocation_info, false
         );
 
-        vkutl::copy_data_to_staging_buffer(app, data.len() as u64, data.as_ptr() as _, &mut staging_allocation, false);
+        vkutl::copy_data_to_staging_buffer(app, 0, data.len(), data.as_ptr() as _, &mut staging_allocation, false);
 
         // create image in vram
         (self.image, self.image_allocation) = vkutl::create_image(

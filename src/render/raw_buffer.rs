@@ -15,11 +15,8 @@ impl BufferFlags {
     /// create buffer in ram (HOST_VISIBLE)
     pub const RAM: Self = Self(0b0000_0010);
 
-    /// buffer is duplicate by FRAMES_COUNT
-    pub const DUPLICATE: Self = Self(0b0000_0100);
-
-    /// buffer is updated once time. it is only compatible with VRAM flag
-    pub const ONCE: Self = Self(0b0000_1000);
+    /// buffer is updated once time. it is only compatible with VRAM flag and it is not duplicated because his data not change after be created
+    pub const ONCE: Self = Self(0b0000_0100);
 
     pub fn contains(self, flag: Self) -> bool {
         self.0 & flag.0 == flag.0
@@ -69,23 +66,25 @@ impl RawBuffer {
     }
 
     pub fn get_buffer(&self, frame_index: usize) -> vk::Buffer {
-        if self.flags.contains(BufferFlags::DUPLICATE) {
-            return self.buffers[frame_index];
+        if self.flags.contains(BufferFlags::ONCE) {
+            return self.buffers[0];
         }
 
-        return self.buffers[0];
+        return self.buffers[frame_index];
     }
 
     pub fn get_all_buffers(&self) -> [vk::Buffer; vkutl::FRAMES_COUNT] {
         self.buffers
     }
 
+    pub fn get_all_mapped_memory(&self) -> [*mut u8; vkutl::FRAMES_COUNT] {
+        self.mapped_memory
+    }
+
     pub fn create(&mut self, app: &mut VulkanApp, size: u64, data: *const u8, usage: vk::BufferUsageFlags, flags: BufferFlags) {
         debug_assert!(flags.contains(BufferFlags::VRAM) || flags.contains(BufferFlags::RAM), "Need RAM or VRAM flag");
         debug_assert!(!(flags.contains(BufferFlags::VRAM) && flags.contains(BufferFlags::RAM)), "Can not have VRAM and RAM flags");
         debug_assert!(!(flags.contains(BufferFlags::RAM) && flags.contains(BufferFlags::ONCE)), "Ram buffer can not have ONCE flag");
-        debug_assert!(!(flags.contains(BufferFlags::ONCE) && flags.contains(BufferFlags::DUPLICATE)), "ONCE buffer can not have ONCE flag");
-
         debug_assert_ne!(size, 0, "Invalid buffer size!");
 
         self.size = size;
@@ -113,7 +112,7 @@ impl RawBuffer {
                 (self.buffers[i], self.allocations[i]) = vkutl::create_buffer(
                     app, size,
                     vk::BufferUsageFlags::TRANSFER_DST | usage,
-                    &allocation_info, true
+                    &allocation_info, !flags.contains(BufferFlags::ONCE)
                 );
 
                 // map staging buffer
@@ -122,7 +121,7 @@ impl RawBuffer {
                 };
 
                 // if not DUPLICATE then we use only first buffer
-                if !flags.contains(BufferFlags::DUPLICATE) { break }
+                if flags.contains(BufferFlags::ONCE) { break }
             }
         }
         else {
@@ -142,7 +141,7 @@ impl RawBuffer {
                 };
 
                 // if not DUPLICATE then we use only first buffer
-                if !flags.contains(BufferFlags::DUPLICATE) { break }
+                if flags.contains(BufferFlags::ONCE) { break }
             }
         }
 
@@ -153,7 +152,7 @@ impl RawBuffer {
                 self.update_with_index(app, i, size, 0, data);
 
                 // if not DUPLICATE then we use only first buffer
-                if !flags.contains(BufferFlags::DUPLICATE) { break }
+                if flags.contains(BufferFlags::ONCE) { break }
             }
         }
 
@@ -166,13 +165,12 @@ impl RawBuffer {
     pub fn update(&self, app: &VulkanApp, size: u64, offset: usize, data: *const u8) {
         assert!(self.size >= size, "Invalid data size");
         debug_assert!(!data.is_null(), "Data is null!");
+        debug_assert!(!self.flags.contains(BufferFlags::ONCE), "Buffers that constains ONCE flag cant be updated!");
 
         // is not possible update zero bytes
         if size == 0 { return }
 
-        let index = if self.flags.contains(BufferFlags::DUPLICATE) { app.frame_index } else { 0 };
-
-        self.update_with_index(app, index, size, offset,  data);
+        self.update_with_index(app, app.frame_index, size, offset,  data);
     }
 
     fn update_with_index(&self, app: &VulkanApp, index: usize, size: u64, offset: usize, data: *const u8) {
@@ -210,7 +208,7 @@ impl RawBuffer {
             app.destroy_buffer(&mut self.buffers[i], &mut self.allocations[i], &mut self.mapped_memory[i]);
 
             // if not DUPLICATE then we use only first buffer
-            if !self.flags.contains(BufferFlags::DUPLICATE) { break }
+            if self.flags.contains(BufferFlags::ONCE) { break }
         }
 
         self.size = 0;

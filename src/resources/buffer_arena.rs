@@ -43,8 +43,8 @@ impl BufferArena {
         }
     }
 
-    pub fn get_used(&self) -> u32 {
-        self.used
+    pub fn get_used_mb(&self) -> f32 {
+        self.used as f32 / Self::MB as f32
     }
 
     pub fn restore_range(&mut self, range: &mut RangeInfo) {

@@ -49,7 +49,7 @@ impl Planet {
 
             blocks_manager: NullSafePtr::null(),
 
-            render_distance: 4,
+            render_distance: 14,
 
             pendings_chunks_count: 0,
 
@@ -109,8 +109,8 @@ impl Planet {
     pub fn update(&mut self, player_pos: Vec3) {
         let player_chunk = math::get_chunk_pos(player_pos);
 
-        if self.last_player_chunk != player_chunk || self.change_chunk_logic {
-        //if self.change_chunk_logic {
+        //if self.last_player_chunk != player_chunk || self.change_chunk_logic {
+        if self.change_chunk_logic {
             self.change_chunk_logic(player_chunk);
         }
 

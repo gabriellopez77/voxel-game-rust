@@ -116,6 +116,13 @@ impl VerticesAttributes {
             buffer = &mut self.raw_buffers[buffer_type as usize];
         }
 
+        // ONCE buffers can not be updated, then we destroy and create it again
+        if buffer.flags.contains(BufferFlags::ONCE) {
+            buffer.destroy(app);
+            buffer.create(app, data_size, arr.as_ptr() as _, usage, flags);
+            return;
+        }
+
         // create a new buffer
         if data_size > buffer.size {
             buffer.destroy(app);
@@ -137,5 +144,20 @@ impl VerticesAttributes {
         else {
             self.raw_buffers[buffer_type as usize].update(app, data_size as u64, 0, arr.as_ptr() as _);
         }
+    }
+
+    pub fn update_buffer2<T>(&mut self, app: &mut VulkanApp, buffer_type: BuffersTypes, arr: &[T]) {
+        let data_size = arr.len() * size_of::<T>();
+
+        if buffer_type == BuffersTypes::Index {
+            self.index_buffer_info.update(app, data_size as u64, 0, arr.as_ptr() as _);
+
+            self.triangles_count = (data_size / 4) as u32
+        }
+        else {
+            self.raw_buffers[buffer_type as usize].update(app, data_size as u64, 0, arr.as_ptr() as _);
+            app.update_buffer(&self.raw_buffers[buffer_type as usize], arr.as_ptr() as _, data_size, 0);
+        }
+
     }
 }

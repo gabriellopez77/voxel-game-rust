@@ -90,13 +90,13 @@ pub fn create_buffer(app: &VulkanApp, size: u64, usage: vk::BufferUsageFlags,
     };
 }
 
-pub fn copy_data_to_staging_buffer(app: &VulkanApp, size: u64, data: *const u8, allocation: &mut vk_mem::Allocation,
+pub fn copy_data_to_staging_buffer(app: &VulkanApp, offset: usize, size: usize, data: *const u8, allocation: &mut vk_mem::Allocation,
                                    keep_maped: bool) -> *mut u8 {
     unsafe {
         let mapped_mem_ptr = app.vma_allocator.map_memory(allocation).expect("Failed to map memory!");
 
         // copy data to staging buffer
-        std::ptr::copy_nonoverlapping(data, mapped_mem_ptr, size as usize);
+        std::ptr::copy_nonoverlapping(data, mapped_mem_ptr.byte_add(offset), size);
 
         if !keep_maped {
             app.vma_allocator.unmap_memory(allocation);
