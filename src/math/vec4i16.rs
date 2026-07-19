@@ -15,8 +15,6 @@ impl Vec4i16 {
 
     pub fn new(x: i16, y: i16, z: i16, w: i16) -> Self { Self { x, y, z, w } }
     pub fn from1(value: i16) -> Self { Self { x: value, y: value, z: value, w: value } }
-
-    pub fn as_ptr(&self) -> *const i16 { &self.x }
 }
 
 

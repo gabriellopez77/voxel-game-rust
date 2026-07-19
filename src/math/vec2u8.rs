@@ -13,8 +13,6 @@ impl Vec2u8 {
 
     pub fn new(x: u8, y: u8) -> Self { Self { x, y, } }
     pub fn from1(value: u8) -> Self { Self { x: value, y: value } }
-
-    pub fn as_ptr(&self) -> *const u8 { &self.x }
 }
 
 impl PartialEq for Vec2u8 {

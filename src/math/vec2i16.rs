@@ -14,7 +14,6 @@ impl Vec2i16 {
     pub fn new(x: i16, y: i16) -> Self { Self { x, y } }
     pub fn from1(value: i16) -> Self { Self{ x: value, y: value } }
 
-    pub fn as_ptr(&self) -> *const i16 { &self.x }
 }
 
 impl PartialEq for Vec2i16 {

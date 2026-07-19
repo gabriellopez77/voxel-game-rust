@@ -57,7 +57,7 @@ impl Texture {
         }
 
         // valided atlas
-        assert!(tex.textures_coords.contains_key("error_404"), "atlas does not have error texture!");
+        debug_assert!(tex.textures_coords.contains_key("error_404"), "atlas does not have error texture!");
 
         return tex;
     }

@@ -38,7 +38,14 @@ impl RawTexture {
             &allocation_info, false
         );
 
-        vkutl::copy_data_to_staging_buffer(app, 0, data.len(), data.as_ptr() as _, &mut staging_allocation, false);
+        unsafe {
+            let mapped_mem_ptr = app.vma_allocator.map_memory(&mut staging_allocation).expect("Failed to map memory!");
+
+            // copy data to staging buffer
+            std::ptr::copy_nonoverlapping(data.as_ptr() as _, mapped_mem_ptr, data.len());
+
+            app.vma_allocator.unmap_memory(&mut staging_allocation);
+        }
 
         // create image in vram
         (self.image, self.image_allocation) = vkutl::create_image(
@@ -50,11 +57,13 @@ impl RawTexture {
         );
 
 
-        vkutl::transition_image_layout(app, self.image, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
+        unsafe {
+            vkutl::transition_image_layout(app, self.image, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
 
-        vkutl::copy_buffer_to_image(app, width, height, staging_buffer, self.image);
+            vkutl::copy_buffer_to_image(app, width, height, staging_buffer, self.image);
 
-        vkutl::transition_image_layout(app, self.image, vk::ImageLayout::TRANSFER_DST_OPTIMAL, vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL);
+            vkutl::transition_image_layout(app, self.image, vk::ImageLayout::TRANSFER_DST_OPTIMAL, vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL);
+        }
 
         self.image_view = vkutl::create_image_view(app, self.image, vk::Format::R8G8B8A8_UNORM, vk::ImageAspectFlags::COLOR);
 

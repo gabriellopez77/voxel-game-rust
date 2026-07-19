@@ -52,7 +52,7 @@ impl UiElement for Text {
     }
 
     fn get_size(&self) -> Vec2 { self.size }
-    fn set_size(&mut self, x: f32, y: f32) {}
+    fn set_size(&mut self, _: f32, _: f32) {}
 }
 
 impl Text {

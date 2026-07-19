@@ -1,11 +1,11 @@
 use std::{cell::RefCell, collections::HashMap, mem::offset_of, rc::Rc, usize};
 use ash::{vk, vk::Handle};
 
-use crate::{math::Vec3, render::{ChunkVertices, CloudsVertices, DescriptorSet, DrawInfo, GlobalUboData, GraphicsPipeline, Material, ParticlesVertices, PipelineLayout, PipelineSettings, SkyBodiesVertices, SpritesVertices, TextVertices, Ubo, VulkanApp, material::MaterialType, raw_buffer::BufferFlags, vertices_attributes::BuffersTypes, vkutl}, resources::{ResourceManager, ShadersCompiler}, utils::MutSafePtr};
+use crate::{math::Vec3, render::{ChunkVertices, CloudsVertices, DescriptorSet, DrawInfo, GlobalUboData, GraphicsPipeline, Material, ParticlesVertices, PipelineLayout, PipelineSettings, SkyBodiesVertices, SpritesVertices, TextVertices, Ubo, VulkanApp, material::MaterialType, raw_buffer::BufferFlags, vertices_attributes::BuffersTypes, vkutl}, resources::{ResourceManager, ShadersCompiler}, utils::SafePtrMut};
 
 
 pub struct GlobalRenderer {
-    app: MutSafePtr<VulkanApp>,
+    app: SafePtrMut<VulkanApp>,
 
     pub global_ubo: Ubo<GlobalUboData>,
     pub global_descriptor: DescriptorSet,
@@ -34,7 +34,7 @@ impl GlobalRenderer {
 
     pub fn new(app: &mut VulkanApp) -> Self {
         Self {
-            app: MutSafePtr::new(app),
+            app: SafePtrMut::new(app),
 
             global_ubo: Ubo::new(),
             global_descriptor: DescriptorSet::new(),
@@ -232,7 +232,7 @@ impl GlobalRenderer {
         // item is not suitable to draw
         if instance_count == 0 || material.get_triangles_count() == 0 { return }
 
-        self.prepare_draw_info(material, instance_count, material.get_push_constant_info());
+        self.prepare_draw_info(material, instance_count);
     }
 
     pub fn draw_obj_instanced_with_buffer<T>(&mut self, material: &mut Material, instance_data: &mut Vec<T>) {
@@ -240,7 +240,7 @@ impl GlobalRenderer {
         if instance_data.len() == 0 || material.get_triangles_count() == 0 { return }
 
         material.update_instance_data(&instance_data);
-        self.prepare_draw_info(material, instance_data.len(), material.get_push_constant_info());
+        self.prepare_draw_info(material, instance_data.len());
 
         instance_data.clear();
     }
@@ -249,13 +249,13 @@ impl GlobalRenderer {
         // item is not suitable to draw
         if material.get_triangles_count() == 0 { return }
 
-        self.prepare_draw_info(material, 1, material.get_push_constant_info());
+        self.prepare_draw_info(material, 1);
     }
 
-    fn prepare_draw_info(&mut self, material: &Material, instance_count: usize,
-                             push_constant_info: (u8, &[u8; vkutl::MAX_PUSH_CONSTANT_SIZE])) {
+    fn prepare_draw_info(&mut self, material: &Material, instance_count: usize) {
         let mut draw_info = material.create_draw_info(self.frame_index);
 
+        let push_constant_info = material.get_push_constant_info();
         draw_info.instance_count = instance_count as u32;
 
         if push_constant_info.0 != 0 {
@@ -289,6 +289,8 @@ impl GlobalRenderer {
     }
 
     pub fn end(&mut self) {
+        self.app.render_pass_begin();
+
         //let now = std::time::Instant::now();
         self.opaque_draw_list.sort();
         self.alpha_draw_list.sort();
@@ -313,7 +315,7 @@ impl GlobalRenderer {
 
         let vulkan_app = &*self.app;
 
-        let command_buffer = vulkan_app.get_current_command_buffer();
+        let command_buffer = vulkan_app.get_graphics_cmd();
 
 
         for draw_info in draw_list {

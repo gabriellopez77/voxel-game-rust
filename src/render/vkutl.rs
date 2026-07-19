@@ -70,9 +70,9 @@ pub fn create_image(app: &VulkanApp, width: u32, height: u32, format: vk::Format
     };
 }
 
-pub fn create_buffer(app: &VulkanApp, size: u64, usage: vk::BufferUsageFlags,
-                     allocation_info: &vk_mem::AllocationCreateInfo, concurrent: bool) -> (vk::Buffer, vk_mem::Allocation) {
-    let families = [ app.families_indices_cache.transfer.unwrap(), app.families_indices_cache.graphics.unwrap() ];
+pub fn create_buffer(app: &VulkanApp, size: u64, usage: vk::BufferUsageFlags, alloc_info: &vk_mem::AllocationCreateInfo,
+                     concurrent: bool) -> (vk::Buffer, vk_mem::Allocation) {
+    let families = [ app.transfer_queue_index, app.graphics_queue_index ];
 
     let mut buffer_info = vk::BufferCreateInfo::default()
         .size(size)
@@ -86,24 +86,8 @@ pub fn create_buffer(app: &VulkanApp, size: u64, usage: vk::BufferUsageFlags,
     }
 
     return unsafe {
-        app.vma_allocator.create_buffer(&buffer_info, &allocation_info).expect("Failed to create buffer!")
+        app.vma_allocator.create_buffer(&buffer_info, &alloc_info).expect("Failed to create buffer!")
     };
-}
-
-pub fn copy_data_to_staging_buffer(app: &VulkanApp, offset: usize, size: usize, data: *const u8, allocation: &mut vk_mem::Allocation,
-                                   keep_maped: bool) -> *mut u8 {
-    unsafe {
-        let mapped_mem_ptr = app.vma_allocator.map_memory(allocation).expect("Failed to map memory!");
-
-        // copy data to staging buffer
-        std::ptr::copy_nonoverlapping(data, mapped_mem_ptr.byte_add(offset), size);
-
-        if !keep_maped {
-            app.vma_allocator.unmap_memory(allocation);
-        }
-
-        return if keep_maped { mapped_mem_ptr } else { std::ptr::null_mut() };
-    }
 }
 
 pub fn copy_buffer_async(app: &VulkanApp, src: vk::Buffer, dst: vk::Buffer, size: u64, src_offset: u64, dst_offset: u64) {
@@ -113,7 +97,7 @@ pub fn copy_buffer_async(app: &VulkanApp, src: vk::Buffer, dst: vk::Buffer, size
         .dst_offset(dst_offset);
 
     unsafe {
-        app.ash_device.cmd_copy_buffer(app.get_current_transfer_command_buffer(), src, dst, &[copy_region]);
+        app.ash_device.cmd_copy_buffer(app.get_transfer_cmd(), src, dst, &[copy_region]);
     }
 }
 
@@ -151,7 +135,7 @@ pub unsafe fn end_single_time_command(app: &VulkanApp, cmd: vk::CommandBuffer, c
     }
 }
 
-pub fn transition_image_layout(app: &VulkanApp, image: vk::Image, old_layout: vk::ImageLayout, new_layout: vk::ImageLayout) {
+pub unsafe fn transition_image_layout(app: &VulkanApp, image: vk::Image, old_layout: vk::ImageLayout, new_layout: vk::ImageLayout) {
     let mut barrier = vk::ImageMemoryBarrier::default()
         .old_layout(old_layout)
         .new_layout(new_layout)
@@ -205,7 +189,7 @@ pub fn transition_image_layout(app: &VulkanApp, image: vk::Image, old_layout: vk
     };
 }
 
-pub fn copy_buffer_to_image(app: &VulkanApp, width: u32, height: u32, buffer: vk::Buffer, image: vk::Image) {
+pub unsafe fn copy_buffer_to_image(app: &VulkanApp, width: u32, height: u32, buffer: vk::Buffer, image: vk::Image) {
     let region = vk::BufferImageCopy::default()
         .image_subresource(
             vk::ImageSubresourceLayers {

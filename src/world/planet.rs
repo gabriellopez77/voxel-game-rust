@@ -109,8 +109,8 @@ impl Planet {
     pub fn update(&mut self, player_pos: Vec3) {
         let player_chunk = math::get_chunk_pos(player_pos);
 
-        //if self.last_player_chunk != player_chunk || self.change_chunk_logic {
-        if self.change_chunk_logic {
+        if self.last_player_chunk != player_chunk || self.change_chunk_logic {
+        //if self.change_chunk_logic {
             self.change_chunk_logic(player_chunk);
         }
 
@@ -184,12 +184,9 @@ impl Planet {
         let y0 = (cube.y0).floor() as i32;
         let z0 = (cube.z0).floor() as i32;
         let x1 = (cube.x1 + 1.0).floor() as i32;
-        let mut y1 = (cube.y1 + 1.0).floor() as i32;
+        let y1 = (cube.y1 + 1.0).floor() as i32;
         let z1 = (cube.z1 + 1.0).floor() as i32;
 
-        if y1 >= Chunk::CHUNK_SIZE.y {
-            y1 = Chunk::CHUNK_SIZE_MINUS_ONE.y;
-        }
 
         for x in x0..x1 {
         for y in y0..y1 {

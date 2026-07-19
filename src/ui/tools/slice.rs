@@ -1,5 +1,5 @@
 use crate::{
-    math::{Color4b, Vec2, Vec2i16}, render::{GlobalRenderer, SpritesVertices, Texture, UiRenderer}, resources::{ResourceManager, TexCoords}, ui::tools::UiElement
+    math::{Color4b, Vec2, Vec2i16}, render::{GlobalRenderer, SpritesVertices, Texture, UiRenderer}, resources::TexCoords, ui::tools::UiElement
 };
 
 

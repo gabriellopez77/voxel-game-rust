@@ -1,6 +1,6 @@
 use crate::math::Vec2;
 use crate::ui::tools::UiElement;
-use crate::utils::MutSafePtr;
+use crate::utils::SafePtrMut;
 
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -13,7 +13,7 @@ pub struct ElementsGrid {
     position: Vec2,
     size: Vec2,
 
-    elements: Vec<MutSafePtr<dyn UiElement>>,
+    elements: Vec<SafePtrMut<dyn UiElement>>,
 
     /// elements alignment
     pub alignment: Alignment,
@@ -53,7 +53,7 @@ impl ElementsGrid {
     }
 
     pub fn add(&mut self, element: *mut dyn UiElement) {
-        self.elements.push(MutSafePtr::from_ptr(element));
+        self.elements.push(SafePtrMut::from_ptr(element));
     }
 
     pub fn update(&mut self) {

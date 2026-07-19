@@ -42,7 +42,7 @@ impl Clouds {
     pub fn start(&mut self, resources: &ResourceManager, global_renderer: &mut GlobalRenderer) {
         let mut material = global_renderer.create_material("clouds", MaterialType::Alpha);
         material.set_mesh(&CUBE_VERTICES, &CUBE_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
-        material.create_instance_buffer(size_of::<CloudsVertices>() * Self::MAX_CLOUDS_COUNT, None, BufferFlags::VRAM);
+        material.create_instance_buffer(size_of::<CloudsVertices>() * Self::MAX_CLOUDS_COUNT, None, BufferFlags::VRAM | BufferFlags::RARE_UPDATE);
         self.material = Some(material);
 
 
@@ -111,7 +111,7 @@ impl Clouds {
         }
 
         // update instances data
-        self.material.as_mut().unwrap().update_instance_data2(&self.instance_data);
+        self.material.as_mut().unwrap().update_instance_data(&self.instance_data);
     }
 
     pub fn draw(&self, global_renderer: &mut GlobalRenderer) {

@@ -1,5 +1,5 @@
 ﻿use ash::vk;
-use super::{raw_texture::RawTexture, ubo::Ubo, vulkan_app::VulkanApp};
+use super::{raw_texture::RawTexture, vulkan_app::VulkanApp};
 use super::vkutl;
 
 

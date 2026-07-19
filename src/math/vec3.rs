@@ -19,8 +19,6 @@ impl Vec3 {
     pub fn from1(value: f32) -> Self { Self { x: value, y: value, z: value } }
     pub fn from4(v: Vec4) -> Self { Self { x: v.x, y: v.y, z: v.z } }
 
-    pub fn as_ptr(&self) -> *const f32 { &self.x }
-
     pub fn as_vec3i(&self) -> Vec3i {
         Vec3i {
             x: self.x as i32,

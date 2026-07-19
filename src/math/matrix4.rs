@@ -74,8 +74,6 @@ impl Matrix4 {
         return result;
     }
 
-    pub fn as_ptr(&self) -> *const f32 { self.values[0].as_ptr() }
-
     pub fn get_row0(&self) -> Vec4 { Vec4::new(self.values[0].x, self.values[1].x, self.values[2].x, self.values[3].x) }
     pub fn get_row1(&self) -> Vec4 { Vec4::new(self.values[0].y, self.values[1].y, self.values[2].y, self.values[3].y) }
     pub fn get_row2(&self) -> Vec4 { Vec4::new(self.values[0].z, self.values[1].z, self.values[2].z, self.values[3].z) }

@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{render::{DrawInfo, GraphicsPipeline, VerticesAttributes, VulkanApp, raw_buffer::BufferFlags, vertices_attributes::BuffersTypes, vkutl}, utils::MutSafePtr};
+use crate::{render::{DrawInfo, GraphicsPipeline, VerticesAttributes, VulkanApp, raw_buffer::BufferFlags, vertices_attributes::BuffersTypes, vkutl}, utils::SafePtrMut};
 
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -15,7 +15,7 @@ pub enum MaterialType {
 }
 
 pub struct Material {
-    app: MutSafePtr<VulkanApp>,
+    app: SafePtrMut<VulkanApp>,
 
     pipeline: Rc<RefCell<GraphicsPipeline>>,
     vao: VerticesAttributes,
@@ -31,7 +31,7 @@ unsafe impl Send for Material {}
 impl Material {
     pub fn new(app: &mut VulkanApp, pipeline: Rc<RefCell<GraphicsPipeline>>, material_type: MaterialType) -> Self {
         Self {
-            app: MutSafePtr::new(app),
+            app: SafePtrMut::new(app),
 
             pipeline: pipeline,
             vao: VerticesAttributes::new(),
@@ -65,11 +65,9 @@ impl Material {
     }
 
     pub fn update_instance_data<T2>(&mut self, arr: &[T2]) {
-        self.vao.update_buffer(&self.app, BuffersTypes::Instance, arr);
-    }
-
-    pub fn update_instance_data2<T2>(&mut self, arr: &[T2]) {
-        self.vao.update_buffer2(&mut self.app, BuffersTypes::Instance, arr);
+        if arr.len() > 0 {
+            self.vao.update_buffer(&mut self.app, BuffersTypes::Instance, arr);
+        }
     }
 
     pub fn update_push_constant<T>(&mut self, offset: usize, data: *const T) {

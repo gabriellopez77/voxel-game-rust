@@ -36,10 +36,6 @@ impl ChunkMeshResult {
         }
     }
 
-    pub fn get_vertices(&mut self, render_type: RendererType) -> &mut Vec<ChunkVertices> {
-        &mut self.vertices[render_type as usize]
-    }
-
     pub fn gen_indices(&mut self) {
         for i in 0..RendererType::RENDERS_COUNT {
             let indices = &mut self.indices[i];

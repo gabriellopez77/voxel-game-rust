@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use crate::math::Vec2;
 use crate::render::{GlobalRenderer, UiRenderer};
-use crate::resources::{FontInfo, ResourceManager};
+use crate::resources::FontInfo;
 use crate::ui::tools::{Sprite, Text, UiElement};
 use crate::world::player::player_inventory::SlotType;
 use crate::world::player::PlayerInventory;

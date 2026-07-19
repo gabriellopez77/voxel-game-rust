@@ -91,8 +91,4 @@ impl PlayerInventory {
     pub fn get_selected_hotbar_slot(&self) -> &ItemStack {
         &self.inventory[self.selected_hotbar_slot as usize]
     }
-
-    pub fn get_flying_item(&self) -> &ItemStack {
-        &self.flying_item
-    }
 }

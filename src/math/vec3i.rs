@@ -18,8 +18,6 @@ impl Vec3i {
     pub fn new(x: i32, y: i32, z: i32 ) -> Self { Self { x, y, z, } }
     pub fn from1(value: i32) -> Self { Self { x: value, y: value, z: value } }
 
-    pub fn as_ptr(&self) -> *const i32 { &self.x }
-
     pub fn as_vec3(&self) -> Vec3 {
         Vec3 {
             x: self.x as f32,

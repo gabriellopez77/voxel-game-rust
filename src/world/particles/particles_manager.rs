@@ -91,7 +91,6 @@ impl ParticlesManager {
             })
         }
 
-        material.update_instance_data(&self.instance_data);
         global_renderer.draw_obj_instanced_with_buffer(material, &mut self.instance_data);
     }
 

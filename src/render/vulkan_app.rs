@@ -13,7 +13,7 @@ use super::swapchain_info::SwapChainInfo;
 use super::vkutl;
 
 #[derive(Clone, Copy)]
-struct BufferDuplacteUpdateInfo {
+struct BufferDuplicateUpdateInfo {
     pub flags: BufferFlags,
     pub buffers: [vk::Buffer; vkutl::FRAMES_COUNT],
     pub mapped_memory: [*mut u8; vkutl::FRAMES_COUNT],
@@ -25,7 +25,21 @@ struct BufferDuplacteUpdateInfo {
     pub buffer_range: RangeInfo,
 }
 
-impl BufferDuplacteUpdateInfo {
+impl BufferDuplicateUpdateInfo {
+    pub fn new(buffer: &RawBuffer, allocated_range: RangeInfo, offset: u64, size: u64) -> Self {
+        Self {
+            flags: buffer.flags,
+            buffers: buffer.get_all_buffers(),
+            mapped_memory: buffer.get_all_mapped_memory(),
+            need_update: [true; vkutl::FRAMES_COUNT],
+            used: [true; vkutl::FRAMES_COUNT],
+
+            allocated_range: allocated_range,
+            src_range: RangeInfo::new(allocated_range.start, size as u32),
+            buffer_range: RangeInfo::new(offset as u32, size as u32),
+        }
+    }
+
     pub fn can_free(&self) -> bool {
         for need in self.used {
             if need { return false; }
@@ -81,6 +95,10 @@ pub struct VulkanApp {
     pub present_queue: vk::Queue,
     pub transfer_queue: vk::Queue,
 
+    pub graphics_queue_index: u32,
+    pub transfer_queue_index: u32,
+    pub present_queue_index: u32,
+
     pub graphics_command_pool: vk::CommandPool,
     pub transfer_command_pool: vk::CommandPool,
 
@@ -106,16 +124,18 @@ pub struct VulkanApp {
     current_gargabe_list: Vec<GarbageType>,
 
     // global staging buffer
-    global_staging_buffer: vk::Buffer,
-    global_staging_buffer_allocation: vk_mem::Allocation,
-    global_staging_buffer_mapped_memory: *mut u8,
-    global_staging_buffer_arena: BufferArena,
+    global_staging: vk::Buffer,
+    global_staging_allocation: vk_mem::Allocation,
+    global_staging_mapped_memory: *mut u8,
+    global_staging_arena: BufferArena,
 
     // buffers updates
-    updates_list: Vec<BufferDuplacteUpdateInfo>,
+    updates_list: Vec<BufferDuplicateUpdateInfo>,
 
-    // cache
-    pub families_indices_cache: QueueFamilyIndices,
+    // graphics pipeline barrier
+    graphics_pipeline_barrier: [Vec<vk::Buffer>; vkutl::FRAMES_COUNT],
+
+
 }
 
 impl VulkanApp {
@@ -139,6 +159,10 @@ impl VulkanApp {
             present_queue: vk::Queue::null(),
             transfer_queue: vk::Queue::null(),
 
+            graphics_queue_index: 0,
+            transfer_queue_index: 0,
+            present_queue_index: 0,
+
             graphics_command_pool: vk::CommandPool::null(),
             transfer_command_pool: vk::CommandPool::null(),
 
@@ -161,43 +185,32 @@ impl VulkanApp {
             garbage_lists: Vec::new(),
             current_gargabe_list: Vec::new(),
 
-            global_staging_buffer: vk::Buffer::null(),
-            global_staging_buffer_allocation: unsafe { std::mem::zeroed() },
-            global_staging_buffer_arena: BufferArena::new(100 * BufferArena::MB, 1 * BufferArena::KB),
-            global_staging_buffer_mapped_memory: std::ptr::null_mut(),
+            global_staging: vk::Buffer::null(),
+            global_staging_allocation: unsafe { std::mem::zeroed() },
+            global_staging_arena: BufferArena::new(100 * BufferArena::MB, 1 * BufferArena::KB),
+            global_staging_mapped_memory: std::ptr::null_mut(),
+
             updates_list: Vec::new(),
 
-            families_indices_cache: QueueFamilyIndices::new(),
+            graphics_pipeline_barrier: array::from_fn(|_| Vec::new()),
         }
     }
 
-    pub fn update_buffer(&mut self, buffer: &RawBuffer, data: *const u8, size: usize, offset: usize) {
+    pub fn update_buffer(&mut self, buffer: &RawBuffer, data: *const u8, offset: u64, size: u64) {
         assert!(!buffer.flags.contains(BufferFlags::ONCE), "invalid buffer");
+        assert!(size > 0, "invalid buffer size");
 
-        let allocated_range = self.global_staging_buffer_arena.find_range(size as u32).expect("Arena out of memory!");
-
-        let mut allocation = self.global_staging_buffer_allocation;
-        vkutl::copy_data_to_staging_buffer(self, allocated_range.start as usize, size, data, &mut allocation, false);
-        self.vma_allocator.flush_allocation(&allocation, allocated_range.start as u64, size as u64).expect("Failed to flush memory ranges!");
-        self.global_staging_buffer_allocation = allocation;
+        let allocated_range = self.global_staging_arena.find_range(size as u32).expect("Arena out of memory!");
+        unsafe { std::ptr::copy_nonoverlapping(data, self.global_staging_mapped_memory.byte_add(allocated_range.start as usize), size as usize) };
+        self.vma_allocator.flush_allocation(&mut self.global_staging_allocation, allocated_range.start as u64, size as u64).unwrap();
 
 
-        let mut info = BufferDuplacteUpdateInfo {
-            flags: buffer.flags,
-            buffers: buffer.get_all_buffers(),
-            mapped_memory: buffer.get_all_mapped_memory(),
-            need_update: array::from_fn(|_| true),
-            used: array::from_fn(|_| true),
+        let info = BufferDuplicateUpdateInfo::new(buffer, allocated_range, offset, size);
 
-            allocated_range: allocated_range,
-            src_range: RangeInfo::new(allocated_range.start, size as u32),
-            buffer_range: RangeInfo::new(offset as u32, size as u32),
-        };
+        // check if the new update overlaps any old update in same buffer
+        for i in (0..self.updates_list.len()).rev() {
+            let update_info = &mut self.updates_list[i];
 
-        info.need_update[self.frame_index] = false;
-        info.used[self.frame_index] = false;
-
-        for update_info in &mut self.updates_list {
             let old_range = update_info.buffer_range;
             let new_range = info.buffer_range;
 
@@ -205,30 +218,65 @@ impl VulkanApp {
             if !update_info.need_update[self.frame_index] { continue }
             if !(new_range.end() >= old_range.start && new_range.start <= old_range.end()) { continue }
 
-            // the old range is equal to new range
+            // the old range is equal to new range, old update is unnecessary
             if new_range.start == old_range.start && new_range.len == old_range.len {
-                update_info.need_update[self.frame_index] = false;
-                println!("0");
-            }
-            // the old range is completely within the new range
-            else if new_range.start <= old_range.start && new_range.end() >= old_range.end() {
                 update_info.need_update[self.frame_index] = false;
                 println!("1");
             }
-            // the new range start before old range.end(), then we set the a new len to end before new_range.start
-            else if new_range.start >= old_range.start && new_range.end() >= old_range.end() {
-                update_info.buffer_range.len = update_info.buffer_range.end() - new_range.start;
+            // the old range is completely within the new range, old update is unnecessary
+            else if new_range.start <= old_range.start && new_range.end() >= old_range.end() {
+                update_info.need_update[self.frame_index] = false;
                 println!("2");
             }
-            //
-            else if new_range.start <= old_range.start && new_range.end() <= old_range.end() {
-                update_info.src_range = RangeInfo::new(new_range.end(), old_range.end() - new_range.end());
-                debug_assert!(update_info.src_range.len > 0, "Invalid update len: 0");
-
+            // the new range start before old range.end(),
+            // then we change the old range len to end before new_range.start
+            else if new_range.start >= old_range.start && new_range.end() >= old_range.end() {
+                update_info.buffer_range.len = update_info.buffer_range.end() - new_range.start;
                 println!("3");
             }
+            // the new range start before old_range.start and ends before old_range.end(),
+            // then we change the old_range.start to new_range.end() and update his len
+            else if new_range.start <= old_range.start && new_range.end() <= old_range.end() {
+                update_info.src_range = RangeInfo::new(new_range.end(), old_range.end() - new_range.end());
+                assert!(update_info.src_range.len > 0, "Invalid update len: 0");
+
+                println!("4");
+            }
+            // the new range is completely within the old range,
+            // then we divide the old range in two new ranges: left and right
             else if new_range.start > old_range.start && new_range.end() < old_range.end() {
-                todo!();
+                // updates the left range only change the len
+                update_info.buffer_range.len = new_range.start - old_range.start;
+
+                // create the right range
+                let right_range = RangeInfo::new(new_range.end(), old_range.end() - new_range.end());
+
+                // alloc a new range for it
+                let right_allocated_range = self.global_staging_arena.find_range(size as u32).expect("Arena out of memory!");
+
+                // copy the data of old update to allocated range
+                unsafe {
+                    std::ptr::copy_nonoverlapping(
+                        self.global_staging_mapped_memory.byte_add(new_range.end() as usize),
+                        self.global_staging_mapped_memory.byte_add(right_allocated_range.start as usize),
+                        right_range.len as usize
+                    )
+                };
+                self.vma_allocator.flush_allocation(&mut self.global_staging_allocation,
+                    right_allocated_range.start as u64,
+                    right_range.len as u64
+                ).unwrap();
+
+                // this update is nost necessary for previous frame,
+                // then we clone the update_info because it contains previous frame infos
+                let mut right_info = update_info.clone();
+                right_info.allocated_range = right_allocated_range;
+                right_info.src_range = RangeInfo::new(right_allocated_range.start, right_range.len);
+                right_info.buffer_range = right_range;
+                right_info.need_update[self.frame_index] = true;
+
+                self.updates_list.push(right_info);
+                println!("5");
             }
             else {
                 panic!("Error");
@@ -238,11 +286,11 @@ impl VulkanApp {
         self.updates_list.push(info);
     }
 
-    pub fn get_current_command_buffer(&self) -> vk::CommandBuffer {
+    pub fn get_graphics_cmd(&self) -> vk::CommandBuffer {
         self.graphics_command_buffers[self.frame_index]
     }
 
-    pub fn get_current_transfer_command_buffer(&self) -> vk::CommandBuffer {
+    pub fn get_transfer_cmd(&self) -> vk::CommandBuffer {
         self.transfer_command_buffers[self.frame_index]
     }
 
@@ -303,8 +351,11 @@ impl VulkanApp {
         self.create_logical_device(); // init ash_device
         self.ash_swapchain = ash::khr::swapchain::Device::new(&self.ash_instance, &self.ash_device);
 
-        // save cache
-        self.families_indices_cache = self.find_queue_families(self.physical_device);
+
+        let indices = self.find_queue_families(self.physical_device);
+        self.graphics_queue_index = indices.graphics.unwrap();
+        self.transfer_queue_index = indices.transfer.unwrap();
+        self.present_queue_index = indices.present.unwrap();
 
         let mut allocator_info = vk_mem::AllocatorCreateInfo::new(&self.ash_instance, &self.ash_device, self.physical_device);
         allocator_info.flags = vk_mem::AllocatorCreateFlags::EXTERNALLY_SYNCHRONIZED;
@@ -327,15 +378,15 @@ impl VulkanApp {
         staging_allocation_info.flags = vk_mem::AllocationCreateFlags::HOST_ACCESS_SEQUENTIAL_WRITE | vk_mem::AllocationCreateFlags::DEDICATED_MEMORY;
 
         // create staging buffer
-        (self.global_staging_buffer, self.global_staging_buffer_allocation) = vkutl::create_buffer(
+        (self.global_staging, self.global_staging_allocation) = vkutl::create_buffer(
             self, (100 * BufferArena::MB) as u64,
             vk::BufferUsageFlags::TRANSFER_SRC,
             &staging_allocation_info, false
         );
-        let mut allocation = self.global_staging_buffer_allocation;
+        let mut allocation = self.global_staging_allocation;
 
-        self.global_staging_buffer_mapped_memory = unsafe { self.vma_allocator.map_memory(&mut allocation).unwrap() };
-        self.global_staging_buffer_allocation = allocation;
+        self.global_staging_mapped_memory = unsafe { self.vma_allocator.map_memory(&mut allocation).unwrap() };
+        self.global_staging_allocation = allocation;
 
     }
 
@@ -349,11 +400,11 @@ impl VulkanApp {
 
             SwapChainInfo::clear(self);
 
-            let mut allocation = self.global_staging_buffer_allocation;
+            let mut allocation = self.global_staging_allocation;
             self.vma_allocator.unmap_memory(&mut allocation);
-            self.global_staging_buffer_allocation = allocation;
+            self.global_staging_allocation = allocation;
 
-            self.vma_allocator.destroy_buffer(self.global_staging_buffer, &mut self.global_staging_buffer_allocation);
+            self.vma_allocator.destroy_buffer(self.global_staging, &mut self.global_staging_allocation);
         }
     }
 
@@ -482,7 +533,7 @@ impl VulkanApp {
         }
 
         // graphics queue is necessary
-        assert!(indices.graphics.is_some());
+        debug_assert!(indices.graphics.is_some());
 
         // try to get present queue support that are not graphics queue
         for index in 0..queues.len() {
@@ -616,8 +667,8 @@ impl VulkanApp {
         create_info.image_usage = vk::ImageUsageFlags::COLOR_ATTACHMENT;
 
         let family_indices = [
-            self.families_indices_cache.graphics.unwrap(),
-            self.families_indices_cache.present.unwrap()
+            self.graphics_queue_index,
+            self.present_queue_index
         ];
 
         if family_indices[0] != family_indices[1] {
@@ -761,7 +812,7 @@ impl VulkanApp {
     fn create_command_pool(&mut self) {
         let graphics_pool_info = vk::CommandPoolCreateInfo::default()
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
-            .queue_family_index(self.families_indices_cache.graphics.unwrap());
+            .queue_family_index(self.graphics_queue_index);
 
         self.graphics_command_pool = unsafe {
             self.ash_device.create_command_pool(&graphics_pool_info, None).expect("Failed to create command pool!")
@@ -769,7 +820,7 @@ impl VulkanApp {
 
         let transfer_pool_info = vk::CommandPoolCreateInfo::default()
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
-            .queue_family_index(self.families_indices_cache.transfer.unwrap());
+            .queue_family_index(self.transfer_queue_index);
 
         self.transfer_command_pool = unsafe {
             self.ash_device.create_command_pool(&transfer_pool_info, None).expect("Failed to create command pool!")
@@ -919,6 +970,53 @@ impl VulkanApp {
         };
 
 
+
+
+
+        for i in (0..self.updates_list.len()).rev() {
+            if self.updates_list[i].can_free() {
+                let mut allocated_range = self.updates_list[i].allocated_range;
+                self.global_staging_arena.restore_range(&mut allocated_range);
+                self.updates_list.swap_remove(i);
+            }
+            else {
+                // the fences ensure that copies finished
+                self.updates_list[i].used[self.frame_index] = false;
+            }
+        }
+    }
+
+    pub fn add_buffer_transfer_ownership(&mut self, buffer: vk::Buffer) {
+        self.graphics_pipeline_barrier[self.frame_index].push(buffer);
+    }
+
+    pub fn render_pass_begin(&mut self) {
+        let graphics_cmd = self.get_graphics_cmd();
+
+        for buffer in &mut self.graphics_pipeline_barrier[self.frame_index] {
+            let acquire_barrier = vk::BufferMemoryBarrier::default()
+                .dst_access_mask(vk::AccessFlags::VERTEX_ATTRIBUTE_READ)
+                .src_queue_family_index(self.transfer_queue_index)
+                .dst_queue_family_index(self.graphics_queue_index)
+                .buffer(*buffer)
+                .size(vk::WHOLE_SIZE);
+
+            unsafe {
+                self.ash_device.cmd_pipeline_barrier(graphics_cmd,
+                    vk::PipelineStageFlags::TOP_OF_PIPE,
+                    vk::PipelineStageFlags::VERTEX_INPUT,
+                    vk::DependencyFlags::empty(),
+                    &[],
+                    &[acquire_barrier],
+                    &[]
+                );
+            }
+        }
+
+        self.graphics_pipeline_barrier[self.frame_index].clear();
+
+        let graphics_command_buffer = self.graphics_command_buffers[self.frame_index];
+
         // begin render pass
         const CLEAR_VALUES: [vk::ClearValue; 2] = [
             vk::ClearValue { color: vk::ClearColorValue { float32: [0.3, 0.5, 1.0, 1.0] } },
@@ -949,19 +1047,6 @@ impl VulkanApp {
             self.ash_device.cmd_set_viewport(graphics_command_buffer, 0, &[viewport]);
             self.ash_device.cmd_set_scissor(graphics_command_buffer, 0, &[scissor]);
         };
-
-
-        for i in (0..self.updates_list.len()).rev() {
-            if self.updates_list[i].can_free() {
-                let mut info = self.updates_list[i];
-                self.global_staging_buffer_arena.restore_range(&mut info.allocated_range);
-                self.updates_list.swap_remove(i);
-
-                continue;
-            }
-
-            self.updates_list[i].used[self.frame_index] = false;
-        }
     }
 
     pub fn end_frame(&mut self) {
@@ -974,21 +1059,23 @@ impl VulkanApp {
             self.garbage_lists.push((self.frame_count + vkutl::SWAPCHAIN_IMAGES_COUNT, old_list));
         }
 
-        //println!("global staging arena used: {} MB", self.global_staging_buffer_arena.get_used_mb());
+        //if self.frame_count % 10 == 0 {
+        //    println!("global staging arena used: {} MB", self.global_staging_arena.get_used_mb());
+        //}
+
         //println!("frame idx: {}, buffer len: {}, src len: {}", self.frame_index, info.buffer_range.len, info.src_range.len);
 
         // updates buffers
-        for i in 0..self.updates_list.len() {
+        for i in (0..self.updates_list.len()).rev() {
             if !self.updates_list[i].need_update[self.frame_index] { continue }
             self.updates_list[i].need_update[self.frame_index] = false;
             self.updates_list[i].used[self.frame_index] = true;
 
             let info = &self.updates_list[i];
 
-
             if info.flags.contains(BufferFlags::VRAM) {
                 vkutl::copy_buffer_async(self,
-                    self.global_staging_buffer,
+                    self.global_staging,
                     info.buffers[self.frame_index],
                     info.buffer_range.len as u64,
                     info.src_range.start as u64,
@@ -998,7 +1085,7 @@ impl VulkanApp {
             else {
                 unsafe {
                     std::ptr::copy_nonoverlapping(
-                        self.global_staging_buffer_mapped_memory.byte_add(info.src_range.start as usize),
+                        self.global_staging_mapped_memory.byte_add(info.src_range.start as usize),
                         info.mapped_memory[self.frame_index].byte_add(info.buffer_range.start as usize),
                         info.buffer_range.len as usize
                     );

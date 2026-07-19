@@ -2,9 +2,8 @@ use ash::vk;
 use ash::vk::Handle;
 use crate::math::Vec4;
 use crate::render::PipelineLayout;
-use crate::resources::ShadersCompiler;
 use super::descriptor_set::DescriptorSet;
-use super::{vkutl, VulkanApp};
+use super::vkutl;
 
 
 pub struct PipelineSettings {
@@ -61,7 +60,7 @@ impl PipelineSettings {
         let binding = self.current_binding;
         self.current_binding += 1;
 
-        assert!(self.current_binding <= vkutl::MAX_VERTEX_BINDING_COUNT as u32, "max binding count is: {}", vkutl::MAX_VERTEX_BINDING_COUNT);
+        debug_assert!(self.current_binding <= vkutl::MAX_VERTEX_BINDING_COUNT as u32, "max binding count is: {}", vkutl::MAX_VERTEX_BINDING_COUNT);
 
         self.bindings_info[binding as usize] = vk::VertexInputBindingDescription {
             binding: binding,
@@ -76,7 +75,7 @@ impl PipelineSettings {
         let index = self.current_attributes_index;
         self.current_attributes_index += 1;
 
-        assert!(self.current_binding <= vkutl::MAX_VERTEX_ATTRIBUTES_COUNT as u32, "max attributes count is: {}", vkutl::MAX_VERTEX_ATTRIBUTES_COUNT);
+        debug_assert!(self.current_binding <= vkutl::MAX_VERTEX_ATTRIBUTES_COUNT as u32, "max attributes count is: {}", vkutl::MAX_VERTEX_ATTRIBUTES_COUNT);
 
         self.attributes_info[index as usize] = vk::VertexInputAttributeDescription{
             location: self.current_location,
@@ -107,7 +106,7 @@ impl PipelineSettings {
     }
 
     pub fn add_descriptor_set(&mut self, descriptor_set: &DescriptorSet) {
-        assert!(!descriptor_set.get_layout().is_null(), "descriptor set is null");
+        debug_assert!(!descriptor_set.get_layout().is_null(), "descriptor set is null");
 
         self.pipeline_layout.add_descriptor(descriptor_set);
     }
