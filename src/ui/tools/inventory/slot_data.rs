@@ -1,3 +1,4 @@
+use std::fmt::Write;
 use std::rc::Rc;
 use crate::math::Vec2;
 use crate::render::{GlobalRenderer, UiRenderer};
@@ -80,7 +81,7 @@ impl SlotData {
 
         // avoids update text chars mesh in every frame
         if self.last_count != slot.get_count() && self.count_text_visible {
-            self.count_text.set_text_i32(slot.get_count());
+            self.count_text.set_text_string(|text| write!(text, "{}", slot.get_count()));
             self.count_text.set_posv(self.icon.get_final());
         }
 

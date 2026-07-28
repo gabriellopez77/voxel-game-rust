@@ -9,6 +9,9 @@ pub struct Inputs {
 
     mouse_pos: Vec2,
 
+    mouse_pos_camera: Vec2,
+    last_mouse_pos_camera: Vec2,
+
     mouse_scroll_delta: i32,
 }
 
@@ -20,12 +23,16 @@ impl Inputs {
 
             mouse_pos: Vec2::ZERO,
 
+            mouse_pos_camera: Vec2::ZERO,
+            last_mouse_pos_camera: Vec2::ZERO,
+
             mouse_scroll_delta: 0,
         }
     }
 
     pub fn new_frame(&mut self) {
         self.mouse_scroll_delta = 0;
+        self.last_mouse_pos_camera = self.mouse_pos_camera;
 
         for i in 0..Keys::LAST_KEY as usize {
             self.last_keys[i] = false;
@@ -41,12 +48,22 @@ impl Inputs {
             WindowEvent::MouseButton(button, action, _) => {
                 self.keys[*button as usize] = *action != glfw::Action::Release
             }
-            WindowEvent::CursorPos(x, y) => { self.mouse_pos = Vec2::new(*x as f32, *y as f32) }
+            WindowEvent::CursorPos(x, y) => {
+                self.mouse_pos = Vec2::new(*x as f32, *y as f32);
+                self.mouse_pos_camera = self.mouse_pos;
+            }
             WindowEvent::Scroll(_, y) => { self.mouse_scroll_delta = *y as i32 }
             _ => {}
         }
     }
 
+    pub fn reset_camera_delta(&mut self, value: bool) {
+        if value {
+            self.last_mouse_pos_camera = self.mouse_pos_camera;
+        }
+    }
+
+    pub fn get_camera_delta(&self) -> Vec2 { self.mouse_pos_camera - self.last_mouse_pos_camera }
     pub fn get_mouse_pos(&self) -> Vec2 { self.mouse_pos }
 
 

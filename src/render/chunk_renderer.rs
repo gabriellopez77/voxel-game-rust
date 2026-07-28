@@ -1,6 +1,6 @@
 ﻿use crate::render::material::MaterialType;
 use crate::render::{GlobalRenderer, Material};
-use crate::render::raw_buffer::BufferFlags;
+use crate::render::core::raw_buffer::BufferFlags;
 use crate::world::chunk::ChunkMeshResult;
 
 

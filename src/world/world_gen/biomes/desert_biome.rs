@@ -1,4 +1,4 @@
-use crate::{utils::NullSafePtr, world::{blocks::{BlockProperties, BlocksManager}, world_gen::biomes::BiomeBase}};
+use crate::{utils::NullSafePtr, world::{blocks::{BlocksManager}, world_gen::biomes::BiomeBase}};
 
 
 pub struct DesertBiome {
@@ -6,16 +6,16 @@ pub struct DesertBiome {
 }
 
 impl BiomeBase for DesertBiome {
-    fn get_surface_block(&self) -> &BlockProperties {
-        self.blocks_manager.sand.get_properties(0)
+    fn get_surface_block(&self) -> (u16, u8) {
+        self.blocks_manager.sand
     }
 
-    fn get_underground_block(&self) -> &BlockProperties {
-        self.blocks_manager.sandstone.get_properties(0)
+    fn get_underground_block(&self) -> (u16, u8) {
+        self.blocks_manager.sandstone
     }
 
-    fn get_surface_decorations(&self) -> &BlockProperties {
-        self.blocks_manager.dead_bush.get_properties(0)
+    fn get_surface_decorations(&self) -> (u16, u8) {
+        self.blocks_manager.dead_bush
     }
 }
 

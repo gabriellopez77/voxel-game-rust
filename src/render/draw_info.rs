@@ -1,6 +1,6 @@
 use ash::vk;
 
-use crate::render::vkutl;
+use crate::render::core::vkutl;
 
 
 pub struct DrawInfo {

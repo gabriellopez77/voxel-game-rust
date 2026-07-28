@@ -1,7 +1,7 @@
 use crate::math::{Color4b, Vec2, Vec2i, Vec3};
 use crate::render::material::MaterialType;
 use crate::render::{CUBE_INDICES, CUBE_VERTICES, CloudsVertices, GlobalRenderer, Material};
-use crate::render::raw_buffer::BufferFlags;
+use crate::render::core::raw_buffer::BufferFlags;
 use crate::resources::ResourceManager;
 use crate::world::Chunk;
 

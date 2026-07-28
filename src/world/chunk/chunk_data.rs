@@ -1,5 +1,4 @@
 use crate::{math::{self, Vec3i}, world::Chunk};
-use crate::world::blocks::BlockProperties;
 
 
 #[derive(Clone, Copy)]
@@ -60,25 +59,21 @@ impl ChunkData {
     }
 
 
-    pub fn set_blocki(&mut self, x: i32, y: i32, z: i32, block: &BlockProperties) {
-        self.set_block_index(math::get_index(x, y, z), block);
+    pub fn set_blocki(&mut self, x: i32, y: i32, z: i32, id_state: (u16, u8)) {
+        self.set_block_index(math::get_index(x, y, z), id_state);
     }
 
-    pub fn set_block(&mut self, chunk_block: Vec3i, block: &BlockProperties) {
-        self.set_block_index(math::get_index(chunk_block.x, chunk_block.y, chunk_block.z), block);
+    pub fn set_block(&mut self, chunk_block: Vec3i, id_state: (u16, u8)) {
+        self.set_block_index(math::get_index(chunk_block.x, chunk_block.y, chunk_block.z), id_state);
     }
 
-    pub fn set_block_index(&mut self, index: usize, block: &BlockProperties) {
+    pub fn set_block_index(&mut self, index: usize, id_state: (u16, u8)) {
         let current_id = &mut self.blocks_id[index];
         let current_state = &mut self.blocks_state[index];
 
-        let base_properties = &block.base_properties;
+        self.regen_mesh |= *current_id != id_state.0 || *current_state != id_state.1;
 
-        let id = base_properties.id;
-
-        self.regen_mesh |= *current_id != id || *current_state != base_properties.state;
-
-        *current_id = id;
-        *current_state = base_properties.state;
+        *current_id = id_state.0;
+        *current_state = id_state.1;
     }
 }

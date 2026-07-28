@@ -1,6 +1,6 @@
 use ash::vk::{self, Handle};
 
-use crate::render::{DescriptorSet, VulkanApp, vkutl};
+use super::{DescriptorSet, VulkanApp, vkutl};
 
 
 #[derive(Clone)]

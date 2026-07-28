@@ -1,11 +1,11 @@
 use std::{cell::RefCell, collections::HashMap, mem::offset_of, rc::Rc, usize};
 use ash::{vk, vk::Handle};
 
-use crate::{math::Vec3, render::{ChunkVertices, CloudsVertices, DescriptorSet, DrawInfo, GlobalUboData, GraphicsPipeline, Material, ParticlesVertices, PipelineLayout, PipelineSettings, SkyBodiesVertices, SpritesVertices, TextVertices, Ubo, VulkanApp, material::MaterialType, raw_buffer::BufferFlags, vertices_attributes::BuffersTypes, vkutl}, resources::{ResourceManager, ShadersCompiler}, utils::SafePtrMut};
-
+use crate::{math::Vec3, render::{ChunkVertices, CloudsVertices, DrawInfo, GlobalUboData, Material, ParticlesVertices, SkyBodiesVertices, SpritesVertices, TextVertices, Ubo, material::MaterialType, vertices_attributes::BuffersTypes}, resources::{ResourceManager, ShadersCompiler}, utils::SafePtrMut};
+use super::core::{vkutl, VulkanApp, DescriptorSet, GraphicsPipeline, PipelineSettings, PipelineLayout, raw_buffer::BufferFlags};
 
 pub struct GlobalRenderer {
-    app: SafePtrMut<VulkanApp>,
+    pub app: SafePtrMut<VulkanApp>,
 
     pub global_ubo: Ubo<GlobalUboData>,
     pub global_descriptor: DescriptorSet,
@@ -156,8 +156,10 @@ impl GlobalRenderer {
         {
             let mut settings = PipelineSettings::new(r"selectionBox");
             settings.enable_blend = true;
+            settings.topology = vk::PrimitiveTopology::LINE_LIST;
+            settings.line_width = 3.0;
             settings.add_descriptor_set(&self.global_descriptor);
-            settings.vertex_info(6, false)
+            settings.vertex_info(3, false)
                 .add_attrib(vk::Format::R8G8B8_SINT, 0);
 
             self.create_pipeline_layout(&mut settings.pipeline_layout);

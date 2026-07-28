@@ -1,6 +1,6 @@
 use crate::render::material::MaterialType;
 use crate::render::{GlobalRenderer, Material, SPRITES_INDICES, SPRITES_VERTICES, SpritesVertices, TextVertices};
-use crate::render::raw_buffer::BufferFlags;
+use super::core::raw_buffer::BufferFlags;
 
 
 pub struct UiRenderer {

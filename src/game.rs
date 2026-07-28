@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::{rc::Rc, cell::RefCell};
-use crate::render::{GlobalRenderer, VulkanApp};
+use crate::render::{GlobalRenderer, core::VulkanApp};
 use crate::ui::ui_manager::ScreensId;
 use crate::world::World;
 use crate::inputs::{self, Inputs};
@@ -15,6 +15,12 @@ pub enum GameStates {
     Loading,
     Playable,
     Saving,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum PlayerStates {
+    Active,
+    Menu,
 }
 
 pub enum GameEvents {
@@ -74,7 +80,7 @@ impl Game {
         //println!("{}", now.elapsed().as_micros());
     }
 
-    pub fn update(&mut self, dt: f32, window: &mut Window, inputs: &Inputs) {
+    pub fn update(&mut self, dt: f32, window: &mut Window, inputs: &mut Inputs) {
         // process events
         self.process_events(window);
 
@@ -111,8 +117,9 @@ impl Game {
         }
 
 
-        if self.in_world && !self.paused {
+        if self.in_world {
             let mut update_args = WorldUpdateArgs {
+                is_paused: self.paused,
                 events_queue: &mut self.events_queue,
                 inputs: inputs,
                 dt,

@@ -1,6 +1,5 @@
 ﻿use crate::math::{self, Matrix4, Vec2, Vec3, Vec3i};
 
-use crate::world::player::player::PlayerStates;
 use crate::world::{Aabb, Chunk, Planet};
 
 
@@ -30,8 +29,6 @@ pub struct Camera {
 
     frustum_planes: [Plane; 6],
 
-    last_mouse_pos: Vec2,
-
     pub is_underwater: bool,
 }
 
@@ -53,8 +50,6 @@ impl Camera {
 
             frustum_planes: [Plane{normal: Vec3::ZERO, d: 0.0}; 6],
 
-            last_mouse_pos: Vec2::ZERO,
-
             is_underwater: false,
         }
     }
@@ -71,7 +66,7 @@ impl Camera {
         self.direction
     }
 
-    pub fn update(&mut self, player_aabb: &Aabb, planet: &Planet, mouse_pos: Vec2, player_state: PlayerStates) {
+    pub fn update(&mut self, player_aabb: &Aabb, planet: &Planet, camera_delta: Vec2) {
         let new_pos = Vec3::new(
             player_aabb.get_pos().x + player_aabb.get_size().x / 2.0,
             player_aabb.get_pos().y + 1.7,
@@ -89,10 +84,10 @@ impl Camera {
         self.is_underwater = if let Some(chunk) = planet.get_chunk(self.chunk_pos) {
             let block_info =chunk.borrow().chunk_data.get_block_info(self.chunk_block);
 
-            planet.blocks_manager.get_properties_from_block_info(block_info).base_properties.id == planet.blocks_manager.water_block.get_base().id
+            planet.blocks_manager.get_properties_from_block_info(block_info).base_properties.id == planet.blocks_manager.water_block.0
         } else { false };
 
-        self.process_rotation(mouse_pos, player_state);
+        self.process_rotation(camera_delta);
 
         if !self.view_changed { return }
 
@@ -125,13 +120,10 @@ impl Camera {
         return true;
     }
 
-    fn process_rotation(&mut self, mouse_pos: Vec2, player_state: PlayerStates) {
+    fn process_rotation(&mut self, camera_delta: Vec2) {
         const SENSITIVYTY: f32 = 0.2;
 
-        let delta = (mouse_pos - self.last_mouse_pos) * SENSITIVYTY;
-
-        self.last_mouse_pos = mouse_pos;
-        if player_state == PlayerStates::Menu { return }
+        let delta = camera_delta * SENSITIVYTY;
 
 
         let last_rotate = self.rot;

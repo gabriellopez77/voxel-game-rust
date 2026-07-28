@@ -5,10 +5,10 @@ use crate::math::{Vec3, Vec3i, self};
 
 use crate::render::{ChunkRenderer, ChunkVertices, GlobalRenderer};
 use crate::resources::Worker;
-use crate::utils::{NullSafePtr, ObjectPool};
+use crate::utils::{NullSafePtr, ObjectPool, SafePtr};
 use crate::world::Aabb;
-use crate::world::blocks::BlocksManager;
-use crate::world::chunk::{ChunkData, ChunkMeshResult, NeighborChunks};
+use crate::world::blocks::{BlockFunctions, BlockProperties, BlocksManager};
+use crate::world::chunk::{ChunkData, ChunkMeshResult, NeighborChunks, chunk};
 use crate::world::world_gen::WorldGen;
 use crate::world::{Chunk, player::Camera};
 
@@ -35,6 +35,7 @@ pub struct Planet {
     pub chunk_mesh_indices_pool: ObjectPool<Vec<u32>>,
     pub chunk_data_pool: ObjectPool<Box<RefCell<ChunkData>>>,
 
+    collided_blocks_list: Vec<SafePtr<BlockProperties>>,
     blocks_aabb_list: Vec<Aabb>,
 
     chunks_mesh_worker: Worker<Box<RefCell<ChunkMeshResult>>>,
@@ -65,6 +66,7 @@ impl Planet {
             chunk_mesh_indices_pool: ObjectPool::new(),
             chunk_data_pool: ObjectPool::new(),
 
+            collided_blocks_list: Vec::new(),
             blocks_aabb_list: Vec::new(),
 
             chunks_mesh_worker: Worker::new(),
@@ -177,15 +179,15 @@ impl Planet {
         }
     }
 
-    pub fn get_cubes(&mut self, cube: &Aabb) -> &Vec<Aabb> {
+    pub fn get_blocks_hitboxes(&mut self, aabb: &Aabb) -> &Vec<Aabb> {
         self.blocks_aabb_list.clear();
 
-        let x0 = (cube.x0).floor() as i32;
-        let y0 = (cube.y0).floor() as i32;
-        let z0 = (cube.z0).floor() as i32;
-        let x1 = (cube.x1 + 1.0).floor() as i32;
-        let y1 = (cube.y1 + 1.0).floor() as i32;
-        let z1 = (cube.z1 + 1.0).floor() as i32;
+        let x0 = (aabb.x0).floor() as i32;
+        let y0 = (aabb.y0).floor() as i32;
+        let z0 = (aabb.z0).floor() as i32;
+        let x1 = (aabb.x1 + 1.0).floor() as i32;
+        let y1 = (aabb.y1 + 1.0).floor() as i32;
+        let z1 = (aabb.z1 + 1.0).floor() as i32;
 
 
         for x in x0..x1 {
@@ -210,6 +212,39 @@ impl Planet {
         }
 
         return &self.blocks_aabb_list;
+    }
+
+    pub fn get_collided_block(&mut self, aabb: &Aabb) -> &Vec<SafePtr<BlockProperties>> {
+        self.collided_blocks_list.clear();
+
+        let x0 = (aabb.x0).floor() as i32;
+        let y0 = (aabb.y0).floor() as i32;
+        let z0 = (aabb.z0).floor() as i32;
+        let x1 = (aabb.x1 + 1.0).floor() as i32;
+        let y1 = (aabb.y1 + 1.0).floor() as i32;
+        let z1 = (aabb.z1 + 1.0).floor() as i32;
+
+
+        for x in x0..x1 {
+        for y in y0..y1 {
+        for z in z0..z1 {
+            let global_coords = Vec3i::new(x, y, z).as_vec3();
+            let chunk_pos = math::get_chunk_pos(global_coords);
+
+            if let Some(ch) = self.get_chunk(chunk_pos) {
+                let chunk_block = math::get_chunk_block(chunk_pos, global_coords);
+
+                let block_info = ch.borrow().chunk_data.get_block_info(chunk_block);
+
+                if block_info.id != 0 {
+                    self.collided_blocks_list.push(self.blocks_manager.get_properties_from_block_info(block_info));
+                }
+            }
+        }
+        }
+        }
+
+        return &self.collided_blocks_list;
     }
 
     pub fn load_chunks(&mut self, player_pos: Vec3) {

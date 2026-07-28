@@ -16,7 +16,7 @@ impl RawTexture {
     pub fn new() -> Self {
         Self {
             image: vk::Image::null(),
-            image_allocation: unsafe { std::mem::zeroed() },
+            image_allocation: vkutl::null_allocation(),
 
             image_view: vk::ImageView::null(),
             sampler: vk::Sampler::null(),
@@ -31,7 +31,7 @@ impl RawTexture {
         allocation_info.preferred_flags = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
         allocation_info.flags = vk_mem::AllocationCreateFlags::HOST_ACCESS_SEQUENTIAL_WRITE | vk_mem::AllocationCreateFlags::MAPPED;
 
-        let (mut staging_buffer, mut staging_allocation) = vkutl::create_buffer(
+        let (staging_buffer, mut staging_allocation) = vkutl::create_buffer(
             app,
             data.len() as _,
             vk::BufferUsageFlags::TRANSFER_SRC,
@@ -57,20 +57,23 @@ impl RawTexture {
         );
 
 
-        unsafe {
-            vkutl::transition_image_layout(app, self.image, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
+        vkutl::transition_image_layout(app, self.image, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
 
-            vkutl::copy_buffer_to_image(app, width, height, staging_buffer, self.image);
+        vkutl::copy_buffer_to_image(app, width, height, staging_buffer, self.image);
 
-            vkutl::transition_image_layout(app, self.image, vk::ImageLayout::TRANSFER_DST_OPTIMAL, vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL);
-        }
+        vkutl::transition_image_layout(app, self.image, vk::ImageLayout::TRANSFER_DST_OPTIMAL, vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL);
+
 
         self.image_view = vkutl::create_image_view(app, self.image, vk::Format::R8G8B8A8_UNORM, vk::ImageAspectFlags::COLOR);
 
         self.create_sampler(app, filter, repeat_mode);
 
         // destroy staging buffer
-        app.destroy_buffer(&mut staging_buffer, &mut staging_allocation, &mut std::ptr::null_mut());
+        app.destroy_buffer(
+            &mut [staging_buffer, vk::Buffer::null()],
+            &mut [staging_allocation, vkutl::null_allocation()],
+            &mut [std::ptr::null_mut(); vkutl::FRAMES_COUNT]
+        );
     }
 
     pub fn destroy(&mut self, app: &mut VulkanApp) {

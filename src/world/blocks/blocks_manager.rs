@@ -1,4 +1,5 @@
 use std::sync::Arc;
+
 use crate::resources::ResourceManager;
 use crate::utils::SafePtr;
 use crate::world::chunk::chunk_data::ChunkBlockInfo;
@@ -8,29 +9,30 @@ use crate::world::player::PlayerInventory;
 
 
 pub struct BlocksManager {
-    blocks: Vec<SafePtr<dyn BlockFunctions>>,
+    blocks: Vec<Box<dyn BlockFunctions>>,
 
-    pub air: Box<dyn BlockFunctions>,
-    pub dirt: Box<dyn BlockFunctions>,
-    pub stone: Box<dyn BlockFunctions>,
-    pub grass_block: Box<dyn BlockFunctions>,
-    pub bedrock: Box<dyn BlockFunctions>,
-    pub cobblestone: Box<dyn BlockFunctions>,
-    pub sand: Box<dyn BlockFunctions>,
-    pub snow_block: Box<dyn BlockFunctions>,
-    pub ice_block: Box<dyn BlockFunctions>,
-    pub water_block: Box<dyn BlockFunctions>,
-    pub snow_layer: Box<dyn BlockFunctions>,
-    pub short_grass: Box<dyn BlockFunctions>,
-    pub red_flower: Box<dyn BlockFunctions>,
-    pub yellow_flower: Box<dyn BlockFunctions>,
-    pub dead_bush: Box<dyn BlockFunctions>,
-    pub sandstone: Box<dyn BlockFunctions>,
+    pub air: (u16, u8),
+    pub dirt: (u16, u8),
+    pub stone: (u16, u8),
+    pub grass_block: (u16, u8),
+    pub bedrock: (u16, u8),
+    pub cobblestone: (u16, u8),
+    pub sand: (u16, u8),
+    pub snow_block: (u16, u8),
+    pub ice_block: (u16, u8),
+    pub water_block: (u16, u8),
+    pub snow_layer: (u16, u8),
+    pub short_grass: (u16, u8),
+    pub red_flower: (u16, u8),
+    pub yellow_flower: (u16, u8),
+    pub dead_bush: (u16, u8),
+    pub sandstone: (u16, u8),
+    pub smooth_stone_slab: (u16, u8),
 }
 
 impl BlocksManager {
     pub fn new(resources: &ResourceManager, inventory: &mut PlayerInventory) -> Self {
-        let mut blocks: Vec<SafePtr<dyn BlockFunctions>> = Vec::new();
+        let mut blocks: Vec<Box<dyn BlockFunctions>> = Vec::new();
 
         Self {
             air: Self::add::<Air>("air", "AIR", &mut blocks, resources, inventory),
@@ -49,44 +51,60 @@ impl BlocksManager {
             yellow_flower: Self::add::<YellowFlower>("yellow_flower", "Red Flower", &mut blocks, resources, inventory),
             dead_bush: Self::add::<DeadBush>("dead_bush", "Dead Bush", &mut blocks, resources, inventory),
             sandstone: Self::add::<Sandstone>("sandstone", "Sandstone", &mut blocks, resources, inventory),
+            smooth_stone_slab: Self::add::<SmoothStoneSlab>("smooth_stone_slab", "Smooth Stone Slab", &mut blocks, resources, inventory),
 
             blocks,
         }
     }
 
-    pub fn get(&self, id: u16) -> SafePtr<dyn BlockFunctions> {
-        self.blocks[id as usize].clone()
+    pub fn get_from_id(&self, id: u16) -> &Box<dyn BlockFunctions> {
+        &self.blocks[id as usize]
     }
 
-    pub fn get_from_item_base(&self, item_base: &Arc<ItemBaseProperties>) -> SafePtr<dyn BlockFunctions> {
-        self.blocks[item_base.parent_index as usize].clone()
+    pub fn get_from_block_info(&self, block_info: ChunkBlockInfo) -> &Box<dyn BlockFunctions> {
+        &self.blocks[block_info.id as usize]
     }
 
-    pub fn get_properties_from_block_info(&self, block_info: ChunkBlockInfo) -> &BlockProperties {
-         return &self.blocks[block_info.id as usize].get_properties(block_info.state);
+    pub fn get_from_item_base(&self, item_base: &Arc<ItemBaseProperties>) -> &Box<dyn BlockFunctions> {
+        &self.blocks[item_base.parent_index as usize]
     }
 
-    pub fn get_properties_from_item_base(&self, item_base: &Arc<ItemBaseProperties>) -> &BlockProperties {
-        return &self.blocks[item_base.id as usize].get_properties(item_base.state);
+
+    pub fn get_properties_from_id(&self, id: u16, state: u8) -> SafePtr<BlockProperties> {
+        SafePtr::new(self.blocks[id as usize].get_properties(state))
     }
 
-    fn add<T>(internal_name: &'static str, name: &'static str, blocks: &mut Vec<SafePtr<dyn BlockFunctions>>,
-              resources: &ResourceManager, inventory: &mut PlayerInventory) -> Box<dyn BlockFunctions>
+    pub fn get_properties_from_block_info(&self, block_info: ChunkBlockInfo) -> SafePtr<BlockProperties> {
+         SafePtr::new(self.blocks[block_info.id as usize].get_properties(block_info.state))
+    }
+
+    pub fn get_properties_from_item_base(&self, item_base: &Arc<ItemBaseProperties>) -> SafePtr<BlockProperties> {
+        SafePtr::new(self.blocks[item_base.id as usize].get_properties(item_base.state))
+    }
+
+
+
+    fn add<T>(internal_name: &'static str, name: &'static str, blocks: &mut Vec<Box<dyn BlockFunctions>>,
+              resources: &ResourceManager, inventory: &mut PlayerInventory) -> (u16, u8)
     where
         T: ItemCreation<ItemType: BlockFunctions>,
         for<'a> T::ItemType: 'a,
     {
+        let parent_id = blocks.len();
+
         let mut creation_args = ItemCreationArgs {
             internal_name,
             name,
-            id: blocks.len(),
+            parent_id,
             resources,
             inventory,
         };
 
         let block_box = Box::new(T::new(&mut creation_args));
-        blocks.push(SafePtr::new(block_box.as_ref()));
+        let id = block_box.get_base().id;
 
-        return block_box;
+        blocks.push(block_box);
+
+        return (id as u16, 0);
     }
 }

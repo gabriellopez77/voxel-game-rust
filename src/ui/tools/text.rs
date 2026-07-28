@@ -114,19 +114,19 @@ impl Text {
         }
     }
 
-    pub fn set_text_i32(&mut self, value: i32) {
-        use std::fmt::Write;
+    //pub fn set_text_i32(&mut self, value: i32) {
+    //    use std::fmt::Write;
 
-        match self.text {
-            TextTypes::String(ref mut string) => {
-                string.clear();
-                write!(string, "{value}").unwrap();
-            }
-            _ => self.text = TextTypes::String(value.to_string()),
-        }
+    //    match self.text {
+    //        TextTypes::String(ref mut string) => {
+    //            string.clear();
+    //            write!(string, "{value}").unwrap();
+    //        }
+    //        _ => self.text = TextTypes::String(value.to_string()),
+    //    }
 
-        self.update_mesh();
-    }
+    //    self.update_mesh();
+    //}
 
     pub fn draw(&mut self, renderer: &mut UiRenderer) {
         match self.text {
@@ -142,6 +142,10 @@ impl Text {
 
             for i in 0..self.buffer.len() {
                 self.buffer[i].position = pos;
+
+                if self.shadow && i % 2 == 0 {
+                    self.buffer[i].position = pos + 1;
+                }
             }
         }
 

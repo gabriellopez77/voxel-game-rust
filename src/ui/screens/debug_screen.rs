@@ -9,7 +9,12 @@ use crate::ui::{ScreenBase, ScreenResizeArgs, ScreenStartArgs, ScreenUpdateArgs}
 
 pub struct DebugScreen {
     fps_text: Text,
+
+    global_staging_buffer_used_mb_text: Text,
+    global_staging_buffer_capacity_text: Text,
+
     player_block_pos_text: Text,
+    player_chunk_block_text: Text,
 
     // ms graph
     min_ms_text: Text,
@@ -34,6 +39,15 @@ impl ScreenBase for DebugScreen {
 
         self.player_block_pos_text.set_font(args.resources.get_font("default"));
         self.player_block_pos_text.set_pos(10.0, 19.0);
+
+        self.player_chunk_block_text.set_font(args.resources.get_font("default"));
+        self.player_chunk_block_text.set_pos(10.0, 28.0);
+
+        self.global_staging_buffer_used_mb_text.set_font(args.resources.get_font("default"));
+        self.global_staging_buffer_used_mb_text.set_pos(10.0, 28.0 + (9.0 * 3.0));
+
+        self.global_staging_buffer_capacity_text.set_font(args.resources.get_font("default"));
+        self.global_staging_buffer_capacity_text.set_pos(10.0, 28.0 + (9.0 * 4.0));
 
 
         self.min_ms_text.set_font(args.resources.get_font("default"));
@@ -64,13 +78,25 @@ impl ScreenBase for DebugScreen {
         self.in_world = args.game.is_in_world();
 
         if self.in_world {
-            self.player_block_pos_text.set_text_delayed(args.dt, 0.5, |text| {
+            self.player_block_pos_text.set_text_delayed(args.dt, 0.1, |text| {
                 let block_pos = math::get_global_block(args.game.world.player.get_pos());
-                write!(text, "Block Pos: {}, {}, {}", block_pos.x, block_pos.y, block_pos.z)
+                write!(text, "Block: {}, {}, {}", block_pos.x, block_pos.y, block_pos.z)
+            });
+
+            self.player_chunk_block_text.set_text_delayed(args.dt, 0.1, |text| {
+                let chunk_pos = math::get_chunk_pos(args.game.world.player.get_pos());
+                let block_pos = math::get_chunk_block(chunk_pos, args.game.world.player.get_pos());
+                write!(text, "Chunk Block: {}, {}, {}", block_pos.x, block_pos.y, block_pos.z)
             });
         }
 
         self.fps_text.set_text_delayed(args.dt, 0.5, |text| { write!(text, "Fps: {}", (1.0 / args.dt) as i32) });
+        self.global_staging_buffer_used_mb_text.set_text_delayed(args.dt, 0.1, |text| {
+            write!(text, "Global Staging Buffer Used MB: {:.1}", args.game.global_renderer.app.get_global_staging_buffer_used_mb())
+        });
+        self.global_staging_buffer_capacity_text.set_text_delayed(args.dt, 0.1, |text| {
+            write!(text, "Global Staging Buffer Capacity MB: {}", args.game.global_renderer.app.get_global_staging_buffer_capacity_mb())
+        });
 
 
         if self.fps_graphic_lines.len() > 240 {
@@ -133,10 +159,12 @@ impl ScreenBase for DebugScreen {
     fn draw(&mut self, renderer: &mut UiRenderer) {
         if self.in_world {
             self.player_block_pos_text.draw(renderer);
+            self.player_chunk_block_text.draw(renderer);
         }
 
         self.fps_text.draw(renderer);
-
+        self.global_staging_buffer_used_mb_text.draw(renderer);
+        self.global_staging_buffer_capacity_text.draw(renderer);
 
         self.background.draw(renderer);
 
@@ -163,8 +191,12 @@ impl DebugScreen {
     pub fn new() -> Self {
         Self {
             fps_text: Text::new(),
-            player_block_pos_text: Text::new(),
 
+            player_block_pos_text: Text::new(),
+            player_chunk_block_text: Text::new(),
+
+            global_staging_buffer_used_mb_text: Text::new(),
+            global_staging_buffer_capacity_text: Text::new(),
 
             min_ms_text: Text::new(),
             avg_ms_text: Text::new(),

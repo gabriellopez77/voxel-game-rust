@@ -1,11 +1,12 @@
 use std::collections::VecDeque;
 
-use crate::{game::GameEvents, inputs::Inputs, render::{GlobalRenderer}, resources::ResourceManager, ui::ui_manager::ScreensId, world::{Planet, Player, blocks::BlocksManager, particles::ParticlesManager, sky::Sky}};
+use crate::{game::{GameEvents, PlayerStates}, inputs::Inputs, render::GlobalRenderer, resources::ResourceManager, ui::ui_manager::ScreensId, world::{Planet, Player, blocks::BlocksManager, particles::ParticlesManager, sky::Sky}};
 
 
 pub struct WorldUpdateArgs<'a> {
+    pub is_paused: bool,
     pub events_queue: &'a mut VecDeque<GameEvents>,
-    pub inputs: &'a Inputs,
+    pub inputs: &'a mut Inputs,
     pub dt: f32,
     pub current_screen_id: ScreensId,
 }
@@ -46,6 +47,12 @@ impl World {
     }
 
     pub fn update(&mut self, dt: f32, args: &mut WorldUpdateArgs) {
+        args.inputs.reset_camera_delta(args.is_paused || self.player.state == PlayerStates::Menu);
+
+        if args.is_paused {
+            return;
+        }
+
         self.player.update(args, &mut self.planet, &mut self.particles_manager);
 
         self.sky.update(dt, &self.player.camera, self.planet.render_distance);

@@ -1,5 +1,5 @@
 ﻿use ash::vk;
-use crate::render::PipelineLayout;
+use super::PipelineLayout;
 use crate::resources::ShadersCompiler;
 
 use super::vulkan_app::VulkanApp;
@@ -50,7 +50,7 @@ impl GraphicsPipeline {
 
         let rasterizer = vk::PipelineRasterizationStateCreateInfo::default()
             .polygon_mode(vk::PolygonMode::FILL)
-            .line_width(1.0)
+            .line_width(settings.line_width)
             .cull_mode(settings.cull_mode)
             .front_face(vk::FrontFace::CLOCKWISE);
 

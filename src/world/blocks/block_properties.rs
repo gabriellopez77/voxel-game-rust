@@ -19,6 +19,12 @@ pub trait BlockFunctions {
     fn get_properties(&self, state: u8) -> &BlockProperties;
 
     fn get_base(&self) -> Arc<ItemBaseProperties> { self.get_properties(0).base_properties.clone() }
+
+    fn get_id_state(&self) -> (u16, u8) {
+        let base = self.get_base();
+
+        return (base.id, base.state);
+    }
 }
 
 
@@ -51,7 +57,7 @@ impl BlockProperties {
                 args.internal_name,
                 args.name,
                 args.resources.get_model(args.internal_name),
-                args.id,
+                args.parent_id,
                 state,
                 ItemBaseType::Block
             )),

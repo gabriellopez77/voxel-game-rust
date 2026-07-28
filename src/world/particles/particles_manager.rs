@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use rand::{RngExt, rngs::ThreadRng};
 
-use crate::{math::{Vec2, Vec3}, render::{GlobalRenderer, Material, PARTICLES_VERTICES, ParticlesVertices, SPRITES_INDICES, material::MaterialType::{self}, raw_buffer::BufferFlags}, resources::{ResourceManager}, utils::{NullSafePtr}, world::{blocks::{BlockProperties}, particles::{BlockDestroy, ParticleBase, ParticleFunc}}};
+use crate::{math::{Vec2, Vec3}, render::{GlobalRenderer, Material, PARTICLES_VERTICES, ParticlesVertices, SPRITES_INDICES, material::MaterialType::{self}, core::raw_buffer::BufferFlags}, resources::{ResourceManager}, utils::{NullSafePtr}, world::{blocks::{BlockProperties}, particles::{BlockDestroy, ParticleBase, ParticleFunc}}};
 
 
 struct ParticlesInfo {

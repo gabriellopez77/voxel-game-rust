@@ -1,8 +1,7 @@
 use ash::vk;
-use crate::utils::NullSafePtrMut;
 
-use super::raw_buffer::BufferFlags;
-use super::{vulkan_app::VulkanApp, RawBuffer};
+use super::core::{VulkanApp, raw_buffer::BufferFlags, RawBuffer};
+use crate::utils::NullSafePtrMut;
 
 
 pub struct Ubo<T: Copy + Clone + Default> {
@@ -25,7 +24,7 @@ impl<T: Copy + Clone + Default> Ubo<T> {
     }
 
     pub fn create(&mut self, app: &mut VulkanApp, flags: BufferFlags) {
-        self.buffer.create(app, size_of::<T>() as u64, std::ptr::null(), vk::BufferUsageFlags::UNIFORM_BUFFER, flags);
+        self.buffer.create(app, size_of::<T>(), std::ptr::null(), vk::BufferUsageFlags::UNIFORM_BUFFER, flags);
 
         self.app = NullSafePtrMut::new(app);
     }
@@ -36,6 +35,6 @@ impl<T: Copy + Clone + Default> Ubo<T> {
 
     pub fn flush_all_data(&mut self) {
         let ptr: *const T = &self.data;
-        self.buffer.update(&mut self.app, size_of::<T>() as u64, 0, ptr as _);
+        self.buffer.update(&mut self.app, size_of::<T>(), 0, ptr as _);
     }
 }

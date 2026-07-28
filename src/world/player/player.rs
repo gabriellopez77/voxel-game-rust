@@ -1,4 +1,4 @@
-﻿use crate::game::GameEvents;
+﻿use crate::game::{GameEvents, PlayerStates};
 use crate::ui::ui_manager::ScreensId;
 use crate::world::particles::{ParticlesManager, ParticlesSpawnArgs};
 use crate::world::world::WorldUpdateArgs;
@@ -16,12 +16,7 @@ const JUMP_FORCE: f32 = 10.0;
 const FLY_Y_SPEED: f32 = 120.0;
 const FLY_X_SPEED: f32 = 320.0;
 const SPEED: f32 = 50.0;
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum PlayerStates {
-    Active,
-    Menu,
-}
+const SWIM_SPEED_UP: f32 = 10.0;
 
 pub struct Player {
     pub camera: Camera,
@@ -33,9 +28,10 @@ pub struct Player {
     aabb: Aabb,
     velocity: Vec3,
 
+    in_water: bool,
     flying_mode: bool,
     on_ground: bool,
-    state: PlayerStates,
+    pub state: PlayerStates,
 }
 
 impl Player {
@@ -50,6 +46,7 @@ impl Player {
             aabb: Aabb::new(0.0, 0.0, 0.0, 0.6, 1.8, 0.6).clone_move(0.0, 60.0, 0.0),
             velocity: Vec3::ZERO,
 
+            in_water: false,
             flying_mode: false,
             on_ground: false,
             state: PlayerStates::Menu,
@@ -73,14 +70,27 @@ impl Player {
              PlayerStates::Active
         } else { PlayerStates::Menu };
 
+
         self.process_input(args);
-        self.process_collision(args.dt, planet);
+        self.process_collision(args.dt, planet, args.inputs);
+
+
+        let water_id = planet.blocks_manager.water_block.0;
+        let collided_blocks = planet.get_collided_block(&self.aabb);
+
+        self.in_water = false;
+        for block in collided_blocks {
+            if block.base_properties.id == water_id {
+                self.in_water = true;
+                break;
+            }
+        }
 
         if self.state == PlayerStates::Active {
             self.inventory.process_hotbar_scroll(args.inputs.get_mouse_scroll());
         }
 
-        self.camera.update(&self.aabb, planet, args.inputs.get_mouse_pos(), self.state);
+        self.camera.update(&self.aabb, planet, args.inputs.get_camera_delta());
 
 
         let ray_pos = self.update_ray_casting(planet, particles_manager, args.inputs);
@@ -115,14 +125,16 @@ impl Player {
                 let block_properties = planet.blocks_manager.get_properties_from_block_info(block_info);
 
                 if block_properties.selection_box.is_some() {
+                    let global_block = (chunk_pos * Chunk::CHUNK_SIZE + chunk_block).as_vec3();
+
                     // break block
                     if inputs.mouse_pressed(MouseButton::Left) && self.state == PlayerStates::Active {
-                        chunk.borrow_mut().chunk_data.set_block(chunk_block, planet.blocks_manager.air.get_properties(0));
-                        particles_manager.spawn(ParticlesSpawnArgs::BlockDestroy(block_properties, (chunk_pos * Chunk::CHUNK_SIZE + chunk_block).as_vec3()));
+                        chunk.borrow_mut().chunk_data.set_block(chunk_block, planet.blocks_manager.air);
+                        particles_manager.spawn(ParticlesSpawnArgs::BlockDestroy(&block_properties, global_block));
                         break;
                     }
 
-                    target_pos = Some((chunk_pos * Chunk::CHUNK_SIZE + chunk_block).as_vec3());
+                    target_pos = Some(global_block);
                     break;
                 }
             }
@@ -158,8 +170,8 @@ impl Player {
             if block_properties.can_replaced {
                 let hand_slot_item = self.inventory.get_selected_hotbar_slot().get_item();
 
-                let block_properties = planet.blocks_manager.get_properties_from_item_base(hand_slot_item);
-                chunk.borrow_mut().chunk_data.set_block(chunk_block, block_properties);
+                let block_functions = planet.blocks_manager.get_from_item_base(hand_slot_item);
+                chunk.borrow_mut().chunk_data.set_block(chunk_block, block_functions.get_id_state());
             }
         }
 
@@ -178,7 +190,15 @@ impl Player {
         if args.inputs.key_down(inputs::Keys::A) { dir = dir - front.cross(Vec3::UP) };
         if args.inputs.key_down(inputs::Keys::S) { dir = dir - front };
         if args.inputs.key_down(inputs::Keys::D) { dir = dir + front.cross(Vec3::UP) };
-        if args.inputs.key_down(inputs::Keys::Space) && self.on_ground { self.velocity.y = JUMP_FORCE };
+        if args.inputs.key_down(inputs::Keys::Space) {
+            if self.in_water && self.velocity.y < 3.0 {
+                self.velocity.y += SWIM_SPEED_UP * args.dt;
+            }
+            else if self.on_ground {
+                self.velocity.y = JUMP_FORCE;
+            }
+        }
+
 
         if args.inputs.key_pressed(inputs::Keys::F) { self.flying_mode = !self.flying_mode }
 
@@ -194,10 +214,22 @@ impl Player {
         self.velocity += dir * (speed * args.dt);
     }
 
-    fn process_collision(&mut self, dt: f32, planet: &mut Planet) {
-        self.velocity.x -= self.velocity.x * (math::FRICTION * dt);
-        self.velocity.y -= if self.flying_mode { self.velocity.y * (math::FRICTION * dt) } else { GRAVITY * dt };
-        self.velocity.z -= self.velocity.z * (math::FRICTION * dt);
+    fn process_collision(&mut self, dt: f32, planet: &mut Planet, inputs: &Inputs) {
+        let friction = if self.in_water { math::FRICTION * 1.75 } else { math::FRICTION };
+
+        self.velocity.x -= self.velocity.x * (friction * dt);
+        self.velocity.z -= self.velocity.z * (friction * dt);
+        if self.flying_mode {
+            self.velocity.y -= self.velocity.y * (math::FRICTION * dt);
+        }
+        else {
+            if self.in_water && !inputs.key_down(inputs::Keys::Space) && self.velocity.y > -4.0 {
+                self.velocity.y -= GRAVITY * 0.1 * dt;
+            }
+            else if !self.in_water{
+                self.velocity.y -= GRAVITY * dt;
+            }
+        }
 
 
         // epsilon
@@ -215,7 +247,7 @@ impl Player {
         let ya_org = ya;
         let za_org = za;
 
-        let cubes = planet.get_cubes(&self.aabb.expand(xa, ya, za));
+        let cubes = planet.get_blocks_hitboxes(&self.aabb.expand(xa, ya, za));
 
         for cube in cubes { ya = cube.clip_y_collide(&self.aabb, ya) }
         self.aabb.move_at(0.0, ya, 0.0);
@@ -229,7 +261,7 @@ impl Player {
 
         let og = self.on_ground || (ya_org != ya && ya_org < 0.0);
 
-        let foot_size = 0.5f32;
+        let foot_size = 0.5;
 
         if foot_size > 0.0 && og && ((xa_org != xa) || (za_org != za)) {
             let xa_n = xa;
@@ -243,7 +275,7 @@ impl Player {
             let normal = self.aabb;
             self.aabb.set(&org);
 
-            let cubes = planet.get_cubes(&self.aabb.expand(xa, ya, za));
+            let cubes = planet.get_blocks_hitboxes(&self.aabb.expand(xa, ya, za));
 
             for cube in cubes { ya = cube.clip_y_collide(&self.aabb, ya) }
             self.aabb.move_at(0.0, ya, 0.0);

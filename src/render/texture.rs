@@ -2,7 +2,7 @@
 use ash::vk;
 
 use crate::math::{Vec2};
-use crate::render::{RawTexture, VulkanApp};
+use super::core::{RawTexture, VulkanApp};
 use crate::resources::{TexCoords, texture_atlas};
 
 

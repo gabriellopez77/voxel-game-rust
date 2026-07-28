@@ -1,8 +1,6 @@
 ﻿use std::array;
 use ash::vk;
-use super::raw_buffer::BufferFlags;
-use super::vulkan_app::VulkanApp;
-use super::{vkutl, RawBuffer};
+use super::core::{vkutl, VulkanApp, raw_buffer::BufferFlags, RawBuffer};
 
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -47,19 +45,19 @@ impl VerticesAttributes {
 
     pub fn create_buffer(&mut self, app: &mut VulkanApp, buffer_type: BuffersTypes, size: usize, data: *const u8, flags: BufferFlags) {
         if buffer_type == BuffersTypes::Index {
-            self.index_buffer_info.create(app, size as u64, data as _, vk::BufferUsageFlags::INDEX_BUFFER, flags);
+            self.index_buffer_info.create(app, size, data as _, vk::BufferUsageFlags::INDEX_BUFFER, flags);
 
             self.triangles_count = (size / 4) as u32;
         }
         else {
-            self.raw_buffers[buffer_type as usize].create(app, size as u64, data, vk::BufferUsageFlags::VERTEX_BUFFER, flags);
+            self.raw_buffers[buffer_type as usize].create(app, size, data, vk::BufferUsageFlags::VERTEX_BUFFER, flags);
         }
     }
 
     pub fn update_or_realloc<T>(&mut self, app: &mut VulkanApp, buffer_type: BuffersTypes, arr: &[T], flags: BufferFlags) {
         let buffer: &mut RawBuffer;
         let mut usage = vk::BufferUsageFlags::VERTEX_BUFFER;
-        let data_size = (arr.len() * size_of::<T>()) as u64;
+        let data_size = arr.len() * size_of::<T>();
 
         if buffer_type == BuffersTypes::Index {
             buffer = &mut self.index_buffer_info;
@@ -73,6 +71,7 @@ impl VerticesAttributes {
         // ONCE buffers can not be updated, then we destroy and create it again
         if data_size > buffer.size || buffer.flags.contains(BufferFlags::ONCE) {
             buffer.destroy(app);
+
             if data_size > 0 {
                 buffer.create(app, data_size, arr.as_ptr() as _, usage, flags);
             }
@@ -83,7 +82,7 @@ impl VerticesAttributes {
     }
 
     pub fn update_buffer<T>(&mut self, app: &mut VulkanApp, buffer_type: BuffersTypes, arr: &[T]) {
-        let data_size = (arr.len() * size_of::<T>()) as u64;
+        let data_size = arr.len() * size_of::<T>();
 
         if buffer_type == BuffersTypes::Index {
             if data_size > 0 {

@@ -1,4 +1,4 @@
-use crate::{utils::NullSafePtr, world::{blocks::{BlockProperties, BlocksManager}, world_gen::biomes::BiomeBase}};
+use crate::{utils::NullSafePtr, world::{blocks::{BlocksManager}, world_gen::biomes::BiomeBase}};
 
 
 pub struct PlainsBiome {
@@ -6,16 +6,16 @@ pub struct PlainsBiome {
 }
 
 impl BiomeBase for PlainsBiome {
-    fn get_surface_block(&self) -> &BlockProperties {
-        self.blocks_manager.grass_block.get_properties(0)
+    fn get_surface_block(&self) -> (u16, u8) {
+        self.blocks_manager.grass_block
     }
 
-    fn get_underground_block(&self) -> &BlockProperties {
-        self.blocks_manager.stone.get_properties(0)
+    fn get_underground_block(&self) -> (u16, u8) {
+        self.blocks_manager.stone
     }
 
-    fn get_surface_decorations(&self) -> &BlockProperties {
-        self.blocks_manager.short_grass.get_properties(0)
+    fn get_surface_decorations(&self) -> (u16, u8) {
+        self.blocks_manager.short_grass
     }
 }
 

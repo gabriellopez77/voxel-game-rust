@@ -8,7 +8,7 @@
 
 use image::DynamicImage;
 use crate::math::Vec3;
-use crate::render::{Texture, VulkanApp};
+use crate::render::{Texture, core::VulkanApp};
 use crate::resources::{BlockItemModel, FontInfo};
 use crate::ui::ButtonsStyles;
 

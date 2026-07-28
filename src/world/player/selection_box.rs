@@ -1,7 +1,7 @@
 use crate::math::Vec3;
 use crate::render::material::MaterialType;
-use crate::render::{CUBE_INDICES, CUBE_VERTICES, GlobalRenderer, Material};
-use crate::render::raw_buffer::BufferFlags;
+use crate::render::{GlobalRenderer, Material, OUTLINE_CUBE_INDICES, OUTLINE_CUBE_VERTICES};
+use crate::render::core::raw_buffer::BufferFlags;
 
 
 pub struct SelectionBox {
@@ -25,7 +25,8 @@ impl SelectionBox {
 
     pub fn start(&mut self, global_renderer: &mut GlobalRenderer) {
         let mut material = global_renderer.create_material("selectionBox", MaterialType::Alpha);
-        material.set_mesh(&CUBE_VERTICES, &CUBE_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
+        material.set_mesh(&OUTLINE_CUBE_VERTICES, &OUTLINE_CUBE_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
+
 
         self.material = Some(material);
     }

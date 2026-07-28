@@ -1,6 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{render::{DrawInfo, GraphicsPipeline, VerticesAttributes, VulkanApp, raw_buffer::BufferFlags, vertices_attributes::BuffersTypes, vkutl}, utils::SafePtrMut};
+use crate::{render::{DrawInfo, VerticesAttributes, vertices_attributes::BuffersTypes}, utils::SafePtrMut};
+use super::core::{vkutl, VulkanApp, GraphicsPipeline, raw_buffer::BufferFlags};
 
 
 #[derive(Clone, Copy, PartialEq, Eq)]

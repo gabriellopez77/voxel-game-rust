@@ -1,7 +1,7 @@
 use glfw::WindowEvent;
 use crate::inputs::Inputs;
 use crate::game::Game;
-use crate::render::VulkanApp;
+use crate::render::core::VulkanApp;
 
 
 pub struct Window {
@@ -63,7 +63,13 @@ impl Window {
 
                 inputs.roll_event(&event);
 
-                Self::roll_events(&mut self.glfw_instance, &self.window, event, &mut vulkan_app, &mut game);
+                match event {
+                    WindowEvent::FramebufferSize(width, height) => {
+                        vulkan_app.resize(width, height, &mut self.glfw_instance, &self.window);
+                        game.resize(width as f32, height as f32);
+                    }
+                    _ => {}
+                }
             }
 
             // calculate delta time
@@ -80,7 +86,7 @@ impl Window {
                 first_time = false;
             }
 
-            game.update(dt, self, &inputs);
+            game.update(dt, self, &mut inputs);
             game.render();
 
             vulkan_app.end_frame();
@@ -97,17 +103,5 @@ impl Window {
 
     pub fn set_cursor(&mut self, cursor: glfw::CursorMode) {
         self.window.set_cursor_mode(cursor);
-    }
-
-    fn roll_events(glfw_instance: &mut glfw::Glfw, glfw_window: &glfw::PWindow,
-                   event: WindowEvent, app: &mut VulkanApp, game: &mut Game) {
-        match event {
-            WindowEvent::FramebufferSize(width, height) => {
-                app.resize(width, height, glfw_instance, glfw_window);
-
-                game.resize(width as f32, height as f32);
-            }
-            _ => {}
-        }
     }
 }

@@ -1,7 +1,7 @@
 use crate::resources::{ResourceManager, resources_manager};
 use crate::math::{Color3b, KeyFrame};
 use crate::render::{GlobalRenderer, Material, material};
-use crate::render::raw_buffer::BufferFlags;
+use crate::render::core::raw_buffer::BufferFlags;
 use crate::world::Chunk;
 use crate::world::player::Camera;
 use crate::world::sky::{Clouds, SkyBodies};

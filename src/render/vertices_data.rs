@@ -11,15 +11,6 @@ pub const SPRITES_VERTICES: [f32; 16] = [
     0.0, 1.0,  0.0, 1.0, // top left
 ];
 
-pub const CUBE_INDICES: [u32; 36] = [
-    0,  1,  3,  1,  2,  3, // up
-    4,  5,  7,  5,  6,  7, // down
-    8,  9,  11, 9,  10, 11, // south
-    12, 13, 15, 13, 14, 15, // north
-    16, 17, 19, 17, 18, 19, // west
-    20, 21, 23, 21, 22, 23, // east
-];
-
 pub const CENTER_SPRITES_VERTICES: [f32; 20] = [
      0.5,  0.5,  0.0,   1.0, 1.0, // bottom right
      0.5, -0.5,  0.0,   1.0, 0.0, // top right
@@ -32,6 +23,41 @@ pub const PARTICLES_VERTICES: [f32; 20] = [
     0.0,  0.5, -0.5,   0.0, 0.0, // top right
     0.0, -0.5, -0.5,   0.0, 1.0, // top left
     0.0, -0.5,  0.5,   1.0, 1.0, // bottom left
+];
+
+
+
+pub const OUTLINE_CUBE_INDICES: [u32; 24] = [
+	0,  1,  2,  3,  4,  5,  6,  7,
+	8,  9,  10, 11, 12, 13, 14, 15,
+	16, 17, 18, 19, 20, 21, 22, 23,
+];
+
+pub const OUTLINE_CUBE_VERTICES: [i8; 72] = [
+	 0, 0, 0,   1, 0, 0,
+	 1, 0, 0,   1, 1, 0,
+	 1, 1, 0,   0, 1, 0,
+	 0, 1, 0,   0, 0, 0,
+
+	 0, 0, 0,   0, 0, 1,
+	 0, 0, 1,   0, 1, 1,
+	 0, 1, 1,   0, 1, 0,
+	 1, 0, 0,   1, 0, 1,
+
+	 1, 0, 1,   1, 1, 1,
+	 1, 1, 1,   1, 1, 0,
+	 0, 0, 1,   1, 0, 1,
+	 0, 1, 1,   1, 1, 1,
+];
+
+
+pub const CUBE_INDICES: [u32; 36] = [
+    0,  1,  3,  1,  2,  3, // up
+    4,  5,  7,  5,  6,  7, // down
+    8,  9,  11, 9,  10, 11, // south
+    12, 13, 15, 13, 14, 15, // north
+    16, 17, 19, 17, 18, 19, // west
+    20, 21, 23, 21, 22, 23, // east
 ];
 
 // vertices, normal
@@ -72,6 +98,8 @@ pub const CUBE_VERTICES: [i8; 144] = [
     1, 0, 0,   1, 0, 0,
     1, 1, 0,   1, 0, 0,
 ];
+
+
 
 #[repr(C, align(16))]
 #[derive(Copy, Clone, Default)]

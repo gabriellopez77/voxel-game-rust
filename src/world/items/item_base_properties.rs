@@ -5,7 +5,7 @@ use crate::{resources::{BlockItemModel, ResourceManager, TexCoords}, world::play
 pub struct ItemCreationArgs<'a> {
     pub internal_name: &'static str,
     pub name: &'static str,
-    pub id: usize,
+    pub parent_id: usize,
     pub resources: &'a ResourceManager,
     pub inventory: &'a mut PlayerInventory,
 }

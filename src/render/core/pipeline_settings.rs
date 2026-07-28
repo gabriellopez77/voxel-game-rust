@@ -1,7 +1,7 @@
 use ash::vk;
 use ash::vk::Handle;
 use crate::math::Vec4;
-use crate::render::PipelineLayout;
+use super::PipelineLayout;
 use super::descriptor_set::DescriptorSet;
 use super::vkutl;
 
@@ -16,6 +16,7 @@ pub struct PipelineSettings {
     pub enable_blend: bool,
     pub enable_depth_test: bool,
     pub topology: vk::PrimitiveTopology,
+    pub line_width: f32,
 
     bindings_info: [vk::VertexInputBindingDescription; vkutl::MAX_VERTEX_BINDING_COUNT],
     attributes_info: [vk::VertexInputAttributeDescription; vkutl::MAX_VERTEX_ATTRIBUTES_COUNT],
@@ -42,6 +43,7 @@ impl PipelineSettings {
             enable_blend: false,
             enable_depth_test: true,
             topology: vk::PrimitiveTopology::TRIANGLE_LIST,
+            line_width: 1.0,
 
             bindings_info: [vk::VertexInputBindingDescription::default(); vkutl::MAX_VERTEX_BINDING_COUNT],
             attributes_info: [vk::VertexInputAttributeDescription::default(); vkutl::MAX_VERTEX_ATTRIBUTES_COUNT],
