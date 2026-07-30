@@ -28,8 +28,8 @@ impl ItemStack {
         self.count = count;
     }
 
-    pub fn get_item(&self) -> &Arc<ItemBaseProperties> {
-        self.item.as_ref().expect("ItemStack is none")
+    pub fn get_item(&self) -> Option<&Arc<ItemBaseProperties>> {
+        self.item.as_ref()
     }
 
     pub fn is_same(&self, other: &ItemStack) -> bool {

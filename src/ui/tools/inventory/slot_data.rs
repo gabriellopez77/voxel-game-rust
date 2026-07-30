@@ -86,7 +86,7 @@ impl SlotData {
         }
 
 
-        self.icon.set_texture_from_coords(GlobalRenderer::WORLD_TEXTURE_IDX, slot.get_item().icon);
+        self.icon.set_texture_from_coords(GlobalRenderer::WORLD_TEXTURE_IDX, slot.get_item().unwrap().icon);
 
         self.last_count = slot.get_count();
     }

@@ -12,7 +12,7 @@ impl<T: ?Sized> Deref for SafePtr<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        // SAFETY: ptr is not null and valid
+        // SAFETY: ptr is not null and has be created from ref (&) or a not null ptr
         unsafe { &*self.ptr }
     }
 }
@@ -26,5 +26,11 @@ impl<T: ?Sized> Clone for SafePtr<T> {
 impl<T: ?Sized> SafePtr<T> {
     pub fn new(ptr: &T) -> Self {
         Self { ptr: ptr as *const T }
+    }
+
+    pub fn from_ptr(ptr: *const T) -> Self {
+        assert!(!ptr.is_null(), "ptr is null!");
+
+        Self { ptr }
     }
 }

@@ -1,5 +1,7 @@
 ﻿use crate::math::Vec2;
 
+#[allow(dead_code)]
+
 
 pub trait UiElement {
     fn get_pos(&self) -> Vec2;

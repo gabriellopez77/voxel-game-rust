@@ -7,27 +7,30 @@ use crate::world::blocks::*;
 use crate::world::items::*;
 use crate::world::player::PlayerInventory;
 
+#[allow(dead_code)]
 
+
+#[derive(Default)]
 pub struct BlocksManager {
     blocks: Vec<Box<dyn BlockFunctions>>,
 
-    pub air: (u16, u8),
-    pub dirt: (u16, u8),
-    pub stone: (u16, u8),
-    pub grass_block: (u16, u8),
-    pub bedrock: (u16, u8),
-    pub cobblestone: (u16, u8),
-    pub sand: (u16, u8),
-    pub snow_block: (u16, u8),
-    pub ice_block: (u16, u8),
-    pub water_block: (u16, u8),
-    pub snow_layer: (u16, u8),
-    pub short_grass: (u16, u8),
-    pub red_flower: (u16, u8),
-    pub yellow_flower: (u16, u8),
-    pub dead_bush: (u16, u8),
-    pub sandstone: (u16, u8),
-    pub smooth_stone_slab: (u16, u8),
+    pub air: BlockIdState,
+    pub dirt: BlockIdState,
+    pub stone: BlockIdState,
+    pub grass_block: BlockIdState,
+    pub bedrock: BlockIdState,
+    pub cobblestone: BlockIdState,
+    pub sand: BlockIdState,
+    pub snow_block: BlockIdState,
+    pub ice_block: BlockIdState,
+    pub water_block: BlockIdState,
+    pub snow_layer: BlockIdState,
+    pub short_grass: BlockIdState,
+    pub red_flower: BlockIdState,
+    pub yellow_flower: BlockIdState,
+    pub dead_bush: BlockIdState,
+    pub sandstone: BlockIdState,
+    pub smooth_stone_slab: BlockIdState,
 }
 
 impl BlocksManager {
@@ -85,7 +88,7 @@ impl BlocksManager {
 
 
     fn add<T>(internal_name: &'static str, name: &'static str, blocks: &mut Vec<Box<dyn BlockFunctions>>,
-              resources: &ResourceManager, inventory: &mut PlayerInventory) -> (u16, u8)
+              resources: &ResourceManager, inventory: &mut PlayerInventory) -> BlockIdState
     where
         T: ItemCreation<ItemType: BlockFunctions>,
         for<'a> T::ItemType: 'a,
@@ -105,6 +108,6 @@ impl BlocksManager {
 
         blocks.push(block_box);
 
-        return (id as u16, 0);
+        return BlockIdState { id: id as u16, state: 0 };
     }
 }

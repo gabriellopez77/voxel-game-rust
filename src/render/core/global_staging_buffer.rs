@@ -75,7 +75,7 @@ impl GlobalStagingBuffer {
         vma.flush_allocation(&self.allocation, dst_offset as u64, size as u64).unwrap();
     }
 
-    pub fn copy_to_buffer(&self, src_offset: u32, dst_offset: u32, size: u32, dst_mapped_memory: *mut u8) {
+    pub fn copy_to_memory(&self, src_offset: u32, dst_offset: u32, size: u32, dst_mapped_memory: *mut u8) {
         debug_assert!(src_offset + size <= self.capacity, "Invalid src_offset!");
 
         unsafe {
@@ -85,6 +85,24 @@ impl GlobalStagingBuffer {
                 size as usize
             );
         }
+    }
+
+    pub fn copy_to_buffer_async(&self,
+        app: &VulkanApp,
+        dst_buffer: vk::Buffer,
+        size: u32,
+        src_offset: u32,
+        dst_offset: u32,
+    ) {
+        debug_assert!(src_offset + size <= self.capacity, "Invalid src_offset!");
+
+        vkutl::copy_buffer_async(app,
+            self.buffer,
+            dst_buffer,
+            size as usize,
+            src_offset as usize,
+            dst_offset as usize
+        );
     }
 
     pub fn allocate(&mut self, app: &mut VulkanApp, size: u32) -> RangeInfo {
@@ -101,7 +119,7 @@ impl GlobalStagingBuffer {
 
         let (new_buffer, new_allocation, new_mapped_memory) = Self::create_buffer(app, self.capacity as usize);
 
-        self.copy_to_buffer(0, 0, old_capacity, new_mapped_memory);
+        self.copy_to_memory(0, 0, old_capacity, new_mapped_memory);
         self.destroy(app);
 
         self.buffer = new_buffer;

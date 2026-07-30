@@ -1,4 +1,4 @@
-﻿use std::sync::Mutex;
+﻿use std::sync::{Mutex, RwLock};
 use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
 use crate::math::{Vec3, Vec3i, self};
@@ -7,11 +7,19 @@ use crate::render::{ChunkRenderer, ChunkVertices, GlobalRenderer};
 use crate::resources::Worker;
 use crate::utils::{NullSafePtr, ObjectPool, SafePtr};
 use crate::world::Aabb;
-use crate::world::blocks::{BlockFunctions, BlockProperties, BlocksManager};
-use crate::world::chunk::{ChunkData, ChunkMeshResult, NeighborChunks, chunk};
+use crate::world::blocks::{BlockProperties, BlocksManager};
+use crate::world::chunk::{ChunkData, ChunkGetter, ChunkMeshResult, NeighborChunks};
 use crate::world::world_gen::WorldGen;
 use crate::world::{Chunk, player::Camera};
 
+
+pub struct BlockIteraterInfo {
+    pub global_block: Vec3i,
+    pub chunk_block: Vec3i,
+    pub chunk: Arc<RefCell<Chunk>>,
+    pub block_properties: SafePtr<BlockProperties>,
+    pub blocks_manager: SafePtr<BlocksManager>,
+}
 
 pub struct Planet {
     chunks: HashMap<Vec3i, Option<Arc<RefCell<Chunk>>>>,
@@ -33,9 +41,8 @@ pub struct Planet {
 
     pub chunk_mesh_vertices_pool: ObjectPool<Vec<ChunkVertices>>,
     pub chunk_mesh_indices_pool: ObjectPool<Vec<u32>>,
-    pub chunk_data_pool: ObjectPool<Box<RefCell<ChunkData>>>,
+    pub chunk_data_pool: ObjectPool<Arc<RwLock<ChunkData>>>,
 
-    collided_blocks_list: Vec<SafePtr<BlockProperties>>,
     blocks_aabb_list: Vec<Aabb>,
 
     chunks_mesh_worker: Worker<Box<RefCell<ChunkMeshResult>>>,
@@ -66,7 +73,6 @@ impl Planet {
             chunk_mesh_indices_pool: ObjectPool::new(),
             chunk_data_pool: ObjectPool::new(),
 
-            collided_blocks_list: Vec::new(),
             blocks_aabb_list: Vec::new(),
 
             chunks_mesh_worker: Worker::new(),
@@ -132,7 +138,7 @@ impl Planet {
         self.process_chunks_mesh();
     }
 
-    pub fn draw(&mut self, camera: &Camera, global_renderer: &mut GlobalRenderer) {
+    pub fn draw(&mut self, dt: f32, camera: &Camera, global_renderer: &mut GlobalRenderer) {
         self.visible_chunks.clear();
 
         for i in 0..self.ordered_chunks.len() {
@@ -151,11 +157,11 @@ impl Planet {
 
             if ch.renderer.is_none() {
                 ch.renderer = Some(ChunkRenderer::new(global_renderer));
-                ch.chunk_data.regen_mesh = true;
+                ch.chunk_data.write().unwrap().regen_mesh = true;
             }
 
-            if ch.chunk_data.regen_mesh {
-                ch.chunk_data.regen_mesh = false;
+            if ch.chunk_data.read().unwrap().regen_mesh {
+                ch.chunk_data.write().unwrap().regen_mesh = false;
 
                 // SAFETY: blocks_manager reference is valid for all game time
                 let blocks_manager_ptr = self.blocks_manager.clone();
@@ -175,76 +181,154 @@ impl Planet {
         }
 
         for ch in &self.visible_chunks {
-            ch.borrow_mut().draw(global_renderer);
+            ch.borrow_mut().draw(dt, global_renderer);
         }
     }
 
     pub fn get_blocks_hitboxes(&mut self, aabb: &Aabb) -> &Vec<Aabb> {
         self.blocks_aabb_list.clear();
 
-        let x0 = (aabb.x0).floor() as i32;
-        let y0 = (aabb.y0).floor() as i32;
-        let z0 = (aabb.z0).floor() as i32;
-        let x1 = (aabb.x1 + 1.0).floor() as i32;
-        let y1 = (aabb.y1 + 1.0).floor() as i32;
-        let z1 = (aabb.z1 + 1.0).floor() as i32;
-
-
-        for x in x0..x1 {
-        for y in y0..y1 {
-        for z in z0..z1 {
-            let global_coords = Vec3i::new(x, y, z).as_vec3();
-            let chunk_pos = math::get_chunk_pos(global_coords);
-
-            if let Some(ch) = self.get_chunk(chunk_pos) {
-                let chunk_block = math::get_chunk_block(chunk_pos, global_coords);
-
-                let block_info = ch.borrow().chunk_data.get_block_info(chunk_block);
-                let block_properties = self.blocks_manager.get_properties_from_block_info(block_info);
-
-
-                if let Some(ref collision_box) = block_properties.collision_box {
-                    self.blocks_aabb_list.push(collision_box.clone_move(x as f32, y as f32, z as f32));
-                }
+        self.iterate_over_blocks_cube(aabb, |_, planet, _, x, y, z, properties|
+            if let Some(ref collision_box) = properties.collision_box {
+                planet.blocks_aabb_list.push(collision_box.clone_move(x as f32, y as f32, z as f32));
             }
-        }
-        }
-        }
+        );
 
         return &self.blocks_aabb_list;
     }
 
-    pub fn get_collided_block(&mut self, aabb: &Aabb) -> &Vec<SafePtr<BlockProperties>> {
-        self.collided_blocks_list.clear();
-
-        let x0 = (aabb.x0).floor() as i32;
-        let y0 = (aabb.y0).floor() as i32;
-        let z0 = (aabb.z0).floor() as i32;
+    pub fn iterate_over_blocks_cube(&mut self,
+        aabb: &Aabb,
+        mut func: impl FnMut(&mut bool, &mut Planet, SafePtr<BlocksManager>, i32, i32, i32, SafePtr<BlockProperties>)
+    ) {
+        let x0 = aabb.x0.floor() as i32;
+        let y0 = aabb.y0.floor() as i32;
+        let z0 = aabb.z0.floor() as i32;
         let x1 = (aabb.x1 + 1.0).floor() as i32;
         let y1 = (aabb.y1 + 1.0).floor() as i32;
         let z1 = (aabb.z1 + 1.0).floor() as i32;
 
-
+        let mut chunk_getter = ChunkGetter::new();
+        let blocks_manager = SafePtr::from_ptr(self.blocks_manager.get_raw());
+        
         for x in x0..x1 {
         for y in y0..y1 {
         for z in z0..z1 {
             let global_coords = Vec3i::new(x, y, z).as_vec3();
             let chunk_pos = math::get_chunk_pos(global_coords);
 
-            if let Some(ch) = self.get_chunk(chunk_pos) {
+            if let Some(ch) = chunk_getter.change(chunk_pos, self) {
                 let chunk_block = math::get_chunk_block(chunk_pos, global_coords);
 
-                let block_info = ch.borrow().chunk_data.get_block_info(chunk_block);
+                let block_info = ch.borrow().chunk_data.read().unwrap().get_block_info(chunk_block);
+                let block_properties = self.blocks_manager.get_properties_from_block_info(block_info);
 
-                if block_info.id != 0 {
-                    self.collided_blocks_list.push(self.blocks_manager.get_properties_from_block_info(block_info));
-                }
+                let mut stop = false;
+                func(&mut stop, self, blocks_manager.clone(), x, y, z, block_properties.clone());
+                if stop { return }
+
             }
         }
         }
         }
+    }
 
-        return &self.collided_blocks_list;
+    // gemini code with some adjustments
+    pub fn iterate_over_blocks_raycast(&self,
+        ray_origin: Vec3,
+        ray_dir: Vec3,
+        ray_length: f32,
+        mut func: impl FnMut(&mut bool, &BlockIteraterInfo)
+    ) {
+        let mut chunk_getter = ChunkGetter::new();
+        let blocks_manager = SafePtr::from_ptr(self.blocks_manager.get_raw());
+        
+        // 1. Initialize current voxel coordinate
+        let mut block_pos = Vec3::new(
+            ray_origin.x.floor(),
+            ray_origin.y.floor(),
+            ray_origin.z.floor(),
+        );
+
+        // 2. Determine step direction per axis (+1 or -1)
+        let step_x = if ray_dir.x >= 0.0 { 1.0 } else { -1.0 };
+        let step_y = if ray_dir.y >= 0.0 { 1.0 } else { -1.0 };
+        let step_z = if ray_dir.z >= 0.0 { 1.0 } else { -1.0 };
+
+        // 3. Compute how far along the ray (t) we must travel to cross one full voxel width
+        // Use f32::INFINITY to safety-guard against division by zero
+        let t_delta_x = if ray_dir.x != 0.0 { (1.0 / ray_dir.x).abs() } else { f32::INFINITY };
+        let t_delta_y = if ray_dir.y != 0.0 { (1.0 / ray_dir.y).abs() } else { f32::INFINITY };
+        let t_delta_z = if ray_dir.z != 0.0 { (1.0 / ray_dir.z).abs() } else { f32::INFINITY };
+
+        // 4. Compute starting t values to reach the first voxel boundaries
+        let mut t_max_x = if ray_dir.x > 0.0 {
+            (block_pos.x + 1.0 - ray_origin.x) * t_delta_x
+        } else if ray_dir.x < 0.0 {
+            (ray_origin.x - block_pos.x) * t_delta_x
+        } else { f32::INFINITY };
+
+        let mut t_max_y = if ray_dir.y > 0.0 {
+            (block_pos.y + 1.0 - ray_origin.y) * t_delta_y
+        } else if ray_dir.y < 0.0 {
+            (ray_origin.y - block_pos.y) * t_delta_y
+        } else { f32::INFINITY };
+
+        let mut t_max_z = if ray_dir.z > 0.0 {
+            (block_pos.z + 1.0 - ray_origin.z) * t_delta_z
+        } else if ray_dir.z < 0.0 {
+            (ray_origin.z - block_pos.z) * t_delta_z
+        } else { f32::INFINITY };
+
+        // 5. Walk the grid
+        loop {
+            let chunk_pos = math::get_chunk_pos(block_pos);
+
+            if let Some(chunk) = chunk_getter.change(chunk_pos, self) {
+                let chunk_block = math::get_chunk_block(chunk_pos, block_pos);
+
+                let block_info = chunk.borrow().chunk_data.write().unwrap().get_block_info(chunk_block);
+                let block_properties = self.blocks_manager.get_properties_from_block_info(block_info);
+
+                let iterater_info = BlockIteraterInfo {
+                    global_block: block_pos.as_vec3i(),
+                    chunk_block,
+                    chunk: chunk.clone(),
+                    block_properties,
+                    blocks_manager: blocks_manager.clone(),
+                };
+
+                let mut stop = false;
+                func(&mut stop, &iterater_info);
+                if stop { return }
+            }
+
+            // Advance to next boundary by picking the smallest t_max
+            if t_max_x < t_max_y {
+                if t_max_x < t_max_z {
+                    if t_max_x > ray_length { break }
+                    block_pos.x += step_x;
+                    t_max_x += t_delta_x;
+                }
+                else {
+                    if t_max_z > ray_length { break }
+                    block_pos.z += step_z;
+                    t_max_z += t_delta_z;
+                }
+            }
+            else {
+                if t_max_y < t_max_z {
+                    if t_max_y > ray_length { break }
+                    block_pos.y += step_y;
+                    t_max_y += t_delta_y;
+                }
+                else {
+                    if t_max_z > ray_length { break }
+                    block_pos.z += step_z;
+                    t_max_z += t_delta_z;
+                }
+            }
+        }
     }
 
     pub fn load_chunks(&mut self, player_pos: Vec3) {
@@ -319,8 +403,11 @@ impl Planet {
         }
 
         for ch in &self.remove_chunks_list {
-            ch.borrow_mut().erase();
-            self.chunks.remove(&ch.borrow_mut().position);
+            let mut ch_borrow = ch.borrow_mut();
+
+            ch_borrow.erase();
+            self.chunk_data_pool.restore(ch_borrow.chunk_data.clone());
+            self.chunks.remove(&ch_borrow.position);
         }
 
         self.remove_chunks_list.clear();
@@ -344,10 +431,18 @@ impl Planet {
             let blocks_manager_ptr = self.blocks_manager.clone();
 
             let world_gen = self.world_gen.clone();
+            let new_chunk_data = self.chunk_data_pool.get();
+
 
             // create chunk async
             self.chunks_gen_worker.add_task(move || {
-                let new_chunk = Box::new(RefCell::new(Chunk::new(new_chunk_pos)));
+                // resets chunk data to avoid corrupted values
+                if let Some(ref chunk_data) = new_chunk_data {
+                    chunk_data.write().unwrap().clear(new_chunk_pos);
+                }
+
+                let new_chunk = Chunk::new(new_chunk_pos, new_chunk_data, SafePtr::from_ptr(blocks_manager_ptr.get_raw()));
+                let new_chunk = Box::new(RefCell::new(new_chunk));
                 new_chunk.borrow_mut().start(&mut world_gen.lock().unwrap(), &*blocks_manager_ptr);
 
                 return new_chunk;
@@ -361,10 +456,10 @@ impl Planet {
         self.last_player_chunk = player_chunk_pos;
     }
 
-    fn regen_neighbor_chunks(&self, neighbor_chunks: &NeighborChunks) {
-        if let Some(ref north) = neighbor_chunks.north { north.borrow_mut().chunk_data.regen_mesh = true }
-        if let Some(ref south) = neighbor_chunks.south { south.borrow_mut().chunk_data.regen_mesh = true }
-        if let Some(ref west) = neighbor_chunks.west { west.borrow_mut().chunk_data.regen_mesh = true }
-        if let Some(ref east) = neighbor_chunks.east { east.borrow_mut().chunk_data.regen_mesh = true }
+    fn regen_neighbor_chunks(&self, neighbors: &NeighborChunks) {
+        if let Some(ref north) = neighbors.north { north.borrow_mut().chunk_data.write().unwrap().regen_mesh = true }
+        if let Some(ref south) = neighbors.south { south.borrow_mut().chunk_data.write().unwrap().regen_mesh = true }
+        if let Some(ref west) = neighbors.west { west.borrow_mut().chunk_data.write().unwrap().regen_mesh = true }
+        if let Some(ref east) = neighbors.east { east.borrow_mut().chunk_data.write().unwrap().regen_mesh = true }
     }
 }

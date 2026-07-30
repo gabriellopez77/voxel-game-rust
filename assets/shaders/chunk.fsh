@@ -5,6 +5,10 @@
 #include "includes/utils.glsl"
 
 
+layout(push_constant) uniform PushConstants {
+    float value;
+} fadeInEffect;
+
 layout(location = 0) in vec3 Normal;
 layout(location = 1) in vec2 TexCoords;
 
@@ -23,9 +27,9 @@ void main() {
         discard;
 
     // face shading
-    float shadeFace = Shade == 1 ? calculateShading(Normal) : 1.0f;
+    const float shadeFace = Shade == 1 ? calculateShading(Normal) : 1.0f;
 
-    FragColor = vec4(tex.rgb * (shadeFace * AoLevel), tex.a);
+    FragColor = vec4(tex.rgb * (shadeFace * AoLevel), tex.a * fadeInEffect.value);
 
     applyFog(FragColor.xyz, FogFactor);
 }

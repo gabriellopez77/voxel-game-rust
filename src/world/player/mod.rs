@@ -5,7 +5,7 @@ pub mod selection_box;
 pub mod player_inventory;
 
 pub use {
-    player::Player,
+    player::*,
     camera::Camera,
     item_stack::ItemStack,
     selection_box::SelectionBox,

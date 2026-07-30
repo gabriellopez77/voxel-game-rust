@@ -1,11 +1,11 @@
-use std::{array, cell::RefCell};
+use std::{array, sync::{Arc, RwLock}};
 
-use crate::{math::Vec3i, render::{ChunkVertices, chunk_renderer::RendererType}, world::{Chunk, Planet, chunk::{ChunkData, NeighborsDataCopy}}};
+use crate::{math::Vec3i, render::{ChunkVertices, chunk_renderer::RendererType}, world::{Chunk, Planet, chunk::{ChunkData, neighbors_data::NeighborsData}}};
 
 
 pub struct ChunkMeshResult {
-    pub neighbors_data: NeighborsDataCopy,
-    pub chunk_data: Box<RefCell<ChunkData>>,
+    pub neighbors_data: NeighborsData,
+    pub chunk_data: Arc<RwLock<ChunkData>>,
 
     pub vertices: [Vec<ChunkVertices>; RendererType::RENDERS_COUNT],
     pub indices: [Vec<u32>; RendererType::RENDERS_COUNT],
@@ -15,19 +15,9 @@ pub struct ChunkMeshResult {
 
 impl ChunkMeshResult {
     pub fn new(planet: &mut Planet, chunk: &Chunk) -> Self {
-        // create a copy of chunk data
-        let chunk_data_copy = match planet.chunk_data_pool.get() {
-            Some(data) => {
-                chunk.chunk_data.copy_to(&mut data.borrow_mut());
-
-                data
-            }
-            None => Box::new(RefCell::new(chunk.chunk_data.clone()))
-        };
-
         Self {
-            neighbors_data: NeighborsDataCopy::new(planet, chunk.position),
-            chunk_data: chunk_data_copy,
+            neighbors_data: NeighborsData::new(planet, chunk.position),
+            chunk_data: chunk.chunk_data.clone(),
 
             vertices: array::from_fn(|_| planet.chunk_mesh_vertices_pool.get_or(|| Vec::new())),
             indices: array::from_fn(|_| planet.chunk_mesh_indices_pool.get_or(|| Vec::new())),
@@ -75,7 +65,5 @@ impl ChunkMeshResult {
             indices.clear();
             planet.chunk_mesh_indices_pool.restore(indices);
         }
-
-        self.neighbors_data.restore(&mut planet.chunk_data_pool);
     }
 }

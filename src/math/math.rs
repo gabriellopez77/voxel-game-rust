@@ -3,7 +3,7 @@ use crate::world::Chunk;
 
 
 pub const FRICTION: f32 = 10.0;
-pub const EPSILON: f32 = 0.01;
+pub const EPSILON: f32 = 0.0001;
 
 struct Quaternion {
     x: f32,
@@ -56,6 +56,14 @@ pub fn get_chunk_distance(pos1: Vec3i, pos2: Vec3i ) -> i32 {
     let z = (pos1.z - pos2.z).pow(2) as f32;
 
     return (x + z).sqrt() as i32;
+}
+
+pub fn get_distance(pos1: Vec3, pos2: Vec3) -> f32 {
+    let x = (pos1.x - pos2.x).powf(2.0);
+    let y = (pos1.y - pos2.y).powf(2.0);
+    let z = (pos1.z - pos2.z).powf(2.0);
+
+    return (x + y + z).sqrt();
 }
 
 pub fn look_at_rotation(center: Vec3, object_pos: Vec3) -> Matrix4 {

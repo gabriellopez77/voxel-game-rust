@@ -87,7 +87,7 @@ impl Window {
             }
 
             game.update(dt, self, &mut inputs);
-            game.render();
+            game.render(dt);
 
             vulkan_app.end_frame();
 

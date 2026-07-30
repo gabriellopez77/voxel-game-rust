@@ -48,6 +48,7 @@ impl Material {
         self.vao.destroy(&mut self.app);
     }
 
+    pub fn is_suitable_to_draw(&self) -> bool { self.vao.triangles_count > 0 }
     pub fn get_triangles_count(&self) -> u32 { self.vao.triangles_count }
     pub fn get_push_constant_info(&self) -> (u8, &[u8; vkutl::MAX_PUSH_CONSTANT_SIZE]) { (self.push_range, &self.push_data) }
     pub fn get_type(&self) -> MaterialType { self.material_type }

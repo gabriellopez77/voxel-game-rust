@@ -10,7 +10,7 @@ mod utils;
 
 
 fn main() {
-    let mut window = window::Window::init(1050, 650, "My First Rust Window");
+    let mut window = window::Window::init(1050, 650, "Voxel Game");
 
     window.run();
 }

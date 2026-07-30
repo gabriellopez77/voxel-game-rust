@@ -1,4 +1,4 @@
-use crate::{utils::NullSafePtr, world::{blocks::{BlocksManager}, world_gen::biomes::BiomeBase}};
+use crate::{utils::NullSafePtr, world::{blocks::{BlockIdState, BlocksManager}, world_gen::biomes::BiomeBase}};
 
 
 pub struct OceanBiome {
@@ -6,15 +6,15 @@ pub struct OceanBiome {
 }
 
 impl BiomeBase for OceanBiome {
-    fn get_surface_block(&self) -> (u16, u8) {
+    fn get_surface_block(&self) -> BlockIdState {
         self.blocks_manager.sand
     }
 
-    fn get_underground_block(&self) -> (u16, u8) {
+    fn get_underground_block(&self) -> BlockIdState {
         self.blocks_manager.sand
     }
 
-    fn get_surface_decorations(&self) -> (u16, u8) {
+    fn get_surface_decorations(&self) -> BlockIdState {
         self.blocks_manager.water_block
     }
 }

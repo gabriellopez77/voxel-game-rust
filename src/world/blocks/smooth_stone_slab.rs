@@ -18,10 +18,12 @@ impl ItemCreation for SmoothStoneSlab {
         let mut properties = BlockProperties::new(args, 0);
         args.inventory.register_item(properties.base_properties.clone());
 
-        properties.can_replaced = false;
+        properties.block_type = super::BlockTypes::Slab;
+        properties.can_replace = false;
         properties.is_transparent = true;
         properties.light_filter = 0;
         properties.collision_box = Some(Aabb::new(0.0, 0.0, 0.0, 1.0, 0.5, 1.0));
+        properties.set_selection_box(0, 0, 0, 16, 8, 16);
 
         Self {
             properties: vec![properties],

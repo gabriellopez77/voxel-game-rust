@@ -95,7 +95,7 @@ impl ScreenBase for DebugScreen {
             write!(text, "Global Staging Buffer Used MB: {:.1}", args.game.global_renderer.app.get_global_staging_buffer_used_mb())
         });
         self.global_staging_buffer_capacity_text.set_text_delayed(args.dt, 0.1, |text| {
-            write!(text, "Global Staging Buffer Capacity MB: {}", args.game.global_renderer.app.get_global_staging_buffer_capacity_mb())
+            write!(text, "Global Staging Buffer Capacity MB: {:.1}", args.game.global_renderer.app.get_global_staging_buffer_capacity_mb())
         });
 
 

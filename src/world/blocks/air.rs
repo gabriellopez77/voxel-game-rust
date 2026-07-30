@@ -18,7 +18,7 @@ impl ItemCreation for Air {
 
     fn new(args: &mut ItemCreationArgs) -> Self {
         let mut properties = BlockProperties::new(args, 0);
-        properties.can_replaced = true;
+        properties.can_replace = true;
         properties.is_transparent = true;
         properties.collision_box = None;
         properties.selection_box = None;

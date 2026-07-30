@@ -17,15 +17,13 @@ impl ChunkGetter {
         }
     }
 
-    pub fn change(&mut self, chunk_pos: Vec3i, planet: &Planet) {
+    pub fn change(&mut self, chunk_pos: Vec3i, planet: &Planet) -> &mut Option<Arc<RefCell<Chunk>>> {
         if self.chunk.is_none() || self.last_chunk_pos != chunk_pos {
             self.chunk = planet.get_chunk(chunk_pos);
         }
 
         self.last_chunk_pos = chunk_pos;
+
+        return &mut self.chunk;
     }
-
-    pub fn exists(&self) -> bool { self.chunk.is_some() }
-
-    pub fn get(&self) -> Arc<RefCell<Chunk>> { self.chunk.as_ref().unwrap().clone() }
 }

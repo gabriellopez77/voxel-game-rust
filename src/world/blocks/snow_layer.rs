@@ -1,4 +1,4 @@
-use crate::{world::{blocks::{BlockFunctions, BlockProperties, BlockTypes}, items::{ItemCreation, ItemCreationArgs}}};
+use crate::world::{blocks::{BlockFunctions, BlockProperties, BlockTypes}, items::{ItemCreation, ItemCreationArgs}};
 
 
 pub struct SnowLayer {
@@ -18,11 +18,12 @@ impl ItemCreation for SnowLayer {
         let mut properties = BlockProperties::new(args, 0);
         args.inventory.register_item(properties.base_properties.clone());
 
-        properties.can_replaced = true;
+        properties.can_replace = true;
         properties.is_transparent = true;
         properties.light_filter = 0;
         properties.block_type = BlockTypes::SnowLayer;
         properties.collision_box = None;
+        properties.set_selection_box(0, 0, 0, 16, 2, 16);
 
         Self {
             properties: vec![properties],

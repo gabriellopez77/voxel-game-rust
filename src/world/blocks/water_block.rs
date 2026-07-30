@@ -18,7 +18,7 @@ impl ItemCreation for WaterBlock {
         let mut properties = BlockProperties::new(args, 0);
         args.inventory.register_item(properties.base_properties.clone());
 
-        properties.can_replaced = true;
+        properties.can_replace = true;
         properties.is_transparent = true;
         properties.light_filter = 1;
         properties.renderer_type = RendererType::Alpha;

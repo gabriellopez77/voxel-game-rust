@@ -18,7 +18,7 @@ pub struct World {
     pub sky: Sky,
     pub particles_manager: ParticlesManager,
 
-    pub blocks_manager: Option<BlocksManager>,
+    pub blocks_manager: BlocksManager,
 }
 
 impl World {
@@ -30,16 +30,16 @@ impl World {
             sky: Sky::new(),
             particles_manager: ParticlesManager::new(),
 
-            blocks_manager: None,
+            blocks_manager: BlocksManager::default(),
         }
     }
 
     pub fn start(&mut self, resources_manager: &ResourceManager, global_renderer: &mut GlobalRenderer) {
-        self.blocks_manager = Some(BlocksManager::new(resources_manager, &mut self.player.inventory));
+        self.blocks_manager = BlocksManager::new(resources_manager, &mut self.player.inventory);
 
         self.player.start();
 
-        self.planet.start(&self.blocks_manager.as_ref().unwrap());
+        self.planet.start(&self.blocks_manager);
 
         self.sky.start(resources_manager, global_renderer);
         self.particles_manager.start(resources_manager, global_renderer);
@@ -62,7 +62,7 @@ impl World {
         self.particles_manager.update(dt);
     }
 
-    pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
+    pub fn draw(&mut self, dt: f32, global_renderer: &mut GlobalRenderer) {
         let ubo = &mut global_renderer.global_ubo;
 
         // cam matrix
@@ -85,7 +85,7 @@ impl World {
 
         self.sky.draw(global_renderer);
         self.player.selection_box.draw(global_renderer);
-        self.planet.draw(&self.player.camera, global_renderer);
+        self.planet.draw(dt, &self.player.camera, global_renderer);
         self.particles_manager.draw(global_renderer, self.player.camera.rot);
 
         self.player.camera.view_changed = false;

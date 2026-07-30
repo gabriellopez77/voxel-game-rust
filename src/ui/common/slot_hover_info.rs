@@ -32,18 +32,18 @@ impl SlotHoverInfo {
     }
 
     pub fn set(&mut self, slot: &dyn UiElement, stack: &ItemStack) {
-        if stack.is_empty() { return }
+        if let Some(item) = stack.get_item() {
+            self.item_name.set_text(item.name);
 
-        self.item_name.set_text(stack.get_item().name);
+            self.background.set_sizev(self.item_name.get_size() + 8.0);
+            self.background.set_pos(
+                self.background.get_centerx(slot),
+                slot.get_pos().y - self.background.get_size().y
+            );
 
-        self.background.set_sizev(self.item_name.get_size() + 8.0);
-        self.background.set_pos(
-            self.background.get_centerx(slot),
-            slot.get_pos().y - self.background.get_size().y
-        );
+            self.item_name.set_center(&self.background);
 
-        self.item_name.set_center(&self.background);
-
-        self.visible = true;
+            self.visible = true;
+        }
     }
 }

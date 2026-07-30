@@ -1102,16 +1102,15 @@ impl VulkanApp {
             let info = &self.updates_list[i];
 
             if info.flags.contains(BufferFlags::VRAM) {
-                vkutl::copy_buffer_async(self,
-                    self.global_staging_buffer.borrow().buffer,
+                self.global_staging_buffer.clone().borrow().copy_to_buffer_async(self,
                     info.buffers[self.frame_index],
-                    info.buffer_range.len as usize,
-                    (info.allocated_range.start + info.src_offset[self.frame_index]) as usize,
-                    info.buffer_range.start as usize
+                    info.buffer_range.len,
+                    info.allocated_range.start + info.src_offset[self.frame_index],
+                    info.buffer_range.start,
                 );
             }
             else {
-                self.global_staging_buffer.borrow().copy_to_buffer(
+                self.global_staging_buffer.borrow().copy_to_memory(
                     info.allocated_range.start + info.src_offset[self.frame_index],
                     info.buffer_range.start,
                     info.buffer_range.len,

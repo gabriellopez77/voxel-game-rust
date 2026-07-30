@@ -20,16 +20,21 @@ pub trait BlockFunctions {
 
     fn get_base(&self) -> Arc<ItemBaseProperties> { self.get_properties(0).base_properties.clone() }
 
-    fn get_id_state(&self) -> (u16, u8) {
+    fn get_id_state(&self) -> BlockIdState {
         let base = self.get_base();
 
-        return (base.id, base.state);
+        return BlockIdState { id: base.id, state: base.state };
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
+pub struct BlockIdState {
+    pub id: u16,
+    pub state: u8,
+}
 
 pub struct BlockProperties {
-    pub can_replaced: bool,
+    pub can_replace: bool,
     pub is_transparent: bool,
     pub light_filter: u8,
     pub light_emission: u8,
@@ -41,10 +46,24 @@ pub struct BlockProperties {
     pub base_properties: Arc<ItemBaseProperties>,
 }
 
+impl PartialEq for BlockProperties {
+    fn eq(&self, other: &Self) -> bool {
+        self.base_properties.id == other.base_properties.id &&
+        self.base_properties.state == other.base_properties.state
+    }
+}
+
+impl PartialEq<BlockIdState> for BlockProperties {
+    fn eq(&self, id_state: &BlockIdState) -> bool {
+        self.base_properties.id == id_state.id &&
+        self.base_properties.state == id_state.state
+    }
+}
+
 impl BlockProperties {
     pub fn new(args: &ItemCreationArgs, state: u8) -> Self {
         Self {
-            can_replaced: false,
+            can_replace: false,
             is_transparent: false,
             light_filter: 0,
             light_emission: 0,
@@ -66,7 +85,7 @@ impl BlockProperties {
 
     pub fn copy(&self, internal_name: &'static str, name: &'static str, model: Rc<BlockItemModel>, index: usize, state: u8) -> Self {
         Self {
-            can_replaced: self.can_replaced,
+            can_replace: self.can_replace,
             is_transparent: self.is_transparent,
             light_filter: self.light_filter,
             light_emission: self.light_emission,
@@ -77,5 +96,16 @@ impl BlockProperties {
 
             base_properties: Arc::new(self.base_properties.copy(internal_name, name, model, index, state, ItemBaseType::Block))
         }
+    }
+
+    pub fn set_selection_box(&mut self, x: i32, y: i32, z: i32, sx: i32, sy: i32, sz: i32) {
+        self.selection_box = Some(Aabb::new(
+            x as f32 / 16.0,
+            y as f32 / 16.0,
+            z as f32 / 16.0,
+            (x + sx) as f32 / 16.0,
+            (y + sy) as f32 / 16.0,
+            (z + sz) as f32 / 16.0,
+        ));
     }
 }

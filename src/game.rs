@@ -132,7 +132,7 @@ impl Game {
         self.ui_manager.clone().borrow_mut().update(dt, self, inputs);
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self, dt: f32) {
         self.global_renderer.begin();
 
         // update ubo
@@ -145,7 +145,7 @@ impl Game {
 
 
         if self.in_world {
-            self.world.draw(&mut self.global_renderer);
+            self.world.draw(dt, &mut self.global_renderer);
         }
 
         self.ui_manager.borrow_mut().draw(&mut self.global_renderer);

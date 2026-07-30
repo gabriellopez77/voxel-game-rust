@@ -1,4 +1,5 @@
-﻿use crate::render::material::MaterialType;
+﻿use crate::math;
+use crate::render::material::MaterialType;
 use crate::render::{GlobalRenderer, Material};
 use crate::render::core::raw_buffer::BufferFlags;
 use crate::world::chunk::ChunkMeshResult;
@@ -17,6 +18,8 @@ impl RendererType {
 pub struct ChunkRenderer {
     default_material: Material,
     water_material: Material,
+
+    fade_in_effect: f32,
 }
 
 impl ChunkRenderer {
@@ -24,6 +27,8 @@ impl ChunkRenderer {
         Self {
             default_material: global_renderer.create_chunk_material(MaterialType::ChunksOpaque),
             water_material: global_renderer.create_chunk_material(MaterialType::ChunksAlpha),
+
+            fade_in_effect: 0.0,
         }
     }
 
@@ -32,7 +37,22 @@ impl ChunkRenderer {
         self.water_material.destroy();
     }
 
-    pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
+    pub fn draw(&mut self, dt: f32, global_renderer: &mut GlobalRenderer) {
+        if !self.default_material.is_suitable_to_draw() && !self.water_material.is_suitable_to_draw() {
+            return
+        }
+
+        if self.fade_in_effect < 0.95 {
+            self.fade_in_effect = math::lerp(self.fade_in_effect, 1.0, dt * 4.0);
+        }
+        else {
+            self.fade_in_effect = 1.0;
+        }
+
+        self.default_material.update_push_constant(0, &self.fade_in_effect);
+        self.water_material.update_push_constant(0, &self.fade_in_effect);
+
+
         global_renderer.draw_obj(&self.default_material);
         global_renderer.draw_obj(&self.water_material);
     }

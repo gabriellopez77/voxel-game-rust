@@ -1,12 +1,13 @@
 ﻿use crate::game::{GameEvents, PlayerStates};
 use crate::ui::ui_manager::ScreensId;
+use crate::utils::SafePtr;
+use crate::world::blocks::BlockProperties;
 use crate::world::particles::{ParticlesManager, ParticlesSpawnArgs};
 use crate::world::world::WorldUpdateArgs;
 use crate::{inputs, math};
-use crate::inputs::{Inputs, MouseButton};
+use crate::inputs::Inputs;
 use crate::math::Vec3;
-use crate::world::{Aabb, Chunk, Planet};
-use crate::world::chunk::ChunkGetter;
+use crate::world::{Aabb, Planet};
 use crate::world::player::camera::Camera;
 use crate::world::player::{PlayerInventory, SelectionBox};
 
@@ -17,6 +18,15 @@ const FLY_Y_SPEED: f32 = 120.0;
 const FLY_X_SPEED: f32 = 320.0;
 const SPEED: f32 = 50.0;
 const SWIM_SPEED_UP: f32 = 10.0;
+
+
+#[derive(Clone)]
+pub struct RaycastingResult {
+    pub block_pos: Vec3,
+    pub hit_normal: Vec3,
+    pub block_properties: SafePtr<BlockProperties>,
+    pub block_selection_box: Aabb,
+}
 
 pub struct Player {
     pub camera: Camera,
@@ -58,7 +68,7 @@ impl Player {
     }
 
     pub fn get_pos(&self) -> Vec3 {
-        self.aabb.get_pos()
+        self.aabb.get_min()
     }
 
     pub fn start(&mut self) {
@@ -74,108 +84,92 @@ impl Player {
         self.process_input(args);
         self.process_collision(args.dt, planet, args.inputs);
 
-
-        let water_id = planet.blocks_manager.water_block.0;
-        let collided_blocks = planet.get_collided_block(&self.aabb);
-
         self.in_water = false;
-        for block in collided_blocks {
-            if block.base_properties.id == water_id {
+        planet.iterate_over_blocks_cube(&self.aabb, |stop, _, blocks_manager, _, _, _, block_properties| {
+            if *block_properties == blocks_manager.water_block {
                 self.in_water = true;
-                break;
+                *stop = true;
             }
-        }
-
-        if self.state == PlayerStates::Active {
-            self.inventory.process_hotbar_scroll(args.inputs.get_mouse_scroll());
-        }
+        });
 
         self.camera.update(&self.aabb, planet, args.inputs.get_camera_delta());
 
+        //let now = std::time::Instant::now();
+        let ray_result = self.update_ray_casting(planet, particles_manager, args.inputs);
 
-        let ray_pos = self.update_ray_casting(planet, particles_manager, args.inputs);
-        self.selection_box.update(ray_pos);
+        self.selection_box.update(&ray_result);
+
+        if self.state == PlayerStates::Active {
+            self.inventory.process_hotbar_scroll(args.inputs.get_mouse_scroll());
+
+            if let Some(result) = ray_result {
+                let slot = self.inventory.get_selected_hotbar_slot();
+
+                if args.inputs.mouse_pressed(inputs::MouseButton::Right) && let Some(item) = slot.get_item() && item.is_block() {
+                    let keep_same_block = result.block_properties.can_replace && (item.id != result.block_properties.base_properties.id);
+                    let place_block = if keep_same_block { result.block_pos } else { result.block_pos + result.hit_normal };
+
+                    let chunk_pos = math::get_chunk_pos(place_block);
+                    let chunk_block = math::get_chunk_block(chunk_pos, place_block);
+
+                    if let Some(chunk) = planet.get_chunk(chunk_pos) {
+                        let block_properties = chunk.borrow().chunk_data.read().unwrap().get_block_properties(chunk_block);
+
+                        if block_properties.can_replace {
+                            let block_functions = planet.blocks_manager.get_from_item_base(item);
+                            chunk.borrow_mut().chunk_data.write().unwrap().set_block(chunk_block, block_functions.get_id_state());
+                        }
+                    }
+                }
+            }
+        }
+        //println!("{}", now.elapsed().as_micros());
+
 
         if args.inputs.key_pressed(inputs::Keys::E) {
             args.events_queue.push_back(GameEvents::ChangeScreen(ScreensId::InventoryScreen));
         }
     }
 
-    fn update_ray_casting(&mut self, planet: &Planet, particles_manager: &mut ParticlesManager, inputs: &Inputs) -> Option<Vec3> {
+    fn update_ray_casting(&mut self,
+        planet: &Planet,
+        particles_manager: &mut ParticlesManager,
+        inputs: &Inputs
+    ) -> Option<RaycastingResult> {
+        let mut result = None;
+
         const RAY_LENGHT: f32 = 4.5;
-        const RAY_STEP: f32 = 0.1;
+        let ray_pos = self.camera.get_pos();
+        let ray_dir = self.camera.get_dir();
 
-        let start = self.camera.get_pos();
-        let dir = self.camera.get_dir();
+        planet.iterate_over_blocks_raycast(ray_pos, ray_dir, RAY_LENGHT, |stop, it| {
+            if let Some(ref selection_box) = it.block_properties.selection_box {
+                let target_block = it.global_block.as_vec3();
 
-        let mut target_pos: Option<Vec3> = None;
-        let mut ch = ChunkGetter::new();
+                let aabb = selection_box.clone_movev(target_block);
 
-        let mut step = 0.0f32;
-        while step < RAY_LENGHT {
-            let pos = start + dir * step;
-
-            let chunk_pos = math::get_chunk_pos(pos);
-            ch.change(chunk_pos, planet);
-
-            if let Some(ref chunk) = ch.chunk {
-                let chunk_block = math::get_chunk_block(chunk_pos, pos);
-                let block_info = chunk.borrow().chunk_data.get_block_info(chunk_block);
-
-                let block_properties = planet.blocks_manager.get_properties_from_block_info(block_info);
-
-                if block_properties.selection_box.is_some() {
-                    let global_block = (chunk_pos * Chunk::CHUNK_SIZE + chunk_block).as_vec3();
-
+                if let Some(hit) = aabb.ray_intersect(ray_pos, ray_dir) {
                     // break block
-                    if inputs.mouse_pressed(MouseButton::Left) && self.state == PlayerStates::Active {
-                        chunk.borrow_mut().chunk_data.set_block(chunk_block, planet.blocks_manager.air);
-                        particles_manager.spawn(ParticlesSpawnArgs::BlockDestroy(&block_properties, global_block));
-                        break;
+                    if inputs.mouse_pressed(inputs::MouseButton::Left) && self.state == PlayerStates::Active {
+                        let block_properties = it.chunk.borrow().chunk_data.read().unwrap().get_block_properties(it.chunk_block);
+                        particles_manager.spawn(ParticlesSpawnArgs::BlockDestroy(&block_properties, target_block));
+
+                        it.chunk.borrow().chunk_data.write().unwrap().set_block(it.chunk_block, it.blocks_manager.air);
                     }
 
-                    target_pos = Some(global_block);
-                    break;
+                    result = Some(RaycastingResult{
+                        block_pos: target_block,
+                        hit_normal: aabb.get_ray_hit_normal(hit),
+                        block_properties: it.block_properties.clone(),
+                        block_selection_box: aabb,
+                    });
+
+                    *stop = true;
                 }
             }
+        });
 
-            step += RAY_STEP;
-        }
-
-        if target_pos.is_none() { return None }
-
-        let hand_slot_item = self.inventory.get_selected_hotbar_slot();
-
-        if !inputs.mouse_pressed(MouseButton::Right) ||
-            hand_slot_item.is_empty() ||
-           !hand_slot_item.get_item().is_block() ||
-            self.state == PlayerStates::Menu {
-            return target_pos;
-        }
-
-
-        // place block
-        let end = start + dir * step;
-        let pos = end - dir * RAY_STEP;
-
-        let chunk_pos = math::get_chunk_pos(pos);
-        ch.change(chunk_pos, planet);
-
-        if let Some(ref chunk) = ch.chunk {
-            let chunk_block = math::get_chunk_block(chunk_pos, pos);
-            let block_info = chunk.borrow().chunk_data.get_block_info(chunk_block);
-
-            let block_properties = planet.blocks_manager.get_properties_from_block_info(block_info);
-
-            if block_properties.can_replaced {
-                let hand_slot_item = self.inventory.get_selected_hotbar_slot().get_item();
-
-                let block_functions = planet.blocks_manager.get_from_item_base(hand_slot_item);
-                chunk.borrow_mut().chunk_data.set_block(chunk_block, block_functions.get_id_state());
-            }
-        }
-
-        return target_pos;
+        return result;
     }
 
     fn process_input(&mut self, args: &mut WorldUpdateArgs) {

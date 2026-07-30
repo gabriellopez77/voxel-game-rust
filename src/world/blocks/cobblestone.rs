@@ -18,7 +18,7 @@ impl ItemCreation for Cobblestone {
         let mut properties = BlockProperties::new(args, 0);
         args.inventory.register_item(properties.base_properties.clone());
 
-        properties.can_replaced = false;
+        properties.can_replace = false;
         properties.is_transparent = false;
         properties.light_filter = 15;
 

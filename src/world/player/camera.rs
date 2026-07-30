@@ -68,9 +68,9 @@ impl Camera {
 
     pub fn update(&mut self, player_aabb: &Aabb, planet: &Planet, camera_delta: Vec2) {
         let new_pos = Vec3::new(
-            player_aabb.get_pos().x + player_aabb.get_size().x / 2.0,
-            player_aabb.get_pos().y + 1.7,
-            player_aabb.get_pos().z + player_aabb.get_size().z / 2.0,
+            player_aabb.get_min().x + player_aabb.get_size().x / 2.0,
+            player_aabb.get_min().y + 1.7,
+            player_aabb.get_min().z + player_aabb.get_size().z / 2.0,
         );
 
         if self.position != new_pos {
@@ -82,9 +82,9 @@ impl Camera {
         self.chunk_block = math::get_chunk_block(self.chunk_pos, new_pos);
 
         self.is_underwater = if let Some(chunk) = planet.get_chunk(self.chunk_pos) {
-            let block_info =chunk.borrow().chunk_data.get_block_info(self.chunk_block);
+            let block_info = chunk.borrow().chunk_data.read().unwrap().get_block_info(self.chunk_block);
 
-            planet.blocks_manager.get_properties_from_block_info(block_info).base_properties.id == planet.blocks_manager.water_block.0
+            *planet.blocks_manager.get_properties_from_block_info(block_info) == planet.blocks_manager.water_block
         } else { false };
 
         self.process_rotation(camera_delta);
@@ -100,7 +100,11 @@ impl Camera {
     pub fn resize(&mut self, width: f32, height: f32) {
         self.view_changed = true;
 
+        self.view_matrix = Matrix4::look_at(self.position, self.position + self.direction);
         self.projection_matrix = Matrix4::perspective(70.0, width / height, 0.04, 1000.0);
+        self.viewproj_matrix = self.projection_matrix * self.view_matrix;
+        self.view_no_translate_matrix = self.view_matrix.remove_translation();
+        self.update_frustum_planes();
     }
 
     pub fn chunk_inside_frustum(&self, visual_chunk_pos: Vec3) -> bool  {
