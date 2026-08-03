@@ -9,6 +9,10 @@ layout(std140, set = 0, binding = 1) readonly uniform sla {
     mat4 camViewProj;
     mat4 viewNoTranslation;
 
+    // first person
+    mat4 firstPersonProj;
+    mat4 firstPersonView;
+
     // world
     vec4 skyColor;
     vec4 fogColor;

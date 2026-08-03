@@ -74,7 +74,8 @@ impl RawBuffer {
             return self.buffers[0];
         }
 
-        return self.buffers[frame_index];
+        // SAFETY: frame_index is always 0..vkutl::FRAMES_COUNT
+        return unsafe { *self.buffers.get_unchecked(frame_index) };
     }
 
     pub fn get_all_buffers(&self) -> [vk::Buffer; vkutl::FRAMES_COUNT] { self.buffers }

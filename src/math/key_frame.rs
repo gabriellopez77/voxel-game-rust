@@ -1,6 +1,8 @@
 pub struct KeyFrame<T: Copy> {
-    pub frames: Vec<(f32, T)>,
+    frames: Vec<(f32, T)>,
     func: fn (f32, T, T) -> T,
+
+    highest_key: f32,
 }
 
 impl<T: Copy> KeyFrame<T> {
@@ -8,10 +10,36 @@ impl<T: Copy> KeyFrame<T> {
         Self {
             frames: Vec::new(),
             func,
+
+            highest_key: 0.0,
         }
     }
 
-    pub fn get(&self, t: f32) -> T {
+    pub fn get_highest_key(&self) -> f32 { self.highest_key }
+    pub fn get_first_key_frame(&self) -> (f32, T) { self.frames[0] }
+
+    pub fn set_frames(&mut self, mut frames: Vec<(f32, T)>) {
+        debug_assert!(!frames.is_empty(), "Frames is empty!");
+
+        frames.sort_by(|a, b| a.0.total_cmp(&b.0));
+
+        let highest_key = frames.last().unwrap().0;
+
+        for (key, _) in &mut frames {
+            if *key < 0.0 {
+                *key = 0.0;
+            }
+
+            *key = *key / highest_key;
+        }
+
+        self.frames = frames;
+        self.highest_key = highest_key;
+    }
+
+    pub fn get(&self, mut t: f32) -> T {
+        t /= self.highest_key;
+
         let start_value = self.frames[0].1;
         let end_value = self.frames.last().unwrap().1;
 
@@ -31,6 +59,6 @@ impl<T: Copy> KeyFrame<T> {
             }
         }
 
-        return end_value;
+        unreachable!()
     }
 }

@@ -1,7 +1,7 @@
 ﻿use std::sync::{Arc, RwLock};
 use std::sync::atomic::AtomicI32;
 use crate::math::{self, Vec3, Vec3i};
-use crate::render::{BlockModelMesh, ChunkRenderer, ChunkVertices, GlobalRenderer};
+use crate::render::{BlockItemVertices, ChunkRenderer, ChunkVertices, GlobalRenderer};
 use crate::utils::SafePtr;
 use crate::world::blocks::{BlockProperties, BlockTypes, BlocksManager};
 use crate::world::chunk::neighbors_data::NeighborsData;
@@ -93,15 +93,15 @@ impl Chunk {
             if block_info.id == 0 { continue }
 
             let block_properties = blocks_manager.get_properties_from_block_info(block_info);
-            let model = &block_properties.base_properties.model;
-            let ambient_occlusion = model.ambient_occlusion;
+            let mesh = &block_properties.base_properties.mesh;
+            let ambient_occlusion = mesh.ambient_occlusion;
 
             let chunk_block = Vec3::new(x as f32, y as f32, z as f32);
             let mut vertices = &mut mesh_result.vertices[block_properties.renderer_type as usize];
             let mut draw = false;
 
             // add nothing faces
-            Self::add_face(chunk_data, neighbors_data, &mut vertices, &model.nothing_vertices, chunk_block, chunk_pos, Directions::Nothing, ambient_occlusion);
+            Self::add_face(chunk_data, neighbors_data, &mut vertices, &mesh.nothing_vertices, chunk_block, chunk_pos, Directions::Nothing, ambient_occlusion);
 
 
             // up
@@ -111,7 +111,7 @@ impl Chunk {
             }
             else if y == Chunk::CHUNK_SIZE_MINUS_ONE.y { draw = true }
 
-            if draw { Self::add_face(chunk_data, neighbors_data, &mut vertices, &model.up_vertices, chunk_block, chunk_pos, Directions::Up, ambient_occlusion); }
+            if draw { Self::add_face(chunk_data, neighbors_data, &mut vertices, &mesh.up_vertices, chunk_block, chunk_pos, Directions::Up, ambient_occlusion); }
             draw = false;
 
 
@@ -121,7 +121,7 @@ impl Chunk {
                 draw = Self::draw_face(&block_properties, &around, Directions::Down);
             }
 
-            if draw { Self::add_face(chunk_data, neighbors_data, &mut vertices, &model.down_vertices, chunk_block, chunk_pos, Directions::Down, ambient_occlusion); }
+            if draw { Self::add_face(chunk_data, neighbors_data, &mut vertices, &mesh.down_vertices, chunk_block, chunk_pos, Directions::Down, ambient_occlusion); }
             draw = false;
 
 
@@ -135,7 +135,7 @@ impl Chunk {
                 draw = Self::draw_face(&block_properties, &around, Directions::South);
             }
 
-            if draw { Self::add_face(chunk_data, neighbors_data, &mut vertices, &model.south_vertices, chunk_block, chunk_pos, Directions::South, ambient_occlusion); }
+            if draw { Self::add_face(chunk_data, neighbors_data, &mut vertices, &mesh.south_vertices, chunk_block, chunk_pos, Directions::South, ambient_occlusion); }
             draw = false;
 
 
@@ -149,7 +149,7 @@ impl Chunk {
                 draw = Self::draw_face(&block_properties, &around, Directions::North);
             }
 
-            if draw { Self::add_face(chunk_data, neighbors_data, &mut vertices, &model.north_vertices, chunk_block, chunk_pos, Directions::North, ambient_occlusion); }
+            if draw { Self::add_face(chunk_data, neighbors_data, &mut vertices, &mesh.north_vertices, chunk_block, chunk_pos, Directions::North, ambient_occlusion); }
             draw = false;
 
 
@@ -163,7 +163,7 @@ impl Chunk {
                 draw = Self::draw_face(&block_properties, &around, Directions::East);
             }
 
-            if draw { Self::add_face(chunk_data, neighbors_data, &mut vertices, &model.east_vertices, chunk_block, chunk_pos, Directions::East, ambient_occlusion); }
+            if draw { Self::add_face(chunk_data, neighbors_data, &mut vertices, &mesh.east_vertices, chunk_block, chunk_pos, Directions::East, ambient_occlusion); }
             draw = false;
 
 
@@ -177,7 +177,7 @@ impl Chunk {
                 draw = Self::draw_face(&block_properties, &around, Directions::West);
             }
 
-            if draw { Self::add_face(chunk_data, neighbors_data, &mut vertices, &model.west_vertices, chunk_block, chunk_pos, Directions::West, ambient_occlusion); }
+            if draw { Self::add_face(chunk_data, neighbors_data, &mut vertices, &mesh.west_vertices, chunk_block, chunk_pos, Directions::West, ambient_occlusion); }
         }
         }
         }
@@ -187,17 +187,17 @@ impl Chunk {
         chunk_data: &ChunkData,
         neighbors: &NeighborsData,
         vertices: &mut Vec<ChunkVertices>,
-        model_vertices: &Vec<BlockModelMesh>,
+        mesh_vertices: &Vec<BlockItemVertices>,
         chunk_block: Vec3,
         chunk_pos: Vec3,
         dir: Directions,
         ambient_occlusion: bool
     ) {
-        for i in (0..model_vertices.len()).step_by(4) {
-            let vert1 = &model_vertices[i + 0];
-            let vert2 = &model_vertices[i + 1];
-            let vert3 = &model_vertices[i + 2];
-            let vert4 = &model_vertices[i + 3];
+        for i in (0..mesh_vertices.len()).step_by(4) {
+            let vert1 = &mesh_vertices[i + 0];
+            let vert2 = &mesh_vertices[i + 1];
+            let vert3 = &mesh_vertices[i + 2];
+            let vert4 = &mesh_vertices[i + 3];
 
             let mut ao_level1: u8 = 3;
 			let mut ao_level2: u8 = 3;
@@ -243,8 +243,7 @@ impl Chunk {
 			    if current_type == BlockTypes::SnowLayer && !dir.is_vertical() { return false }
 		    }
 		    else {
-			    if current_type != BlockTypes::Water && other_type == BlockTypes::Slab && dir == Directions::Up { return false }
-			    if current_type != BlockTypes::Water && other_type == BlockTypes::SnowLayer && dir == Directions::Up { return false }
+				if current_type == BlockTypes::Default && !current.is_transparent && other_type == BlockTypes::SnowLayer && dir == Directions::Up { return false }
 		    }
 
 		    return true;

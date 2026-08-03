@@ -1,5 +1,5 @@
 use crate::render::material::MaterialType;
-use crate::render::{GlobalRenderer, Material, SPRITES_INDICES, SPRITES_VERTICES, SpritesVertices, TextVertices};
+use crate::render::{GlobalRenderer, Material, Mesh, SPRITES_INDICES, SPRITES_VERTICES, SpritesVertices, TextVertices};
 use super::core::raw_buffer::BufferFlags;
 
 
@@ -7,8 +7,8 @@ pub struct UiRenderer {
     sprites_instance_data: Vec<SpritesVertices>,
     text_instance_data: Vec<TextVertices>,
 
-    sprites_material: Option<Material>,
-    text_material: Option<Material>,
+    sprites_renderer: Option<(Mesh, Material)>,
+    text_renderer: Option<(Mesh, Material)>,
 }
 
 impl UiRenderer {
@@ -19,34 +19,39 @@ impl UiRenderer {
             sprites_instance_data: Vec::new(),
             text_instance_data: Vec::new(),
 
-            sprites_material: None,
-            text_material: None,
+            sprites_renderer: None,
+            text_renderer: None,
         }
     }
 
     pub fn start(&mut self, global_renderer: &mut GlobalRenderer) {
-        let mut sprites_material = global_renderer.create_material("ui_sprites", MaterialType::Ui);
-        sprites_material.set_mesh(&SPRITES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
-        sprites_material.create_instance_buffer(size_of::<SpritesVertices>() * Self::MAX_SPRITES_COUNT, None, BufferFlags::RAM);
-        self.sprites_material = Some(sprites_material);
+        let (mut mesh, material) = global_renderer.create_mesh_material("ui_sprites", MaterialType::Ui);
+        mesh.set(&SPRITES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
+        mesh.create_instance_buffer(size_of::<SpritesVertices>() * Self::MAX_SPRITES_COUNT, None, BufferFlags::RAM);
+        self.sprites_renderer = Some((mesh, material));
 
-        let mut text_material = global_renderer.create_material("ui_text", MaterialType::Ui);
-        text_material.set_mesh(&SPRITES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
-        text_material.create_instance_buffer(size_of::<TextVertices>() * Self::MAX_SPRITES_COUNT, None, BufferFlags::RAM);
-        self.text_material = Some(text_material);
+        let (mut mesh, material) = global_renderer.create_mesh_material("ui_text", MaterialType::Ui);
+        mesh.set(&SPRITES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
+        mesh.create_instance_buffer(size_of::<TextVertices>() * Self::MAX_SPRITES_COUNT, None, BufferFlags::RAM);
+        self.text_renderer = Some((mesh, material));
     }
 
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
-        let sprites_material = self.sprites_material.as_mut().unwrap();
-        global_renderer.draw_obj_instanced_with_buffer(sprites_material, &mut self.sprites_instance_data);
+        let sprites_renderer = self.sprites_renderer.as_mut().unwrap();
+        global_renderer.draw_instanced_with_buffer(&mut sprites_renderer.0, &sprites_renderer.1, &mut self.sprites_instance_data);
 
-        let text_material = self.text_material.as_mut().unwrap();
-        global_renderer.draw_obj_instanced_with_buffer(text_material, &mut self.text_instance_data);
+        let text_renderer = self.text_renderer.as_mut().unwrap();
+        global_renderer.draw_instanced_with_buffer(&mut text_renderer.0, &text_renderer.1, &mut self.text_instance_data);
     }
 
     pub fn cleanup(&mut self) {
-        self.sprites_material.as_mut().unwrap().destroy();
-        self.text_material.as_mut().unwrap().destroy();
+        let sprites_renderer = self.sprites_renderer.as_mut().unwrap();
+        sprites_renderer.0.destroy();
+        sprites_renderer.1.destroy();
+
+        let text_renderer = self.text_renderer.as_mut().unwrap();
+        text_renderer.0.destroy();
+        text_renderer.1.destroy();
     }
 
     pub fn get_sprites_count(&self) -> usize { self.sprites_instance_data.len() }

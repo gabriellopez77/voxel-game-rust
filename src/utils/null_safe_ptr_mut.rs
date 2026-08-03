@@ -41,4 +41,10 @@ impl<T: ?Sized> NullSafePtrMut<T> {
     pub fn new(ptr: &mut T) -> Self {
         Self { ptr: ptr as *mut T }
     }
+
+    pub fn get_raw(&mut self) -> *mut T {
+        assert!(!self.ptr.is_null(), "ptr has not initalized!");
+        
+        self.ptr
+    }
 }

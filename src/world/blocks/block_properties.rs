@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::render::chunk_renderer::RendererType;
-use crate::resources::{BlockItemModel};
+use crate::resources::BlockItemMesh;
 use crate::world::{Aabb, items::*};
 
 
@@ -83,7 +83,13 @@ impl BlockProperties {
         }
     }
 
-    pub fn copy(&self, internal_name: &'static str, name: &'static str, model: Rc<BlockItemModel>, index: usize, state: u8) -> Self {
+    pub fn copy(&self,
+        internal_name: &'static str,
+        name: &'static str,
+        model: Rc<BlockItemMesh>,
+        index: usize,
+        state: u8
+    ) -> Self {
         Self {
             can_replace: self.can_replace,
             is_transparent: self.is_transparent,

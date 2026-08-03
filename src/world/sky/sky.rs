@@ -1,6 +1,6 @@
 use crate::resources::{ResourceManager, resources_manager};
 use crate::math::{Color3b, KeyFrame};
-use crate::render::{GlobalRenderer, Material, material};
+use crate::render::{GlobalRenderer, Material, Mesh, material};
 use crate::render::core::raw_buffer::BufferFlags;
 use crate::world::Chunk;
 use crate::world::player::Camera;
@@ -8,7 +8,7 @@ use crate::world::sky::{Clouds, SkyBodies};
 
 
 pub struct Sky {
-    material: Option<Material>,
+    renderer: Option<(Mesh, Material)>,
 
     sky_bodies: SkyBodies,
     clouds: Clouds,
@@ -44,7 +44,7 @@ impl Sky {
 
     pub fn new() -> Self {
         Self {
-            material: None,
+            renderer: None,
 
             sky_bodies: SkyBodies::new(),
             clouds: Clouds::new(),
@@ -91,46 +91,46 @@ impl Sky {
         }
     }
     pub fn start(&mut self, resources_manager: &ResourceManager, global_renderer: &mut GlobalRenderer) {
-        let (vertices, indices) = resources_manager::gen_sphere(16.0, 16.0);
+        let (vertices, indices) = ResourceManager::gen_sphere(16.0, 16.0);
 
-        let mut material = global_renderer.create_material("skyDome", material::MaterialType::Sky);
-        material.set_mesh(&vertices, &indices, BufferFlags::VRAM | BufferFlags::ONCE);
-        self.material = Some(material);
+        let (mut mesh, material) = global_renderer.create_mesh_material("skyDome", material::MaterialType::Sky);
+        mesh.set(&vertices, &indices, BufferFlags::VRAM | BufferFlags::ONCE);
+        self.renderer = Some((mesh, material));
 
         self.set_fog(true);
 
 
-        self.sky_color_gradient.frames = vec![
-            ((00.0 * Self::MINUTES_SCALE + 00.0) / Self::CYCLE_TIME, Color3b::from_hex(0x010003)),
-            ((04.0 * Self::MINUTES_SCALE + 30.0) / Self::CYCLE_TIME, Color3b::from_hex(0x010003)),
-            ((06.0 * Self::MINUTES_SCALE + 00.0) / Self::CYCLE_TIME, Color3b::from_hex(0x055EFF)),
-            ((17.0 * Self::MINUTES_SCALE + 20.0) / Self::CYCLE_TIME, Color3b::from_hex(0x055EFF)),
-            ((18.0 * Self::MINUTES_SCALE + 40.0) / Self::CYCLE_TIME, Color3b::from_hex(0x020203)),
-            ((24.0 * Self::MINUTES_SCALE + 00.0) / Self::CYCLE_TIME, Color3b::from_hex(0x020203)),
-        ];
+        self.sky_color_gradient.set_frames(vec![
+            (00.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0x010003)),
+            (04.0 * Self::MINUTES_SCALE + 30.0, Color3b::from_hex(0x010003)),
+            (06.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0x055EFF)),
+            (17.0 * Self::MINUTES_SCALE + 20.0, Color3b::from_hex(0x055EFF)),
+            (18.0 * Self::MINUTES_SCALE + 40.0, Color3b::from_hex(0x020203)),
+            (24.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0x020203)),
+        ]);
 
-        self.fog_color_gradient.frames = vec![
-            ((00.0 * Self::MINUTES_SCALE + 00.0) / Self::CYCLE_TIME, Color3b::from_hex(0x010E22) ),
-            ((04.0 * Self::MINUTES_SCALE + 30.0) / Self::CYCLE_TIME, Color3b::from_hex(0x010E22) ),
-            ((06.0 * Self::MINUTES_SCALE + 00.0) / Self::CYCLE_TIME, Color3b::from_hex(0xD9CCC3) ),
-            ((07.0 * Self::MINUTES_SCALE + 00.0) / Self::CYCLE_TIME, Color3b::from_hex(0x80CCFF) ),
-            ((17.0 * Self::MINUTES_SCALE + 00.0) / Self::CYCLE_TIME, Color3b::from_hex(0x80CCFF) ),
-            ((17.0 * Self::MINUTES_SCALE + 50.0) / Self::CYCLE_TIME, Color3b::from_hex(0xFF9849) ),
-            ((18.0 * Self::MINUTES_SCALE + 40.0) / Self::CYCLE_TIME, Color3b::from_hex(0x415066) ),
-            ((19.0 * Self::MINUTES_SCALE + 00.0) / Self::CYCLE_TIME, Color3b::from_hex(0x010E22) ),
-            ((24.0 * Self::MINUTES_SCALE + 00.0) / Self::CYCLE_TIME, Color3b::from_hex(0x010E22) ),
-        ];
+        self.fog_color_gradient.set_frames(vec![
+            (00.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0x010E22) ),
+            (04.0 * Self::MINUTES_SCALE + 30.0, Color3b::from_hex(0x010E22) ),
+            (06.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0xD9CCC3) ),
+            (07.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0x80CCFF) ),
+            (17.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0x80CCFF) ),
+            (17.0 * Self::MINUTES_SCALE + 50.0, Color3b::from_hex(0xFF9849) ),
+            (18.0 * Self::MINUTES_SCALE + 40.0, Color3b::from_hex(0x415066) ),
+            (19.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0x010E22) ),
+            (24.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0x010E22) ),
+        ]);
 
-        self.clouds_color_gradient.frames = vec![
-            ((00.0 * Sky::MINUTES_SCALE + 00.0) / Sky::CYCLE_TIME, Color3b::from_hex(0x0E0F18)),
-            ((04.0 * Sky::MINUTES_SCALE + 30.0) / Sky::CYCLE_TIME, Color3b::from_hex(0x0E0F18)),
-            ((06.0 * Sky::MINUTES_SCALE + 00.0) / Sky::CYCLE_TIME, Color3b::from_hex(0xFFFFFF)),
-            ((07.0 * Sky::MINUTES_SCALE + 00.0) / Sky::CYCLE_TIME, Color3b::from_hex(0xFFFFFF)),
-            ((17.0 * Sky::MINUTES_SCALE + 00.0) / Sky::CYCLE_TIME, Color3b::from_hex(0xFFFFFF)),
-            ((17.0 * Sky::MINUTES_SCALE + 50.0) / Sky::CYCLE_TIME, Color3b::from_hex(0xFFFFFF)),
-            ((19.0 * Sky::MINUTES_SCALE + 00.0) / Sky::CYCLE_TIME, Color3b::from_hex(0x0E0F18)),
-            ((24.0 * Sky::MINUTES_SCALE + 00.0) / Sky::CYCLE_TIME, Color3b::from_hex(0x0E0F18)),
-        ];
+        self.clouds_color_gradient.set_frames(vec![
+            (00.0 * Sky::MINUTES_SCALE + 00.0, Color3b::from_hex(0x0E0F18)),
+            (04.0 * Sky::MINUTES_SCALE + 30.0, Color3b::from_hex(0x0E0F18)),
+            (06.0 * Sky::MINUTES_SCALE + 00.0, Color3b::from_hex(0xFFFFFF)),
+            (07.0 * Sky::MINUTES_SCALE + 00.0, Color3b::from_hex(0xFFFFFF)),
+            (17.0 * Sky::MINUTES_SCALE + 00.0, Color3b::from_hex(0xFFFFFF)),
+            (17.0 * Sky::MINUTES_SCALE + 50.0, Color3b::from_hex(0xFFFFFF)),
+            (19.0 * Sky::MINUTES_SCALE + 00.0, Color3b::from_hex(0x0E0F18)),
+            (24.0 * Sky::MINUTES_SCALE + 00.0, Color3b::from_hex(0x0E0F18)),
+        ]);
 
         self.sky_bodies.start(resources_manager, global_renderer);
         self.clouds.start(resources_manager, global_renderer);
@@ -141,7 +141,10 @@ impl Sky {
     }
 
     pub fn cleanup(&mut self) {
-        self.material.as_mut().unwrap().destroy();
+        let renderer = self.renderer.as_mut().unwrap();
+        renderer.0.destroy();
+        renderer.1.destroy();
+
         self.sky_bodies.cleanup();
         self.clouds.cleanup();
     }
@@ -152,16 +155,14 @@ impl Sky {
 
         if self.time > Self::CYCLE_TIME { self.time = 0.0 }
 
-        let factor = self.time / Self::CYCLE_TIME;
-
         if self.update_delay > Self::UPDATE_DELAY {
 
-            self.sky_bodies.update(factor);
+            self.sky_bodies.update(self.time);
 
             self.update_delay = 0.0;
         }
 
-        self.set_clouds_color(self.clouds_color_gradient.get(factor));
+        self.set_clouds_color(self.clouds_color_gradient.get(self.time));
 
         if camera.is_underwater {
             self.set_sky_color(self.underwater_fog_color);
@@ -170,8 +171,8 @@ impl Sky {
             self.set_fog_density(self.underwater_fog_density);
         }
         else {
-            self.set_sky_color(self.sky_color_gradient.get(factor));
-            self.set_fog_color(self.fog_color_gradient.get(factor));
+            self.set_sky_color(self.sky_color_gradient.get(self.time));
+            self.set_fog_color(self.fog_color_gradient.get(self.time));
             self.set_fog_distance(render_distance as f32 - 0.5);
             self.set_fog_density(16.0);
         }
@@ -181,7 +182,8 @@ impl Sky {
 
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
         // draw sky dome
-        global_renderer.draw_obj(self.material.as_ref().unwrap());
+        let renderer = self.renderer.as_mut().unwrap();
+        global_renderer.draw(&renderer.0, &renderer.1);
 
         // draw stars, sun, moon and clouds
         self.sky_bodies.draw(global_renderer);

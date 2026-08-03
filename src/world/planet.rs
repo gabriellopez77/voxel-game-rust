@@ -57,7 +57,7 @@ impl Planet {
 
             blocks_manager: NullSafePtr::null(),
 
-            render_distance: 14,
+            render_distance: 4,
 
             pendings_chunks_count: 0,
 

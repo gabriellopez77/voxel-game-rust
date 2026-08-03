@@ -131,8 +131,7 @@ impl GraphicsPipeline {
         module_info.code_size = binary_code.len() as _;
 
         return unsafe {
-            app.ash_device.create_shader_module(&module_info, None)
-                .expect("Failed to create shader module!")
+            app.ash_device.create_shader_module(&module_info, None).expect("Failed to create shader module!")
         };
     }
 }

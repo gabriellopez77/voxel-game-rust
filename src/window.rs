@@ -48,6 +48,7 @@ impl Window {
         let mut game = Game::new(&mut vulkan_app);
         let mut inputs = Inputs::new();
 
+        let mut imgui = imgui::Context::create();
         let mut first_time = true;
         let mut last_frame = 0.0f32;
 
@@ -59,14 +60,27 @@ impl Window {
             self.glfw_instance.poll_events();
 
             for (_, event) in glfw::flush_messages(&self.events) {
-                if first_time { continue }
-
                 inputs.roll_event(&event);
-
+                let imgui_io = imgui.io_mut();
+                
                 match event {
                     WindowEvent::FramebufferSize(width, height) => {
                         vulkan_app.resize(width, height, &mut self.glfw_instance, &self.window);
                         game.resize(width as f32, height as f32);
+
+                        imgui_io.display_size = [width as f32, height as f32];
+                    }
+                    WindowEvent::MouseButton(button, action, _) => {
+                        let imgui_button = match button {
+                            glfw::MouseButton::Button1 => imgui::MouseButton::Left,
+                            glfw::MouseButton::Button2 => imgui::MouseButton::Right,
+                            _ => imgui::MouseButton::Middle,
+                        };
+
+                        imgui_io.add_mouse_button_event(imgui_button, action != glfw::Action::Release);
+                    }
+                    WindowEvent::CursorPos(x, y) => {
+                        imgui_io.mouse_pos = [x as f32, y as f32];
                     }
                     _ => {}
                 }
@@ -81,13 +95,13 @@ impl Window {
             vulkan_app.begin_frame(&self.window);
 
             if first_time {
-                game.start(&mut vulkan_app);
+                game.start(&mut vulkan_app, &mut imgui);
                 game.resize(self.width, self.height);
                 first_time = false;
             }
 
             game.update(dt, self, &mut inputs);
-            game.render(dt);
+            game.render(dt, &mut imgui);
 
             vulkan_app.end_frame();
 

@@ -1,8 +1,9 @@
-use std::{cell::RefCell, collections::HashMap, mem::offset_of, rc::Rc, usize};
+use std::{cell::RefCell, collections::HashMap, mem::offset_of, rc::Rc};
 use ash::{vk, vk::Handle};
 
-use crate::{math::Vec3, render::{ChunkVertices, CloudsVertices, DrawInfo, GlobalUboData, Material, ParticlesVertices, SkyBodiesVertices, SpritesVertices, TextVertices, Ubo, material::MaterialType, vertices_attributes::BuffersTypes}, resources::{ResourceManager, ShadersCompiler}, utils::SafePtrMut};
+use crate::{math::Vec3, render::{BlockItemVertices, ChunkVertices, CloudsVertices, DrawInfo, GlobalUboData, Material, Mesh, ParticlesVertices, SkyBodiesVertices, SpritesVertices, TextVertices, Ubo, material::MaterialType, mesh::BuffersTypes}, resources::{ResourceManager, ShadersCompiler}, utils::SafePtrMut};
 use super::core::{vkutl, VulkanApp, DescriptorSet, GraphicsPipeline, PipelineSettings, PipelineLayout, raw_buffer::BufferFlags};
+
 
 pub struct GlobalRenderer {
     pub app: SafePtrMut<VulkanApp>,
@@ -20,8 +21,10 @@ pub struct GlobalRenderer {
     alpha_draw_list: Vec<DrawInfo>,
     ui_draw_list: Vec<DrawInfo>,
     particle_draw_list: Vec<DrawInfo>,
+    first_person_draw_list: Vec<DrawInfo>,
 
     push_constant_list: Vec<(u8, [u8; vkutl::MAX_PUSH_CONSTANT_SIZE])>,
+    push_constant_idx: i32,
 
     frame_index: usize,
 
@@ -49,8 +52,10 @@ impl GlobalRenderer {
             alpha_draw_list: Vec::new(),
             ui_draw_list: Vec::new(),
             particle_draw_list: Vec::new(),
+            first_person_draw_list: Vec::new(),
 
             push_constant_list: Vec::new(),
+            push_constant_idx: -1,
 
             frame_index: 0,
 
@@ -59,12 +64,7 @@ impl GlobalRenderer {
     }
 
     pub fn start(&mut self, resources: &mut ResourceManager) {
-        let add_pipeline = |app: &mut VulkanApp, shader_compiler: &mut ShadersCompiler, settings: PipelineSettings| -> Rc<RefCell<GraphicsPipeline>> {
-            Rc::new(RefCell::new(GraphicsPipeline::create(app, shader_compiler, settings)))
-        };
-
         self.global_ubo.create(&mut self.app, BufferFlags::RAM);
-
 
         let used_stages_flag = vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT;
 
@@ -93,7 +93,7 @@ impl GlobalRenderer {
                 .add_attrib(vk::Format::R8_UINT, offset_of!(ChunkVertices, flags));
 
             self.create_pipeline_layout(&mut settings.pipeline_layout);
-            self.pipelines.insert("chunks", add_pipeline(&mut self.app, &mut shaders_compiler, settings));
+            self.pipelines.insert("chunks", Rc::new(RefCell::new(GraphicsPipeline::create(&self.app, &mut shaders_compiler, settings))));
         }
         {
             let mut settings = PipelineSettings::new(r"ui\sprites");
@@ -110,7 +110,7 @@ impl GlobalRenderer {
                 .add_attrib(vk::Format::R8_UINT, offset_of!(SpritesVertices, texture_idx));
 
             self.create_pipeline_layout(&mut settings.pipeline_layout);
-            self.pipelines.insert("ui_sprites", add_pipeline(&mut self.app, &mut shaders_compiler, settings));
+            self.pipelines.insert("ui_sprites", Rc::new(RefCell::new(GraphicsPipeline::create(&self.app, &mut shaders_compiler, settings))));
         }
         {
             let mut settings = PipelineSettings::new(r"ui\text");
@@ -127,7 +127,7 @@ impl GlobalRenderer {
                 .add_attrib(vk::Format::R8G8B8_UINT, offset_of!(TextVertices, color));
 
             self.create_pipeline_layout(&mut settings.pipeline_layout);
-            self.pipelines.insert("ui_text", add_pipeline(&mut self.app, &mut shaders_compiler, settings));
+            self.pipelines.insert("ui_text", Rc::new(RefCell::new(GraphicsPipeline::create(&self.app, &mut shaders_compiler, settings))));
         }
         {
             let mut settings = PipelineSettings::new(r"clouds");
@@ -141,7 +141,7 @@ impl GlobalRenderer {
                 .add_attrib(vk::Format::R8_UINT, offset_of!(CloudsVertices, cullface));
 
             self.create_pipeline_layout(&mut settings.pipeline_layout);
-            self.pipelines.insert("clouds", add_pipeline(&mut self.app, &mut shaders_compiler, settings));
+            self.pipelines.insert("clouds", Rc::new(RefCell::new(GraphicsPipeline::create(&self.app, &mut shaders_compiler, settings))));
         }
         {
             let mut settings = PipelineSettings::new(r"skyDome");
@@ -151,7 +151,7 @@ impl GlobalRenderer {
                 .add_attrib(vk::Format::R32G32B32_SFLOAT, 0);
 
             self.create_pipeline_layout(&mut settings.pipeline_layout);
-            self.pipelines.insert("skyDome", add_pipeline(&mut self.app, &mut shaders_compiler, settings));
+            self.pipelines.insert("skyDome", Rc::new(RefCell::new(GraphicsPipeline::create(&self.app, &mut shaders_compiler, settings))));
         }
         {
             let mut settings = PipelineSettings::new(r"selectionBox");
@@ -163,7 +163,7 @@ impl GlobalRenderer {
                 .add_attrib(vk::Format::R8G8B8_SINT, 0);
 
             self.create_pipeline_layout(&mut settings.pipeline_layout);
-            self.pipelines.insert("selectionBox", add_pipeline(&mut self.app, &mut shaders_compiler, settings));
+            self.pipelines.insert("selectionBox", Rc::new(RefCell::new(GraphicsPipeline::create(&self.app, &mut shaders_compiler, settings))));
         }
         {
             let mut settings = PipelineSettings::new(r"skyBodies");
@@ -179,7 +179,7 @@ impl GlobalRenderer {
                 .add_attrib(vk::Format::R32G32B32A32_SFLOAT, offset_of!(SkyBodiesVertices, color));
 
             self.create_pipeline_layout(&mut settings.pipeline_layout);
-            self.pipelines.insert("skyBodies", add_pipeline(&mut self.app, &mut shaders_compiler, settings));
+            self.pipelines.insert("skyBodies", Rc::new(RefCell::new(GraphicsPipeline::create(&self.app, &mut shaders_compiler, settings))));
         }
         {
             let mut settings = PipelineSettings::new(r"particles");
@@ -196,7 +196,19 @@ impl GlobalRenderer {
                 .add_attrib(vk::Format::R8_UINT, offset_of!(ParticlesVertices, texture_idx));
 
             self.create_pipeline_layout(&mut settings.pipeline_layout);
-            self.pipelines.insert("particles", add_pipeline(&mut self.app, &mut shaders_compiler, settings));
+            self.pipelines.insert("particles", Rc::new(RefCell::new(GraphicsPipeline::create(&self.app, &mut shaders_compiler, settings))));
+        }
+        {
+            let mut settings = PipelineSettings::new(r"firstPerson");
+            settings.enable_blend = true;
+            settings.add_descriptor_set(&self.global_descriptor);
+            settings.vertex_info(size_of::<BlockItemVertices>(), false)
+                .add_attrib(vk::Format::R32G32B32_SFLOAT, offset_of!(BlockItemVertices, vertices))
+                .add_attrib(vk::Format::R32G32B32_SFLOAT, offset_of!(BlockItemVertices, normal))
+                .add_attrib(vk::Format::R32G32_SFLOAT, offset_of!(BlockItemVertices, uv));
+
+            self.create_pipeline_layout(&mut settings.pipeline_layout);
+            self.pipelines.insert("firstPerson", Rc::new(RefCell::new(GraphicsPipeline::create(&self.app, &mut shaders_compiler, settings))));
         }
 
         self.chunks_pipeline = Some(self.pipelines.get("chunks").unwrap().clone());
@@ -222,49 +234,79 @@ impl GlobalRenderer {
         }
     }
 
+    pub fn create_mesh_material(&mut self, pipeline_name: &'static str, material_type: MaterialType) -> (Mesh, Material) {
+        (self.create_mesh(), self.create_material(pipeline_name, material_type))
+    }
+
+    pub fn create_mesh(&self) -> Mesh {
+        Mesh::new(self.app.clone())
+    }
+
     pub fn create_material(&mut self, pipeline_name: &'static str, material_type: MaterialType) -> Material {
-        Material::new(&mut self.app, self.pipelines.get(pipeline_name).unwrap().clone(), material_type)
+        Material::new(self.app.clone(), self.pipelines.get(pipeline_name).unwrap().clone(), material_type)
     }
 
     pub fn create_chunk_material(&mut self, material_type: MaterialType) -> Material {
-        Material::new(&mut self.app, self.chunks_pipeline.as_ref().unwrap().clone(), material_type)
+        Material::new(self.app.clone(), self.chunks_pipeline.as_ref().unwrap().clone(), material_type)
     }
 
-    pub fn draw_obj_instanced(&mut self, material: &Material, instance_count: usize) {
-        // item is not suitable to draw
-        if instance_count == 0 || material.get_triangles_count() == 0 { return }
+    pub fn set_push_constant<T>(&mut self, offset: usize, data: *const T) {
+        let size = size_of::<T>();
 
-        self.prepare_draw_info(material, instance_count);
-    }
+        debug_assert!(offset + size <= vkutl::MAX_PUSH_CONSTANT_SIZE, "push constant size not valid");
 
-    pub fn draw_obj_instanced_with_buffer<T>(&mut self, material: &mut Material, instance_data: &mut Vec<T>) {
-        // item is not suitable to draw
-        if instance_data.len() == 0 || material.get_triangles_count() == 0 { return }
 
-        material.update_instance_data(&instance_data);
-        self.prepare_draw_info(material, instance_data.len());
-
-        instance_data.clear();
-    }
-
-    pub fn draw_obj(&mut self, material: &Material) {
-        // item is not suitable to draw
-        if material.get_triangles_count() == 0 { return }
-
-        self.prepare_draw_info(material, 1);
-    }
-
-    fn prepare_draw_info(&mut self, material: &Material, instance_count: usize) {
-        let mut draw_info = material.create_draw_info(self.frame_index);
-
-        let push_constant_info = material.get_push_constant_info();
-        draw_info.instance_count = instance_count as u32;
-
-        if push_constant_info.0 != 0 {
-            draw_info.push_constant_idx = self.push_constant_list.len() as i32;
-
-            self.push_constant_list.push((push_constant_info.0, *push_constant_info.1))
+        if self.push_constant_idx == -1 {
+            self.push_constant_idx = self.push_constant_list.len() as i32;
+            self.push_constant_list.push((size as u8, [0u8; vkutl::MAX_PUSH_CONSTANT_SIZE]));
         }
+        
+        let (push_size, push_data) = &mut self.push_constant_list[self.push_constant_idx as usize];
+        *push_size = (*push_size).max((offset + size) as u8);
+
+        unsafe {
+            std::ptr::copy_nonoverlapping(data as _, push_data.as_mut_ptr().byte_add(offset), size);
+        } 
+    }
+
+    pub fn draw_instanced(&mut self, mesh: &Mesh, material: &Material, instance_count: usize) {
+        self.prepare_draw_info(mesh, material, instance_count);
+    }
+
+    pub fn draw_instanced_with_buffer<T>(&mut self, mesh: &mut Mesh, material: &Material, instance_data: &mut Vec<T>) {
+        if self.prepare_draw_info(mesh, material, instance_data.len()) {
+            mesh.update_instance_buffer(&instance_data);
+            instance_data.clear();
+        }
+    }
+
+    pub fn draw(&mut self, mesh: &Mesh, material: &Material) {
+        self.prepare_draw_info(mesh, material, 1);
+    }
+
+    fn prepare_draw_info(&mut self, mesh: &Mesh, material: &Material, instance_count: usize) -> bool {
+        if instance_count == 0 || mesh.get_triangles_count() == 0 {
+            self.push_constant_idx = -1;
+            return false;
+        }
+
+        let pipeline = &*material.pipeline.borrow();
+        
+        let draw_info = DrawInfo {
+            pipeline: pipeline.get_pipeline(),
+            pipeline_layout: pipeline.pipeline_layout.get_layout(),
+            descriptors_sets: *pipeline.pipeline_layout.get_descriptors_sets(self.frame_index),
+            descriptors_count: pipeline.pipeline_layout.descriptors_count,
+
+            buffers: mesh.get_buffers(self.frame_index),
+
+            index_count: mesh.get_triangles_count(),
+            instance_count: instance_count as u32,
+
+            push_constant_idx: self.push_constant_idx,
+        };
+
+        self.push_constant_idx = -1;
 
         match material.get_type() {
             MaterialType::ChunksOpaque => self.chunks_opaque_draw_list.push(draw_info),
@@ -274,18 +316,23 @@ impl GlobalRenderer {
             MaterialType::Sky => self.sky_draw_list.push(draw_info),
             MaterialType::Ui => self.ui_draw_list.push(draw_info),
             MaterialType::Particle => self.particle_draw_list.push(draw_info),
+            MaterialType::FirstPerson => self.first_person_draw_list.push(draw_info),
         }
+
+        return true;
     }
 
     pub fn begin(&mut self) {
+        self.push_constant_list.clear();
+
         self.sky_draw_list.clear();
         self.chunks_opaque_draw_list.clear();
         self.chunks_alpha_draw_list.clear();
         self.opaque_draw_list.clear();
         self.alpha_draw_list.clear();
-        self.ui_draw_list.clear();
         self.particle_draw_list.clear();
-        self.push_constant_list.clear();
+        self.first_person_draw_list.clear();
+        self.ui_draw_list.clear();
 
         self.frame_index = self.app.frame_index;
     }
@@ -304,6 +351,7 @@ impl GlobalRenderer {
         self.render(&self.chunks_alpha_draw_list);
         self.render(&self.alpha_draw_list);
         self.render(&self.particle_draw_list);
+        self.render(&self.first_person_draw_list);
         self.render(&self.ui_draw_list);
         //println!("{}", now.elapsed().as_micros());
     }
@@ -372,19 +420,19 @@ impl GlobalRenderer {
             }
 
 
-            const OFFSETS: [u64; vkutl::MAX_VERTEX_BINDING_COUNT] = [0; vkutl::MAX_VERTEX_BINDING_COUNT];
+            let offsets = [0u64; vkutl::MAX_VERTEX_BINDING_COUNT];
 
             unsafe {
-                let count = if draw_info.vertices_buffer[BuffersTypes::Instance as usize].is_null() { 1 } else { 2 };
+                let count = if draw_info.buffers[BuffersTypes::Instance as usize].is_null() { 1 } else { 2 };
 
                 vulkan_app.ash_device.cmd_bind_vertex_buffers(command_buffer,
                     0,
-                    &draw_info.vertices_buffer[0..count],
-                    &OFFSETS[0..count],
+                    &draw_info.buffers[0..count],
+                    &offsets[0..count],
                 );
 
                 vulkan_app.ash_device.cmd_bind_index_buffer(command_buffer,
-                    draw_info.index_buffer,
+                    draw_info.buffers[BuffersTypes::Index as usize],
                     0,
                     vk::IndexType::UINT32
                 );

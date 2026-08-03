@@ -9,6 +9,7 @@ pub struct WorldUpdateArgs<'a> {
     pub inputs: &'a mut Inputs,
     pub dt: f32,
     pub current_screen_id: ScreensId,
+    pub resources: &'a mut ResourceManager,
 }
 
 pub struct World {
@@ -44,6 +45,7 @@ impl World {
         self.sky.start(resources_manager, global_renderer);
         self.particles_manager.start(resources_manager, global_renderer);
         self.player.selection_box.start(global_renderer);
+        self.player.first_person.start(global_renderer);
     }
 
     pub fn update(&mut self, dt: f32, args: &mut WorldUpdateArgs) {
@@ -70,6 +72,7 @@ impl World {
         ubo.data.cam_viewproj.0 = self.player.camera.viewproj_matrix;
         ubo.data.cam_view_no_translate.0 = self.player.camera.view_no_translate_matrix;
         ubo.data.cam_proj.0 = self.player.camera.projection_matrix;
+        ubo.data.first_person_proj.0 = self.player.camera.first_person_projection_matrix;
 
         // sky
         ubo.data.fog_distance = self.sky.fog_norm_distance;
@@ -85,6 +88,7 @@ impl World {
 
         self.sky.draw(global_renderer);
         self.player.selection_box.draw(global_renderer);
+        self.player.first_person.draw(global_renderer);
         self.planet.draw(dt, &self.player.camera, global_renderer);
         self.particles_manager.draw(global_renderer, self.player.camera.rot);
 
@@ -96,6 +100,7 @@ impl World {
         self.planet.stop();
         self.sky.cleanup();
         self.player.selection_box.cleanup();
+        self.player.first_person.cleanup();
         self.particles_manager.cleanup();
     }
 

@@ -67,11 +67,11 @@ impl ScreenBase for DebugScreen {
         self.avg_line.set_size(240.0, 1.0);
         self.avg_line.color = Color4b::from1(255);
 
-        self.fps_graphic_gradient.frames = vec![
-            (10.0 / 100.0, Color3b::new(0, 255, 0)),
-            (40.0 / 100.0, Color3b::new(255, 255, 0)),
-            (100.0 / 100.0, Color3b::new(255, 0, 0)),
-        ];
+        self.fps_graphic_gradient.set_frames(vec![
+            (10.0, Color3b::new(0, 255, 0)),
+            (40.0, Color3b::new(255, 255, 0)),
+            (100.0, Color3b::new(255, 0, 0)),
+        ]);
     }
 
     fn update(&mut self, args: &mut ScreenUpdateArgs) {
@@ -107,7 +107,7 @@ impl ScreenBase for DebugScreen {
 
 
         let height = (ms_count * 1.75).ceil();
-        let color = self.fps_graphic_gradient.get(height / 100.0);
+        let color = self.fps_graphic_gradient.get(height);
 
         let mut line = Sprite::new();
         line.color = Color4b::from3(color, 255);

@@ -88,7 +88,7 @@ impl PlayerInventory {
         self.selected_hotbar_slot
     }
 
-    pub fn get_selected_hotbar_slot(&self) -> &ItemStack {
+    pub fn get_hand_slot(&self) -> &ItemStack {
         &self.inventory[self.selected_hotbar_slot as usize]
     }
 }

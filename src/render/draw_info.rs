@@ -9,8 +9,7 @@ pub struct DrawInfo {
     pub descriptors_sets: [vk::DescriptorSet; vkutl::MAX_DESCRIPTORS_BINDING_COUNT],
     pub descriptors_count: u32,
 
-    pub vertices_buffer: [vk::Buffer; vkutl::MAX_VERTEX_BINDING_COUNT],
-    pub index_buffer: vk::Buffer,
+    pub buffers: [vk::Buffer; vkutl::MAX_VERTEX_BINDING_COUNT + 1],
 
     pub index_count: u32,
     pub instance_count: u32,
@@ -45,10 +44,7 @@ impl PartialOrd for DrawInfo {
 
 impl PartialEq for DrawInfo {
     fn eq(&self, other: &Self) -> bool {
-        self.pipeline == other.pipeline &&
-        self.vertices_buffer[0] == other.vertices_buffer[0] &&
-        self.vertices_buffer[1] == other.vertices_buffer[1] &&
-        self.index_buffer == other.index_buffer
+        self.pipeline == other.pipeline && self.buffers == other.buffers
     }
 }
 

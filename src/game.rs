@@ -47,6 +47,8 @@ pub struct Game {
     in_world: bool,
 
     events_queue: VecDeque<GameEvents>,
+
+    pub imgui_renderer: Option<imgui_rs_vulkan_renderer::Renderer>,
 }
 
 impl Game {
@@ -64,10 +66,12 @@ impl Game {
             in_world: false,
 
             events_queue: VecDeque::new(),
+
+            imgui_renderer: None,
         }
     }
 
-    pub fn start(&mut self, app: &mut VulkanApp) {
+    pub fn start(&mut self, app: &mut VulkanApp, imgui: &mut imgui::Context) {
         self.resources_manager.start(app);
         self.global_renderer.start(&mut self.resources_manager);
 
@@ -78,6 +82,22 @@ impl Game {
 
         //let now = std::time::Instant::now();
         //println!("{}", now.elapsed().as_micros());
+
+        self.imgui_renderer = Some(imgui_rs_vulkan_renderer::Renderer::with_default_allocator(
+            &app.ash_instance,
+            app.physical_device,
+            app.ash_device.clone(),
+            app.graphics_queue,
+            app.graphics_command_pool,
+            app.render_pass,
+            imgui,
+            Some(imgui_rs_vulkan_renderer::Options {
+                in_flight_frames: 2,
+                ..Default::default()
+            })
+        ).unwrap());
+
+        imgui.io_mut().display_size = [1050.0, 650.0];
     }
 
     pub fn update(&mut self, dt: f32, window: &mut Window, inputs: &mut Inputs) {
@@ -121,9 +141,10 @@ impl Game {
             let mut update_args = WorldUpdateArgs {
                 is_paused: self.paused,
                 events_queue: &mut self.events_queue,
-                inputs: inputs,
+                inputs,
                 dt,
                 current_screen_id: self.ui_manager.borrow().get_current_screen(),
+                resources: &mut self.resources_manager,
             };
 
             self.world.update(dt, &mut update_args);
@@ -132,7 +153,7 @@ impl Game {
         self.ui_manager.clone().borrow_mut().update(dt, self, inputs);
     }
 
-    pub fn render(&mut self, dt: f32) {
+    pub fn render(&mut self, dt: f32, imgui: &mut imgui::Context) {
         self.global_renderer.begin();
 
         // update ubo
@@ -151,6 +172,34 @@ impl Game {
         self.ui_manager.borrow_mut().draw(&mut self.global_renderer);
 
         self.global_renderer.end();
+
+        // 1. Build the ImGui user interface
+        let ui = imgui.new_frame();
+
+        if let Some(wt) = ui.window("Debug Menu")
+            .size([700.0, 500.0], imgui::Condition::FirstUseEver)
+            .begin() {
+
+            let first_person = &mut self.world.player.first_person;
+
+            ui.slider("Position X", -5.0, 5.0, &mut first_person.position.x);
+            ui.slider("Position Y", -5.0, 5.0, &mut first_person.position.y);
+            ui.slider("Position Z", -5.0, 5.0, &mut first_person.position.z);
+
+            ui.slider("Scale X", 0.0, 1.0, &mut first_person.scale.x);
+            ui.slider("Scale Y", 0.0, 1.0, &mut first_person.scale.y);
+            ui.slider("Scale Z", 0.0, 1.0, &mut first_person.scale.z);
+
+            ui.slider("Rotate X", 0.0, 360.0, &mut first_person.rotation.x);
+            ui.slider("Rotate Y", 0.0, 360.0, &mut first_person.rotation.y);
+            ui.slider("Rotate Z", 0.0, 360.0, &mut first_person.rotation.z);
+
+            wt.end();
+        }
+
+        self.imgui_renderer.as_mut().unwrap()
+            .cmd_draw(self.global_renderer.app.get_graphics_cmd(), &imgui.render())
+            .expect("Failed to record ImGui draw commands");
     }
 
     pub fn cleanup(&mut self, app: &mut VulkanApp) {

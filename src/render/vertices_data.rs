@@ -112,12 +112,21 @@ pub struct AlignedVec3(pub Vec3);
 #[repr(C)]
 #[derive(Copy, Clone, Default)]
 pub struct GlobalUboData {
+    // ui
     pub ui_proj: AlignedMatrix,
     pub ui_pixel_scale: f32,
+    
+    // camera
     pub cam_proj: AlignedMatrix,
     pub cam_view: AlignedMatrix,
     pub cam_viewproj: AlignedMatrix,
     pub cam_view_no_translate: AlignedMatrix,
+
+    // firstPerson
+    pub first_person_proj: AlignedMatrix,
+    pub first_person_view: AlignedMatrix,
+    
+    // world
     pub sky_color: AlignedVec3,
     pub fog_color: AlignedVec3,
     pub light_color: AlignedVec3,
@@ -165,10 +174,10 @@ pub struct ChunkVertices {
 }
 
 #[derive(Clone, Copy)]
-pub struct BlockModelMesh {
+pub struct BlockItemVertices {
     pub vertices: Vec3,
-    pub uv: Vec2,
     pub normal: Vec3,
+    pub uv: Vec2,
     pub shade: bool,
 }
 

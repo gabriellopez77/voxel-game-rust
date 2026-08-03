@@ -55,7 +55,7 @@ impl ScreenBase for HudScreen {
         let selected_hotbar_index = player_inventory.get_selected_hotbar_index();
         self.hotbar_selected_slot.set_center(&self.hotbar_slots[selected_hotbar_index as usize]);
 
-        if let Some(item) = player_inventory.get_selected_hotbar_slot().get_item() {
+        if let Some(item) = player_inventory.get_hand_slot().get_item() {
             self.item_name_text.set_text(item.name);
 
             self.item_name_text.set_pos(

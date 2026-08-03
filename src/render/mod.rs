@@ -5,8 +5,7 @@ pub mod ui_renderer;
 pub mod global_renderer;
 pub mod material;
 
-
-pub mod vertices_attributes;
+pub mod mesh;
 pub mod ubo;
 
 pub mod draw_info;
@@ -20,7 +19,7 @@ pub use {
     ui_renderer::UiRenderer,
     global_renderer::GlobalRenderer,
     material::Material,
-
-    vertices_attributes::VerticesAttributes,
+    
+    mesh::Mesh,
     draw_info::DrawInfo,
 };

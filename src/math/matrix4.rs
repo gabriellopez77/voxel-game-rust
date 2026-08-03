@@ -141,16 +141,40 @@ impl Matrix4 {
         }
     }
 
-    pub fn translate(&mut self, translation: Vec3) {
-        self.values[3] = self.values[0] * translation.x + self.values[1] * translation.y + self.values[2] * translation.z + self.values[3];
+
+    pub fn translatev(&mut self, value: Vec3) { self.translate(value.x, value.y, value.z); }
+    pub fn scalev(&mut self, value: Vec3) { self.scale(value.x, value.y, value.z); }
+    pub fn rotatev(&mut self, angle: f32, value: Vec3) { self.rotate(angle, value.x, value.y, value.z); }
+    
+    pub fn rotate_x(&mut self, angle: f32) { self.rotate(angle, 1.0, 0.0, 0.0); }
+    pub fn rotate_y(&mut self, angle: f32) { self.rotate(angle, 0.0, 1.0, 0.0); }
+    pub fn rotate_z(&mut self, angle: f32) { self.rotate(angle, 0.0, 0.0, 1.0); }
+    
+    pub fn rotatev_xyz(&mut self, rotation: Vec3) {
+        self.rotate(rotation.x, 1.0, 0.0, 0.0);
+        self.rotate(rotation.y, 0.0, 1.0, 0.0);
+        self.rotate(rotation.z, 0.0, 0.0, 1.0);
     }
 
-    pub fn scale(&mut self, scale: Vec3) {
+    pub fn rotate_xyz(&mut self, x: f32, y: f32, z: f32) {
+        self.rotate(x, 1.0, 0.0, 0.0);
+        self.rotate(y, 0.0, 1.0, 0.0);
+        self.rotate(z, 0.0, 0.0, 1.0);
+    }
+    
+    pub fn translate(&mut self, x: f32, y: f32, z: f32) {
+        self.values[3] = self.values[0] * x +
+                         self.values[1] * y +
+                         self.values[2] * z +
+                         self.values[3];
+    }
+
+    pub fn scale(&mut self, x: f32, y: f32, z: f32) {
         let mut result = Matrix4::ZERO;
 
-        result.values[0] = self.values[0] * scale.x;
-        result.values[1] = self.values[1] * scale.y;
-        result.values[2] = self.values[2] * scale.z;
+        result.values[0] = self.values[0] * x;
+        result.values[1] = self.values[1] * y;
+        result.values[2] = self.values[2] * z;
         result.values[3] = self.values[3];
 
         *self = result;

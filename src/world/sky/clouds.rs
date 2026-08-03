@@ -1,6 +1,6 @@
 use crate::math::{Color4b, Vec2, Vec2i, Vec3};
-use crate::render::material::MaterialType;
-use crate::render::{CUBE_INDICES, CUBE_VERTICES, CloudsVertices, GlobalRenderer, Material};
+use crate::render::material::{self, MaterialType};
+use crate::render::{CUBE_INDICES, CUBE_VERTICES, CloudsVertices, GlobalRenderer, Material, Mesh};
 use crate::render::core::raw_buffer::BufferFlags;
 use crate::resources::ResourceManager;
 use crate::world::Chunk;
@@ -8,7 +8,7 @@ use crate::world::Chunk;
 
 pub struct Clouds {
     instance_data: Vec<CloudsVertices>,
-    material: Option<Material>,
+    renderer: Option<(Mesh, Material)>,
 
     clouds_chunk: Vec2i,
     first_time: bool,
@@ -28,7 +28,7 @@ impl Clouds {
     pub fn new() -> Self {
         Self {
             instance_data: Vec::with_capacity(Self::MAX_CLOUDS_COUNT),
-            material: None,
+            renderer: None,
 
             clouds_chunk: Vec2i::ZERO,
             first_time: true,
@@ -40,10 +40,10 @@ impl Clouds {
     }
 
     pub fn start(&mut self, resources: &ResourceManager, global_renderer: &mut GlobalRenderer) {
-        let mut material = global_renderer.create_material("clouds", MaterialType::Alpha);
-        material.set_mesh(&CUBE_VERTICES, &CUBE_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
-        material.create_instance_buffer(size_of::<CloudsVertices>() * Self::MAX_CLOUDS_COUNT, None, BufferFlags::VRAM | BufferFlags::RARE_UPDATE);
-        self.material = Some(material);
+        let (mut mesh, material) = global_renderer.create_mesh_material("clouds", MaterialType::Alpha);
+        mesh.set(&CUBE_VERTICES, &CUBE_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
+        mesh.create_instance_buffer(size_of::<CloudsVertices>() * Self::MAX_CLOUDS_COUNT, None, BufferFlags::VRAM | BufferFlags::RARE_UPDATE);
+        self.renderer = Some((mesh, material));
 
 
         let image = resources.read_texture("misc/clouds.png");
@@ -54,7 +54,9 @@ impl Clouds {
     }
 
     pub fn cleanup(&mut self) {
-        self.material.as_mut().unwrap().destroy();
+        let renderer = self.renderer.as_mut().unwrap();
+        renderer.0.destroy();
+        renderer.1.destroy();
     }
 
     pub fn update(&mut self, player_pos: Vec3, render_distance: i32) {
@@ -111,11 +113,13 @@ impl Clouds {
         }
 
         // update instances data
-        self.material.as_mut().unwrap().update_instance_data(&self.instance_data);
+        self.renderer.as_mut().unwrap().0.update_instance_buffer(&self.instance_data);
     }
 
     pub fn draw(&self, global_renderer: &mut GlobalRenderer) {
-        global_renderer.draw_obj_instanced(self.material.as_ref().unwrap(), self.instance_data.len());
+        let renderer = self.renderer.as_ref().unwrap();
+
+        global_renderer.draw_instanced(&renderer.0, &renderer.1, self.instance_data.len());
     }
 
     fn get_clouds_chunk(global_coords: Vec3) -> Vec2i {

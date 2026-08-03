@@ -30,11 +30,13 @@ impl<T: ?Sized> Clone for SafePtrMut<T> {
 }
 
 impl<T: ?Sized> SafePtrMut<T> {
-    pub fn new(ptr: &mut T) -> Self {
-        Self { ptr: ptr }
+    pub fn new(value: &mut T) -> Self {
+        Self { ptr: value }
     }
 
     pub fn from_ptr(ptr: *mut T) -> Self {
+        assert!(!ptr.is_null(), "Ptr is null!");
+
         Self { ptr: ptr }
     }
 }

@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use rand::{RngExt, rngs::ThreadRng};
 
-use crate::{math::{Vec2, Vec3}, render::{GlobalRenderer, Material, PARTICLES_VERTICES, ParticlesVertices, SPRITES_INDICES, material::MaterialType::{self}, core::raw_buffer::BufferFlags}, resources::{ResourceManager}, utils::{NullSafePtr}, world::{blocks::{BlockProperties}, particles::{BlockDestroy, ParticleBase, ParticleFunc}}};
+use crate::{math::{Vec2, Vec3}, render::{self, GlobalRenderer, Material, Mesh, PARTICLES_VERTICES, ParticlesVertices, SPRITES_INDICES, core::raw_buffer::BufferFlags, material::MaterialType::{self}}, resources::ResourceManager, utils::NullSafePtr, world::{blocks::BlockProperties, particles::{BlockDestroy, ParticleBase, ParticleFunc}}};
 
 
 struct ParticlesInfo {
@@ -16,7 +16,7 @@ pub enum ParticlesSpawnArgs<'a> {
 }
 
 pub struct ParticlesManager {
-    material: Option<Material>,
+    renderer: Option<(Mesh, Material)>,
     instance_data: Vec<ParticlesVertices>,
     resources: NullSafePtr<ResourceManager>,
 
@@ -32,7 +32,7 @@ impl ParticlesManager {
 
     pub fn new() -> Self {
         Self {
-            material: None,
+            renderer: None,
             instance_data: Vec::new(),
             resources: NullSafePtr::null(),
 
@@ -44,11 +44,11 @@ impl ParticlesManager {
     }
 
     pub fn start(&mut self, resources_manager: &ResourceManager, global_renderer: &mut GlobalRenderer) {
-        let mut material = global_renderer.create_material("particles", MaterialType::Particle);
-        material.set_mesh(&PARTICLES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
-        material.create_instance_buffer(size_of::<ParticlesVertices>() * Self::MAX_PARTICLES_COUNT, None, BufferFlags::RAM);
+        let (mut mesh, material) = global_renderer.create_mesh_material("particles", MaterialType::Particle);
+        mesh.set(&PARTICLES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
+        mesh.create_instance_buffer(size_of::<ParticlesVertices>() * Self::MAX_PARTICLES_COUNT, None, BufferFlags::RAM);
 
-        self.material = Some(material);
+        self.renderer = Some((mesh, material));
         self.resources = NullSafePtr::new(resources_manager);
     }
 
@@ -73,8 +73,6 @@ impl ParticlesManager {
     }
 
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer, camera_rotate: Vec2) {
-        let material = self.material.as_mut().unwrap();
-
         let rot = Vec3::new(0.0, -camera_rotate.x.to_radians(), camera_rotate.y.to_radians());
 
         let len = self.particles_info.len().min(Self::MAX_PARTICLES_COUNT);
@@ -91,13 +89,14 @@ impl ParticlesManager {
             })
         }
 
-        global_renderer.draw_obj_instanced_with_buffer(material, &mut self.instance_data);
+        let renderer = self.renderer.as_mut().unwrap();
+        global_renderer.draw_instanced_with_buffer(&mut renderer.0, &renderer.1, &mut self.instance_data);
     }
 
     pub fn spawn(&mut self, args: ParticlesSpawnArgs) {
         match args {
             ParticlesSpawnArgs::BlockDestroy(block_properties, block_pos) => {
-                let particle_tex = block_properties.base_properties.model.particle_coords.denormalized(self.resources.world_texture.get_size());
+                let particle_tex = block_properties.base_properties.mesh.particle_coords.denormalized(self.resources.world_texture.get_size());
 
                 const SCALE: f32 = 4.0;
 
@@ -134,7 +133,9 @@ impl ParticlesManager {
     }
 
     pub fn cleanup(&mut self) {
-        self.material.as_mut().unwrap().destroy();
+        let renderer = self.renderer.as_mut().unwrap();
+        renderer.0.destroy();
+        renderer.1.destroy();
     }
 
     pub fn reset(&mut self) {

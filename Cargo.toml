@@ -8,9 +8,8 @@ glfw = { version = "0.62.0", features = ["vulkan"] }
 
 image = "0.25.10"
 
+# utils
 fastnoise-lite = "1.1.1"
-
-# random utils
 rand = "0.10.1"
 
 # json
@@ -26,3 +25,7 @@ raw-window-handle = "0.6.2"
 
 # modified time metadata files manipulation
 filetime = "0.2"
+
+# imgui
+imgui = "0.12.0"
+imgui-rs-vulkan-renderer = "1.16.0"

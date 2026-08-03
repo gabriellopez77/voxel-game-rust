@@ -1,4 +1,5 @@
-﻿use std::{
+﻿use std::cell::RefCell;
+use std::{
     path::PathBuf,
     collections::HashMap,
     rc::Rc,
@@ -8,12 +9,17 @@
 
 use image::DynamicImage;
 use crate::math::Vec3;
+use crate::render::core::raw_buffer::BufferFlags;
+use crate::render::{BlockItemVertices, Mesh};
 use crate::render::{Texture, core::VulkanApp};
-use crate::resources::{BlockItemModel, FontInfo};
+use crate::resources::{BlockItemMesh, FontInfo};
 use crate::ui::ButtonsStyles;
+use crate::utils::{NullSafePtrMut, SafePtrMut};
 
 
 pub struct ResourceManager {
+    app: NullSafePtrMut<VulkanApp>,
+
     pub shader_path: String,
     pub textures_path: String,
     pub models_path: String,
@@ -24,7 +30,8 @@ pub struct ResourceManager {
     pub sky_bodies_texture: Texture,
 
     fonts: HashMap<&'static str, Rc<FontInfo>>,
-    models: HashMap<String, Rc<BlockItemModel>>,
+    models: HashMap<String, Rc<BlockItemMesh>>,
+    models_mesh: HashMap<String, Rc<RefCell<Mesh>>>,
 
     pub ui_buttons_styles: ButtonsStyles,
 }
@@ -34,6 +41,8 @@ impl ResourceManager {
         let project_path: &'static str = env!("CARGO_MANIFEST_DIR");
 
         Self {
+            app: NullSafePtrMut::null(),
+
             shader_path: format!(r"{project_path}\assets\shaders"),
             textures_path: format!(r"{project_path}\assets\textures"),
             models_path: format!(r"{project_path}\assets\models"),
@@ -46,25 +55,28 @@ impl ResourceManager {
 
             fonts: HashMap::new(),
             models: HashMap::new(),
+            models_mesh: HashMap::new(),
 
             ui_buttons_styles: ButtonsStyles::new(),
         }
     }
 
     pub fn start(&mut self, app: &mut VulkanApp) {
+        self.app = NullSafePtrMut::new(app);
+
         // read atlas and textures
         {
-            let images = get_files_in_directory(&format!("{}/blocks", self.textures_path), "png");
+            let images = Self::get_files_in_directory(&format!("{}/blocks", self.textures_path), "png");
             self.world_texture = Texture::create_from_atlas(app, &images, 256, 256);
         }
         {
-            let mut images = get_files_in_directory(&format!("{}/ui", self.textures_path), "png");
-            let mut buttons_image = get_files_in_directory(&format!("{}/ui/buttons", self.textures_path), "png");
+            let mut images = Self::get_files_in_directory(&format!("{}/ui", self.textures_path), "png");
+            let mut buttons_image = Self::get_files_in_directory(&format!("{}/ui/buttons", self.textures_path), "png");
             images.append(&mut buttons_image);
             self.ui_sprites_texture = Texture::create_from_atlas(app, &images, 256, 256);
         }
         {
-            let images = get_files_in_directory(&format!("{}/fonts", self.textures_path), "png");
+            let images = Self::get_files_in_directory(&format!("{}/fonts", self.textures_path), "png");
             self.ui_fonts_texture = Texture::create_from_atlas(app, &images, 256, 256);
         }
         {
@@ -90,6 +102,10 @@ impl ResourceManager {
     }
 
     pub fn cleanup(&mut self, app: &mut VulkanApp) {
+        for (_, mesh) in &self.models_mesh {
+            mesh.borrow_mut().destroy();
+        }
+
         self.world_texture.destroy(app);
         self.ui_sprites_texture.destroy(app);
         self.ui_fonts_texture.destroy(app);
@@ -104,7 +120,7 @@ impl ResourceManager {
         panic!("Resource not found: {}", name);
     }
 
-    pub fn get_model(&self, name: &str) -> Rc<BlockItemModel> {
+    pub fn get_model(&self, name: &str) -> Rc<BlockItemMesh> {
         if let Some(model) = self.models.get(name) {
             return model.clone();
         }
@@ -117,101 +133,143 @@ impl ResourceManager {
         image::open(format!(r"{}\{relative_path}", self.textures_path)).expect("Failed to load texture")
     }
 
+    pub fn get_or_load_model_mesh(&mut self, name: &str, model: &BlockItemMesh) -> Rc<RefCell<Mesh>> {
+        if let Some(mesh) = self.models_mesh.get(name) {
+            return mesh.clone();
+        }
+
+        let mut unified_vertices = Vec::<BlockItemVertices>::with_capacity(
+            model.nothing_vertices.len() + model.up_vertices.len() +
+            model.down_vertices.len() + model.south_vertices.len() +
+            model.north_vertices.len() + model.west_vertices.len() +
+            model.east_vertices.len()
+        );
+
+        unified_vertices.extend_from_slice(&model.nothing_vertices);
+        unified_vertices.extend_from_slice(&model.up_vertices);
+        unified_vertices.extend_from_slice(&model.down_vertices);
+        unified_vertices.extend_from_slice(&model.south_vertices);
+        unified_vertices.extend_from_slice(&model.north_vertices);
+        unified_vertices.extend_from_slice(&model.west_vertices);
+        unified_vertices.extend_from_slice(&model.east_vertices);
+
+        let indices = Self::gen_indices(unified_vertices.len());
+
+        let mesh = Rc::new(RefCell::new(Mesh::new(SafePtrMut::from_ptr(self.app.get_raw()))));
+        mesh.borrow_mut().set(&unified_vertices, &indices, BufferFlags::VRAM | BufferFlags::ONCE);
+
+        self.models_mesh.insert(name.to_string(), mesh.clone());
+
+        return mesh.clone();
+    }
+
     fn read_models(&mut self) {
-        let block_paths = get_files_in_directory(&format!(r"{}\blocks", self.models_path), "json");
+        let block_paths = Self::get_files_in_directory(&format!(r"{}\blocks", self.models_path), "json");
+        let items_paths = Self::get_files_in_directory(&format!(r"{}\items", self.models_path), "json");
 
         // load error model
-        self.models.insert("error_404".to_string(), Rc::new(BlockItemModel::read_error_model(&self.world_texture)));
+        let error_model = Rc::new(BlockItemMesh::read_error_model(&self.world_texture));
+        self.models.insert("error_404".to_string(), error_model.clone());
 
-        for path in &block_paths {
-            let name = path.file_stem().unwrap().to_str().unwrap().to_string();
+        let mut load = |paths: &Vec<PathBuf>| {
+            for path in paths {
+                let name = path.file_stem().unwrap().to_str().unwrap().to_string();
 
-            let model = match BlockItemModel::new(&self.models_path, &path.to_str().unwrap(), &self.world_texture) {
-                Ok(m) => m,
-                Err(err) => {
-                    println!("{err}");
-                    BlockItemModel::read_error_model(&self.world_texture)
-                }
-            };
+                let model = match BlockItemMesh::new(&self.models_path, &path.to_str().unwrap(), &self.world_texture) {
+                    Ok(model) => Rc::new(model),
+                    Err(err) => {
+                        println!("{err}");
+                        error_model.clone()
+                    }
+                };
 
-            self.models.insert(name, Rc::new(model));
-        }
+                self.models.insert(name, model);
+            }
+        };
 
-        let items_paths = get_files_in_directory(&format!(r"{}\items", self.models_path), "json");
 
-        for path in &items_paths {
-            let name = path.file_stem().unwrap().to_str().unwrap().to_string();
-
-            let model = match BlockItemModel::new(&self.models_path, &path.to_str().unwrap(), &self.world_texture) {
-                Ok(m) => m,
-                Err(err) => {
-                    println!("{err}");
-                    BlockItemModel::read_error_model(&self.world_texture)
-                }
-            };
-
-            self.models.insert(name, Rc::new(model));
-        }
-    }
-}
-
-pub fn get_files_in_directory(path: &str, extension: &str) -> Vec<PathBuf> {
-    let dir = match std::fs::read_dir(path) {
-        Ok(d) => d,
-        Err(err) => panic!("Error to read Dir: '{path}': {}", err.to_string()),
-    };
-
-    let mut files_path: Vec<PathBuf> = vec!();
-
-    for file in dir {
-        let file_path = file.unwrap().path();
-        let file_extension = file_path.extension();
-
-        if file_extension.is_some()  && file_extension.unwrap() == extension {
-            files_path.push(file_path);
-        }
+        load(&block_paths);
+        load(&items_paths);
     }
 
-    return files_path;
-}
+    pub fn get_files_in_directory(path: &str, extension: &str) -> Vec<PathBuf> {
+        let dir = match std::fs::read_dir(path) {
+            Ok(d) => d,
+            Err(err) => panic!("Error to read Dir: '{path}': {}", err.to_string()),
+        };
 
+        let mut files_path: Vec<PathBuf> = vec!();
 
-pub fn gen_sphere(stacks: f32, slices: f32) -> (Vec<Vec3>, Vec<u32>) {
-    let mut vertices: Vec<Vec3> = Vec::with_capacity(((stacks + 1.0) * (slices + 1.0)) as usize);
-    let mut indices: Vec<u32> = Vec::with_capacity((stacks * slices * 6.0) as usize);
+        for file in dir {
+            let file_path = file.unwrap().path();
+            let file_extension = file_path.extension();
 
-    for i in 0..=stacks as i32 {
-        let theta = i as f32 / stacks * f32::consts::PI;
-        let sin_theta = theta.sin();
-        let cos_theta = theta.cos();
-
-        for j in 0..=slices as i32 {
-            let phi = j as f32 / slices * 2.0 * f32::consts::PI;
-            let sin_phi = phi.sin();
-            let cos_phi = phi.cos();
-
-            vertices.push(Vec3 {
-                x: sin_theta * cos_phi,
-                y: cos_theta,
-                z: sin_theta * sin_phi
-            });
+            if file_extension.is_some()  && file_extension.unwrap() == extension {
+                files_path.push(file_path);
+            }
         }
+
+        return files_path;
     }
 
-    for i in 0..stacks as u32 {
-        for j in 0.. slices as u32 {
-            let first = i * (slices as u32 + 1) + j;
-            let second = first + slices as u32 + 1;
+    pub fn gen_sphere(stacks: f32, slices: f32) -> (Vec<Vec3>, Vec<u32>) {
+        let mut vertices: Vec<Vec3> = Vec::with_capacity(((stacks + 1.0) * (slices + 1.0)) as usize);
+        let mut indices: Vec<u32> = Vec::with_capacity((stacks * slices * 6.0) as usize);
 
-            indices.push(first);
-            indices.push(second);
-            indices.push(first + 1);
+        for i in 0..=stacks as i32 {
+            let theta = i as f32 / stacks * f32::consts::PI;
+            let sin_theta = theta.sin();
+            let cos_theta = theta.cos();
 
-            indices.push(second);
-            indices.push(second + 1);
-            indices.push(first + 1);
+            for j in 0..=slices as i32 {
+                let phi = j as f32 / slices * 2.0 * f32::consts::PI;
+                let sin_phi = phi.sin();
+                let cos_phi = phi.cos();
+
+                vertices.push(Vec3 {
+                    x: sin_theta * cos_phi,
+                    y: cos_theta,
+                    z: sin_theta * sin_phi
+                });
+            }
         }
+
+        for i in 0..stacks as u32 {
+            for j in 0.. slices as u32 {
+                let first = i * (slices as u32 + 1) + j;
+                let second = first + slices as u32 + 1;
+
+                indices.push(first);
+                indices.push(second);
+                indices.push(first + 1);
+
+                indices.push(second);
+                indices.push(second + 1);
+                indices.push(first + 1);
+            }
+        }
+
+        return (vertices, indices);
     }
 
-    return (vertices, indices);
+    pub fn gen_indices(vertices_len: usize) -> Vec<u32> {
+        let indices_count = vertices_len / 4;
+
+        let mut indices = Vec::with_capacity(indices_count * 6);
+        let mut current_index = 0;
+
+        for _ in 0..indices_count {
+            indices.push(current_index + 0);
+            indices.push(current_index + 1);
+            indices.push(current_index + 3);
+
+            indices.push(current_index + 1);
+            indices.push(current_index + 2);
+            indices.push(current_index + 3);
+
+            current_index += 4;
+        }
+
+        return indices;
+    }
 }

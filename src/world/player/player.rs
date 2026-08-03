@@ -9,7 +9,7 @@ use crate::inputs::Inputs;
 use crate::math::Vec3;
 use crate::world::{Aabb, Planet};
 use crate::world::player::camera::Camera;
-use crate::world::player::{PlayerInventory, SelectionBox};
+use crate::world::player::{FirstPerson, PlayerInventory, SelectionBox};
 
 
 const GRAVITY: f32 = 35.0;
@@ -34,7 +34,8 @@ pub struct Player {
     pub inventory: PlayerInventory,
 
     pub selection_box: SelectionBox,
-
+    pub first_person: FirstPerson,
+    
     aabb: Aabb,
     velocity: Vec3,
 
@@ -52,7 +53,8 @@ impl Player {
             inventory: PlayerInventory::new(),
 
             selection_box: SelectionBox::new(),
-
+            first_person: FirstPerson::new(),
+            
             aabb: Aabb::new(0.0, 0.0, 0.0, 0.6, 1.8, 0.6).clone_move(0.0, 60.0, 0.0),
             velocity: Vec3::ZERO,
 
@@ -103,7 +105,7 @@ impl Player {
             self.inventory.process_hotbar_scroll(args.inputs.get_mouse_scroll());
 
             if let Some(result) = ray_result {
-                let slot = self.inventory.get_selected_hotbar_slot();
+                let slot = self.inventory.get_hand_slot();
 
                 if args.inputs.mouse_pressed(inputs::MouseButton::Right) && let Some(item) = slot.get_item() && item.is_block() {
                     let keep_same_block = result.block_properties.can_replace && (item.id != result.block_properties.base_properties.id);
@@ -125,6 +127,7 @@ impl Player {
         }
         //println!("{}", now.elapsed().as_micros());
 
+        self.first_person.update(args, self.inventory.get_hand_slot());
 
         if args.inputs.key_pressed(inputs::Keys::E) {
             args.events_queue.push_back(GameEvents::ChangeScreen(ScreensId::InventoryScreen));
@@ -220,7 +223,7 @@ impl Player {
             if self.in_water && !inputs.key_down(inputs::Keys::Space) && self.velocity.y > -4.0 {
                 self.velocity.y -= GRAVITY * 0.1 * dt;
             }
-            else if !self.in_water{
+            else if !self.in_water {
                 self.velocity.y -= GRAVITY * dt;
             }
         }

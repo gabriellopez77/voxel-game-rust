@@ -26,6 +26,7 @@ pub struct Camera {
     pub projection_matrix: Matrix4,
     pub viewproj_matrix: Matrix4,
     pub view_no_translate_matrix: Matrix4,
+    pub first_person_projection_matrix: Matrix4,
 
     frustum_planes: [Plane; 6],
 
@@ -47,6 +48,7 @@ impl Camera {
             projection_matrix: Matrix4::ZERO,
             viewproj_matrix: Matrix4::ZERO,
             view_no_translate_matrix: Matrix4::ZERO,
+            first_person_projection_matrix: Matrix4::ZERO,
 
             frustum_planes: [Plane{normal: Vec3::ZERO, d: 0.0}; 6],
 
@@ -104,6 +106,7 @@ impl Camera {
         self.projection_matrix = Matrix4::perspective(70.0, width / height, 0.04, 1000.0);
         self.viewproj_matrix = self.projection_matrix * self.view_matrix;
         self.view_no_translate_matrix = self.view_matrix.remove_translation();
+        self.first_person_projection_matrix = Matrix4::perspective(60.0, width / height, 0.04, 100.0);
         self.update_frustum_planes();
     }
 

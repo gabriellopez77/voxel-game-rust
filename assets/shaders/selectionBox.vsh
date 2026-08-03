@@ -11,8 +11,6 @@ layout(push_constant) uniform PushConstants {
 } push;
 
 void main() {
-    vec3 vertexF = vec3(float(aVertex.x), float(aVertex.y), float(aVertex.z));
-
-    gl_Position = globalUbo.camViewProj * vec4((vertexF * push.size) + push.pos, 1.f);
+    gl_Position = globalUbo.camViewProj * vec4((aVertex * push.size) + push.pos, 1.f);
     gl_Position.z -= 0.001f;
 }

@@ -1,12 +1,12 @@
 use crate::math::{Vec3, Vec4};
 use crate::render::material::MaterialType;
-use crate::render::{GlobalRenderer, Material, OUTLINE_CUBE_INDICES, OUTLINE_CUBE_VERTICES};
+use crate::render::{GlobalRenderer, Material, Mesh, OUTLINE_CUBE_INDICES, OUTLINE_CUBE_VERTICES};
 use crate::render::core::raw_buffer::BufferFlags;
 use crate::world::player::RaycastingResult;
 
 
 pub struct SelectionBox {
-    material: Option<Material>,
+    renderer: Option<(Mesh, Material)>,
 
     position: Vec3,
     size: Vec3,
@@ -17,7 +17,7 @@ pub struct SelectionBox {
 impl SelectionBox {
     pub fn new() -> Self {
         Self {
-            material: None,
+            renderer: None,
 
             position: Vec3::ZERO,
             size: Vec3::ZERO,
@@ -27,15 +27,16 @@ impl SelectionBox {
     }
 
     pub fn start(&mut self, global_renderer: &mut GlobalRenderer) {
-        let mut material = global_renderer.create_material("selectionBox", MaterialType::Alpha);
-        material.set_mesh(&OUTLINE_CUBE_VERTICES, &OUTLINE_CUBE_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
+        let (mut mesh, material) = global_renderer.create_mesh_material("selectionBox", MaterialType::Alpha);
+        mesh.set(&OUTLINE_CUBE_VERTICES, &OUTLINE_CUBE_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
 
-
-        self.material = Some(material);
+        self.renderer = Some((mesh, material));
     }
 
     pub fn cleanup(&mut self) {
-        self.material.as_mut().unwrap().destroy();
+        let renderer = self.renderer.as_mut().unwrap();
+        renderer.0.destroy();
+        renderer.1.destroy();
     }
 
     pub fn update(&mut self, result: &Option<RaycastingResult>) {
@@ -52,10 +53,10 @@ impl SelectionBox {
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
         if !self.visible { return }
 
-        let material = self.material.as_mut().unwrap();
-        material.update_push_constant(0, &self.position);
-        material.update_push_constant(size_of::<Vec4>(), &self.size);
-        global_renderer.draw_obj(material);
+        let renderer = self.renderer.as_ref().unwrap();
+        global_renderer.set_push_constant(0, &self.position);
+        global_renderer.set_push_constant(size_of::<Vec4>(), &self.size);
+        global_renderer.draw(&renderer.0, &renderer.1);
 
     }
 }

@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::{resources::{BlockItemModel, ResourceManager, TexCoords}, world::player::PlayerInventory};
+use crate::{resources::{BlockItemMesh, ResourceManager, TexCoords}, world::player::PlayerInventory};
 
 
 pub struct ItemCreationArgs<'a> {
@@ -27,7 +27,7 @@ pub struct ItemBaseProperties {
     pub internal_name: &'static str,
     pub name: &'static str,
     pub icon: TexCoords,
-    pub model: Rc<BlockItemModel>,
+    pub mesh: Rc<BlockItemMesh>,
 
     pub state: u8,
     pub parent_index: u32,
@@ -35,8 +35,14 @@ pub struct ItemBaseProperties {
 }
 
 impl ItemBaseProperties {
-    pub fn new(internal_name: &'static str, name: &'static str, model: Rc<BlockItemModel>,
-               parent_index: usize, state: u8, item_base_type: ItemBaseType) -> Self {
+    pub fn new(
+        internal_name: &'static str,
+        name: &'static str,
+        mesh: Rc<BlockItemMesh>,
+        parent_index: usize,
+        state: u8,
+        item_base_type: ItemBaseType
+    ) -> Self {
         static mut CURRENT_ID: u16 = 0;
 
         let new_id;
@@ -51,24 +57,30 @@ impl ItemBaseProperties {
             id: new_id,
             name,
             internal_name,
-            icon: model.particle_coords,
+            icon: mesh.particle_coords,
 
             state,
             parent_index: parent_index as u32,
             base_type: item_base_type,
 
-            model,
+            mesh,
         }
     }
 
-    pub fn copy(&self, internal_name: &'static str, name: &'static str, model: Rc<BlockItemModel>,
-                parent_index: usize, state: u8, item_base_type: ItemBaseType) -> Self {
+    pub fn copy(&self,
+        internal_name: &'static str,
+        name: &'static str,
+        mesh: Rc<BlockItemMesh>,
+        parent_index: usize,
+        state: u8,
+        item_base_type: ItemBaseType
+    ) -> Self {
         Self {
             id: self.id,
             internal_name,
             name,
-            icon: model.icon_coords,
-            model,
+            icon: mesh.icon_coords,
+            mesh,
 
             state,
             parent_index: parent_index as u32,
