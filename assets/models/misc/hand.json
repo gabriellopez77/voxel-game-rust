@@ -1,19 +1,31 @@
 {
-	"format_version": "1.9.0",
+	"format_version": "1.21.11",
 	"credit": "Made with Blockbench",
+	"textures": {
+		"0": "blocks/bedrock",
+		"particle": "blocks/bedrock"
+	},
 	"elements": [
 		{
-			"from": [-8, -8, -8],
-			"to": [8, 8, 8],
-			"color": 0,
+		    "from": [6, 6, 2],
+			"to": [10, 10, 14],
+			"rotation": {"angle": 0, "axis": "x", "origin": [2, 2, 6]},
 			"faces": {
-				"north": {"uv": [0, 0, 16, 16], "texture": "#missing"},
-				"east": {"uv": [0, 0, 16, 16], "texture": "#missing"},
-				"south": {"uv": [0, 0, 16, 16], "texture": "#missing"},
-				"west": {"uv": [0, 0, 16, 16], "texture": "#missing"},
-				"up": {"uv": [0, 0, 16, 16], "texture": "#missing"},
-				"down": {"uv": [0, 0, 16, 16], "texture": "#missing"}
+				"north": {"uv": [9, 13, 10, 16], "texture": "#0"},
+				"east": {"uv": [10, 13, 11, 16], "texture": "#0"},
+				"south": {"uv": [8, 13, 9, 16], "texture": "#0"},
+				"west": {"uv": [11, 13, 12, 16], "texture": "#0"},
+				"up": {"uv": [9, 12, 10, 13], "texture": "#0"},
+				"down": {"uv": [10, 12, 11, 13], "texture": "#0"}
 			}
 		}
-	]
+	],
+
+	"display": {
+	    "firstPerson": {
+    	    "position": [0.03, -0.37, -0.5],
+    	    "scale": [0.35, 0.35, 0.35],
+    	    "rotation": [20.0, -20.0, -30.0]
+		}
+	}
 }

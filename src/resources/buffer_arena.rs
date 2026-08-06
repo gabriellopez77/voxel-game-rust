@@ -32,7 +32,7 @@ pub struct BufferArena {
 impl BufferArena {
     pub const MB: u32 = 1024 * 1024;
     pub const KB: u32 = 1024;
-    const GROWTH_RATE: f32 = 1.5;
+    const GROWTH_RATE: f32 = 2.0;
 
     pub fn new(capacity: u32, range_margin: u32) -> Self {
         Self {
@@ -48,7 +48,7 @@ impl BufferArena {
     pub fn get_capacity(&self) -> u32 { self.capacity }
 
     // grow the arena and guarantees that constains capacity for the required size
-    pub fn grow(&mut self, min_required_size: u32) -> u32 {
+    pub fn grow(&mut self, min_required_size: u32) {
         let mut new_capacity = (self.capacity as f32 * Self::GROWTH_RATE).ceil() as u32;
 
         if new_capacity - self.capacity < min_required_size {
@@ -70,12 +70,10 @@ impl BufferArena {
             self.free_ranges[idx].len = new_capacity - self.free_ranges[idx].start;
         }
         else {
-            self.free_ranges.push(RangeInfo::new(self.capacity, new_capacity));
+            self.free_ranges.push(RangeInfo::new(self.capacity, new_capacity - self.capacity));
         }
 
         self.capacity = new_capacity;
-
-        return new_capacity;
     }
 
     pub fn restore_range(&mut self, range: &mut RangeInfo) {

@@ -35,17 +35,17 @@ impl World {
         }
     }
 
-    pub fn start(&mut self, resources_manager: &ResourceManager, global_renderer: &mut GlobalRenderer) {
-        self.blocks_manager = BlocksManager::new(resources_manager, &mut self.player.inventory);
+    pub fn start(&mut self, resources: &mut ResourceManager, global_renderer: &mut GlobalRenderer) {
+        self.blocks_manager = BlocksManager::new(resources, &mut self.player.inventory);
 
         self.player.start();
 
         self.planet.start(&self.blocks_manager);
 
-        self.sky.start(resources_manager, global_renderer);
-        self.particles_manager.start(resources_manager, global_renderer);
+        self.sky.start(resources, global_renderer);
+        self.particles_manager.start(resources, global_renderer);
         self.player.selection_box.start(global_renderer);
-        self.player.first_person.start(global_renderer);
+        self.player.first_person.start(global_renderer, resources);
     }
 
     pub fn update(&mut self, dt: f32, args: &mut WorldUpdateArgs) {

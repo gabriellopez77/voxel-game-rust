@@ -30,7 +30,7 @@ impl GlobalStagingBuffer {
     }
 
     pub fn get_capacity_mb(&self) -> f32 {
-        self.arena.get_capacity() as f32 / BufferArena::MB as f32
+        self.capacity as f32 / BufferArena::MB as f32
     }
 
     pub fn start(&mut self, app: &VulkanApp) {
@@ -124,8 +124,7 @@ impl GlobalStagingBuffer {
         self.buffer = new_buffer;
         self.allocation = new_allocation;
         self.mapped_memory = new_mapped_memory;
-
-
+        
         // the arena grew, then is guaranteed that contains capacity for the range
         return self.arena.find_range(size).unwrap();
     }

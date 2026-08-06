@@ -30,7 +30,7 @@ const ERROR_MODEL: &'static str =
 	]
 }";
 
-pub struct BlockItemMesh {
+pub struct GenericModel {
     pub nothing_vertices: Vec<BlockItemVertices>,
     pub up_vertices: Vec<BlockItemVertices>,
     pub down_vertices: Vec<BlockItemVertices>,
@@ -39,13 +39,14 @@ pub struct BlockItemMesh {
     pub west_vertices: Vec<BlockItemVertices>,
     pub east_vertices: Vec<BlockItemVertices>,
 
-    pub icon_coords: TexCoords,
     pub particle_coords: TexCoords,
-
     pub ambient_occlusion: bool,
+
+    pub icon_coords: TexCoords,
+    pub first_person_display: Matrix4,
 }
 
-impl BlockItemMesh {
+impl GenericModel {
     pub fn new(models_path: &str, path: &str, texture: &Texture) -> Result<Self, String> {
         let file_content = match std::fs::read_to_string(path) {
             Ok(content) => content,
@@ -64,10 +65,11 @@ impl BlockItemMesh {
             west_vertices: Vec::new(),
             east_vertices: Vec::new(),
 
-            icon_coords: TexCoords::ZERO,
             particle_coords: TexCoords::ZERO,
-
             ambient_occlusion: false,
+
+            icon_coords: TexCoords::ZERO,
+            first_person_display: Matrix4::ZERO,
         };
 
         match instance.read(models_path, &file_content, texture) {
@@ -86,10 +88,11 @@ impl BlockItemMesh {
             west_vertices: Vec::new(),
             east_vertices: Vec::new(),
 
-            icon_coords: TexCoords::ZERO,
             particle_coords: TexCoords::ZERO,
-
             ambient_occlusion: false,
+            
+            icon_coords: TexCoords::ZERO,
+            first_person_display: Matrix4::ZERO,
         };
 
         match instance.read("", &ERROR_MODEL, texture) {
@@ -116,6 +119,8 @@ impl BlockItemMesh {
             used_textures = HashMap::with_capacity(textures_info.len());
             self.read_textures(&mut used_textures, &textures_info, texture);
         }
+
+        self.read_display_info(&model_info.display);
 
         // read parent model
         if let Some(ref parent_name) = model_info.parent {
@@ -425,6 +430,49 @@ impl BlockItemMesh {
         }
     }
 
+    fn read_display_info(&mut self, display_info: &Option<DisplayInfo>) { 
+        let mut block_preset = Matrix4::IDENTITY;
+        block_preset.translate(0.4, -0.67, -1.0);
+        block_preset.translatev(Vec3::new(0.375, 0.375, 0.375) * 0.5);
+        block_preset.rotate_xyz(0.0, 45.0, 0.0);
+        block_preset.translatev(Vec3::new(0.375, 0.375, 0.375) * -0.5);
+        block_preset.scale(0.375, 0.375, 0.375);
+        
+        if display_info.is_none() {
+            self.first_person_display = block_preset;
+            return
+        }
+
+        
+        let info = display_info.as_ref().unwrap();
+        
+        if let Some(ref first_person) = info.first_person {
+            //match first_person {
+                //DisplayTypesInfo::Preset(preset) => {
+                //    match preset.as_str() {
+                //        "block" => self.first_person_display = block_preset,
+                //        "item" => self.first_person_display = Matrix4::ZERO,
+                //        _ => self.first_person_display = block_preset,
+                //    }
+                //}
+                //DisplayTypesInfo::CustomSet(value) => {
+                    let pos_vec = Vec3::from_arr(first_person.position);
+                    let scale_vec = Vec3::from_arr(first_person.scale);
+                    let rotate_vec = Vec3::from_arr(first_person.rotation);
+                    
+                    let mut model = Matrix4::IDENTITY;
+                    model.translatev(pos_vec);
+                    model.translatev(scale_vec * 0.5);
+                    model.rotatev_xyz(rotate_vec);
+                    model.translatev(scale_vec * -0.5);
+                    model.scalev(scale_vec);
+
+                    self.first_person_display = model;
+                //}
+                //}
+        }
+    }
+    
     fn get_tex_coords(
         used_textures: &HashMap<String, TexCoords>,
         face_info: &FaceInfo,
@@ -468,6 +516,7 @@ impl BlockItemMesh {
         *vert3 = Vec3::from4(Vec4::from3(*vert3 - origin, 1.0) * *rotate_matrix) + origin;
         *vert4 = Vec3::from4(Vec4::from3(*vert4 - origin, 1.0) * *rotate_matrix) + origin;
     }
+
 }
 
 #[derive(Deserialize)]
@@ -480,7 +529,9 @@ struct ModelInfo {
     #[serde(rename = "ambientOcclusion")]
     ambient_occlusion: Option<bool>,
 
-    elements: Option<Vec<ElementInfo>>
+    elements: Option<Vec<ElementInfo>>,
+
+    display: Option<DisplayInfo>,
 }
 
 #[derive(Deserialize)]
@@ -489,7 +540,7 @@ struct ElementInfo {
     to: [f32; 3],
     shade: Option<bool>,
     rotation: Option<RotateInfo>,
-    faces: HashMap<String, FaceInfo>
+    faces: HashMap<String, FaceInfo>,
 }
 
 #[derive(Deserialize)]
@@ -504,4 +555,23 @@ struct FaceInfo {
     uv: [f32; 4],
     texture: String,
     cullface: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct DisplayInfo {
+    #[serde(rename = "firstPerson")]
+    first_person: Option<DisplayValueInfo>
+}
+
+#[derive(Deserialize)]
+enum DisplayTypesInfo {
+    Preset(String),
+    CustomSet(DisplayValueInfo),
+}
+
+#[derive(Deserialize)]
+struct DisplayValueInfo {
+    position: [f32; 3],
+    scale: [f32; 3],
+    rotation: [f32; 3],
 }

@@ -35,6 +35,13 @@ impl Vec3 {
         }
     }
 
+    pub fn from_arr(arr: [f32; 3]) -> Self {
+        Self {
+            x: arr[0],
+            y: arr[1],
+            z: arr[2],
+        }
+    }
 
     pub fn dot(&self, other: Self) -> f32 {
         let temp = *self * other;

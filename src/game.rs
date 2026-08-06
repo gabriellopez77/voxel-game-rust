@@ -78,7 +78,7 @@ impl Game {
         self.ui_manager.clone().borrow_mut().start(self);
         self.add_event(GameEvents::ChangeScreen(ScreensId::StartScreen));
 
-        self.world.start(&self.resources_manager, &mut self.global_renderer);
+        self.world.start(&mut self.resources_manager, &mut self.global_renderer);
 
         //let now = std::time::Instant::now();
         //println!("{}", now.elapsed().as_micros());
@@ -182,17 +182,17 @@ impl Game {
 
             let first_person = &mut self.world.player.first_person;
 
-            ui.slider("Position X", -5.0, 5.0, &mut first_person.position.x);
-            ui.slider("Position Y", -5.0, 5.0, &mut first_person.position.y);
-            ui.slider("Position Z", -5.0, 5.0, &mut first_person.position.z);
+            //ui.slider("Position X", -5.0, 5.0, &mut first_person.interact_position.x);
+            //ui.slider("Position Y", -5.0, 5.0, &mut first_person.interact_position.y);
+            //ui.slider("Position Z", -5.0, 5.0, &mut first_person.interact_position.z);
 
-            ui.slider("Scale X", 0.0, 1.0, &mut first_person.scale.x);
-            ui.slider("Scale Y", 0.0, 1.0, &mut first_person.scale.y);
-            ui.slider("Scale Z", 0.0, 1.0, &mut first_person.scale.z);
+            //ui.slider("Scale X", 0.0, 1.0, &mut first_person.hand_scale.x);
+            //ui.slider("Scale Y", 0.0, 1.0, &mut first_person.hand_scale.y);
+            //ui.slider("Scale Z", 0.0, 1.0, &mut first_person.hand_scale.z);
 
-            ui.slider("Rotate X", 0.0, 360.0, &mut first_person.rotation.x);
-            ui.slider("Rotate Y", 0.0, 360.0, &mut first_person.rotation.y);
-            ui.slider("Rotate Z", 0.0, 360.0, &mut first_person.rotation.z);
+            //ui.slider("Rotate X", -360.0, 360.0, &mut first_person.interact_rotation.x);
+            //ui.slider("Rotate Y", -360.0, 360.0, &mut first_person.interact_rotation.y);
+            //ui.slider("Rotate Z", -360.0, 360.0, &mut first_person.interact_rotation.z);            
 
             wt.end();
         }

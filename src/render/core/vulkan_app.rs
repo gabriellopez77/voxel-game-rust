@@ -46,8 +46,8 @@ impl BufferDuplicateUpdateInfo {
     }
 
     pub fn can_free(&self) -> bool {
-        for need in self.used {
-            if need { return false; }
+        for i in 0..vkutl::FRAMES_COUNT {
+            if self.used[i] || self.need_update[i] { return false; }
         }
 
         return true;
@@ -287,7 +287,7 @@ impl VulkanApp {
         self.global_staging_buffer.clone().borrow_mut().allocate(self, size as u32)
     }
 
-    // deallocate the range from staging buffer
+    /// deallocate the range from staging buffer
     pub fn deallocate_staging_buffer_range(&mut self, range: &mut RangeInfo) {
         self.current_gargabe_list.push(GarbageType::GlobalStagingBufferRange(*range));
 
@@ -304,7 +304,7 @@ impl VulkanApp {
         );
     }
 
-    pub fn copy_stagin_buffer_data_to_buffer(&self,
+    pub fn copy_stagin_buffer_data_to_buffer_async(&self,
         range: RangeInfo,
         offset: usize,
         size: usize,
@@ -318,7 +318,6 @@ impl VulkanApp {
             offset
         );
     }
-
 
     pub fn get_global_staging_buffer_used_mb(&self) -> f32 { self.global_staging_buffer.borrow().get_used_mb() }
     pub fn get_global_staging_buffer_capacity_mb(&self) -> f32 { self.global_staging_buffer.borrow().get_capacity_mb() }
@@ -431,17 +430,15 @@ impl VulkanApp {
     }
 
     pub fn cleanup(&mut self) {
-        unsafe {
-            self.ash_device.device_wait_idle().unwrap();
+        self.wait_idle(false);
+        
+        self.global_staging_buffer.clone().borrow_mut().destroy(self);
 
-            self.global_staging_buffer.clone().borrow_mut().destroy(self);
-
-            for garbage in &mut self.current_gargabe_list.clone() {
-                self.destroy_garbage(garbage);
-            }
-
-            SwapChainInfo::clear(self);
+        for garbage in &mut self.current_gargabe_list.clone() {
+            self.destroy_garbage(garbage);
         }
+
+        SwapChainInfo::clear(self);  
     }
 
     pub fn resize(&mut self, mut width: i32, mut height: i32, glfw_instance: &mut glfw::Glfw, glfw_window: &glfw::PWindow) {
@@ -454,6 +451,24 @@ impl VulkanApp {
         self.resized = true;
     }
 
+    fn wait_idle(&mut self, destroy_resources: bool) {
+        unsafe { self.ash_device.device_wait_idle().expect("failed to wait idle!"); }
+        
+        if !destroy_resources {
+            return
+        }
+
+        // none of the buffers are being used by the other frames
+
+        for info in &mut self.updates_list {
+            info.used = [false; vkutl::FRAMES_COUNT];
+        }
+        
+        for garbage in &mut self.current_gargabe_list.clone() {
+            self.destroy_garbage(garbage);
+        }
+    }
+    
     fn create_instance(&mut self) {
         let app_info = vk::ApplicationInfo::default()
             .application_name(c"Vulkan App")
@@ -955,8 +970,7 @@ impl VulkanApp {
         if self.resized {
             self.resized = false;
 
-            // wait for idle
-            unsafe { self.ash_device.device_wait_idle().expect("failed to wait idle!") };
+            self.wait_idle(true);
 
             SwapChainInfo::clear(self);
             self.create_swapchain(glfw_window);
@@ -965,7 +979,7 @@ impl VulkanApp {
 
         // wait for previous frame and reset fence state
         unsafe {
-            self.ash_device.wait_for_fences( &[self.frame_fence[self.frame_index]], true, u64::MAX).unwrap();
+            self.ash_device.wait_for_fences(&[self.frame_fence[self.frame_index]], true, u64::MAX).unwrap();
 
             // get next image from swapChain
             self.image_index = self.ash_swapchain.acquire_next_image(

@@ -96,7 +96,7 @@ impl ParticlesManager {
     pub fn spawn(&mut self, args: ParticlesSpawnArgs) {
         match args {
             ParticlesSpawnArgs::BlockDestroy(block_properties, block_pos) => {
-                let particle_tex = block_properties.base_properties.mesh.particle_coords.denormalized(self.resources.world_texture.get_size());
+                let particle_tex = block_properties.base_properties.model.particle_coords.denormalized(self.resources.world_texture.get_size());
 
                 const SCALE: f32 = 4.0;
 

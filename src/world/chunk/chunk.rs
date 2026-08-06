@@ -93,7 +93,7 @@ impl Chunk {
             if block_info.id == 0 { continue }
 
             let block_properties = blocks_manager.get_properties_from_block_info(block_info);
-            let mesh = &block_properties.base_properties.mesh;
+            let mesh = &block_properties.base_properties.model;
             let ambient_occlusion = mesh.ambient_occlusion;
 
             let chunk_block = Vec3::new(x as f32, y as f32, z as f32);

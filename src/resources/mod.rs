@@ -2,7 +2,7 @@
 pub mod texture_atlas;
 pub mod tex_coords;
 pub mod text_font_info;
-pub mod blocks_items_mesh;
+pub mod generic_model;
 pub mod shaders_compiler;
 pub mod worker;
 pub mod buffer_arena;
@@ -12,7 +12,7 @@ pub use {
     resources_manager::ResourceManager,
     tex_coords::TexCoords,
     text_font_info::*,
-    blocks_items_mesh::BlockItemMesh,
+    generic_model::GenericModel,
     shaders_compiler::ShadersCompiler,
     worker::Worker,
     buffer_arena::BufferArena,

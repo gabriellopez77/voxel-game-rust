@@ -193,7 +193,7 @@ impl RawBuffer {
 
             if self.flags.contains(BufferFlags::VRAM) {
                 app.send_data_to_staging_buffer(self.staging_buffer_ranges[index], offset, size, data);
-                app.copy_stagin_buffer_data_to_buffer(self.staging_buffer_ranges[index], offset, size, self.buffers[index]);
+                app.copy_stagin_buffer_data_to_buffer_async(self.staging_buffer_ranges[index], offset, size, self.buffers[index]);
             }
             else {
                 // copy data to mapped memory

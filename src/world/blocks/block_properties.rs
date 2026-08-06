@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::render::chunk_renderer::RendererType;
-use crate::resources::BlockItemMesh;
+use crate::resources::GenericModel;
 use crate::world::{Aabb, items::*};
 
 
@@ -86,7 +86,7 @@ impl BlockProperties {
     pub fn copy(&self,
         internal_name: &'static str,
         name: &'static str,
-        model: Rc<BlockItemMesh>,
+        model: Rc<GenericModel>,
         index: usize,
         state: u8
     ) -> Self {

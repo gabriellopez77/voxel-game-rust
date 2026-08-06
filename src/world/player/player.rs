@@ -96,12 +96,16 @@ impl Player {
 
         self.camera.update(&self.aabb, planet, args.inputs.get_camera_delta());
 
-        //let now = std::time::Instant::now();
+
         let ray_result = self.update_ray_casting(planet, particles_manager, args.inputs);
 
         self.selection_box.update(&ray_result);
 
+        let mut action = false;
+        
         if self.state == PlayerStates::Active {
+            action = args.inputs.mouse_pressed(inputs::MouseButton::Left);
+            
             self.inventory.process_hotbar_scroll(args.inputs.get_mouse_scroll());
 
             if let Some(result) = ray_result {
@@ -118,6 +122,8 @@ impl Player {
                         let block_properties = chunk.borrow().chunk_data.read().unwrap().get_block_properties(chunk_block);
 
                         if block_properties.can_replace {
+                            action = true;
+                            
                             let block_functions = planet.blocks_manager.get_from_item_base(item);
                             chunk.borrow_mut().chunk_data.write().unwrap().set_block(chunk_block, block_functions.get_id_state());
                         }
@@ -125,9 +131,9 @@ impl Player {
                 }
             }
         }
-        //println!("{}", now.elapsed().as_micros());
 
-        self.first_person.update(args, self.inventory.get_hand_slot());
+
+        self.first_person.update(args, self.inventory.get_hand_slot(), action);
 
         if args.inputs.key_pressed(inputs::Keys::E) {
             args.events_queue.push_back(GameEvents::ChangeScreen(ScreensId::InventoryScreen));
