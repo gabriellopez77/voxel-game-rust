@@ -69,17 +69,21 @@ impl ChunkRenderer {
     pub fn update_mesh(&mut self, mesh_result: &ChunkMeshResult) {
         //let now = std::time::Instant::now();
 
-        self.default_mesh.set(
-            &mesh_result.vertices[RendererType::Opaque as usize],
-            &mesh_result.indices[RendererType::Opaque as usize],
-            BufferFlags::VRAM | BufferFlags::ONCE
-        );
+        if !mesh_result.vertices[RendererType::Opaque as usize].is_empty() {
+            self.default_mesh.set(
+                &mesh_result.vertices[RendererType::Opaque as usize],
+                &mesh_result.indices[RendererType::Opaque as usize],
+                BufferFlags::VRAM | BufferFlags::ONCE
+            );
+        }
 
-        self.water_mesh.set(
-            &mesh_result.vertices[RendererType::Alpha as usize],
-            &mesh_result.indices[RendererType::Alpha as usize],
-            BufferFlags::VRAM | BufferFlags::ONCE
-        );
+        if !mesh_result.vertices[RendererType::Alpha as usize].is_empty() {
+            self.water_mesh.set(
+                &mesh_result.vertices[RendererType::Alpha as usize],
+                &mesh_result.indices[RendererType::Alpha as usize],
+                BufferFlags::VRAM | BufferFlags::ONCE
+            );
+        }
 
         //println!("{}", now.elapsed().as_micros());
     }

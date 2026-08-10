@@ -6,23 +6,22 @@
 
 layout(location = 0) in ivec3 aVertex;
 layout(location = 1) in ivec3 aNormal;
-layout(location = 2) in vec2 aPosition;
-layout(location = 3) in uint aCullface;
+layout(location = 2) in int aFaceId;
+layout(location = 3) in vec2 aPosition;
+layout(location = 4) in uint aCullfaces;
 
 
 layout(location = 0) out vec3 Normal;
-
 layout(location = 1) out float FogFactor;
 
 void main()
 {
-	uint cullfaceValue = uint(aCullface);
-	int index = gl_VertexIndex;
+	const uint FACES_MASK[] = uint[](1 << 0, 1 << 1, 1 << 2, 1 << 3, 1 << 4, 1 << 5);
 
-	if (index >= 12 && index <= 15 && !bool(cullfaceValue & (1 << 0))) return;
-	else if (index >= 8 && index <= 11 && !bool(cullfaceValue & (1 << 1))) return;
-	else if (index >= 16 && index <= 19 && !bool(cullfaceValue & (1 << 2))) return;
-	else if (index >= 20 && index <= 23 && !bool(cullfaceValue & (1 << 3))) return;
+	if ((aCullfaces & FACES_MASK[aFaceId]) == 0) {
+	    gl_Position = vec4(0.0 / 0.0);
+		return;
+	}
 
 	const vec3 size = vec3(12.f, 4.f, 12.f);
 	const vec3 pos = vec3(aPosition.x, 128.f, aPosition.y);
@@ -30,7 +29,6 @@ void main()
 	vec4 viewSpace = globalUbo.camView * vec4((aVertex * size) + pos, 1.f);
     gl_Position = globalUbo.camProj * viewSpace;
 
-    Normal = vec3(float(aNormal.x), float(aNormal.y), float(aNormal.z));
-
+    Normal = aNormal;
 	FogFactor = calculateFog(viewSpace.xyz);
 }

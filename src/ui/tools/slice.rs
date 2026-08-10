@@ -54,8 +54,6 @@ impl Slice {
     pub fn draw(&self, renderer: &mut UiRenderer) {
         if self.size.x == 0.0 || self.size.y == 0.0 { return }
 
-        if renderer.get_sprites_count() >= UiRenderer::MAX_SPRITES_COUNT - 9 { return }
-
         for i in 0..9 {
             let pos = self.slice_position[i];
             let size = self.slice_size[i];

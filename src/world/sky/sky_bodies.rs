@@ -168,7 +168,7 @@ impl SkyBodies {
         let stars_renderer = self.stars_renderer.as_mut().unwrap();
         stars_renderer.0.destroy();
         stars_renderer.1.destroy();
-        
+
         let sun_moon_renderer = self.sun_moon_renderer.as_mut().unwrap();
         sun_moon_renderer.0.destroy();
         sun_moon_renderer.1.destroy();
@@ -178,14 +178,14 @@ impl SkyBodies {
         if self.stars_alpha > 0.0 {
             global_renderer.set_push_constant(0, &self.matrix);
             global_renderer.set_push_constant(size_of::<Matrix4>(), &self.stars_alpha);
-            
+
             let renderer = self.stars_renderer.as_ref().unwrap();
             global_renderer.draw_instanced(&renderer.0, &renderer.1, Self::STARS_COUNT);
         }
 
         global_renderer.set_push_constant(0, &self.matrix);
         global_renderer.set_push_constant(size_of::<Matrix4>(), &self.stars_alpha);
-        
+
         let renderer = self.sun_moon_renderer.as_ref().unwrap();
         global_renderer.draw_instanced(&renderer.0, &renderer.1, Self::STARS_COUNT);
     }

@@ -43,8 +43,6 @@ impl Sprite {
     }
 
     pub fn draw(&self, renderer: &mut UiRenderer) {
-        if renderer.get_sprites_count() >= UiRenderer::MAX_SPRITES_COUNT { return }
-
         let pos = self.get_pos();
         let size = self.get_size();
 

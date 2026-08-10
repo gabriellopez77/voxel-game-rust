@@ -1,3 +1,4 @@
+use crate::render::core::raw_buffer::BufferResizeType;
 use crate::render::material::MaterialType;
 use crate::render::{GlobalRenderer, Material, Mesh, SPRITES_INDICES, SPRITES_VERTICES, SpritesVertices, TextVertices};
 use super::core::raw_buffer::BufferFlags;
@@ -12,8 +13,6 @@ pub struct UiRenderer {
 }
 
 impl UiRenderer {
-    pub const MAX_SPRITES_COUNT: usize = 1000;
-
     pub fn new() -> Self {
         Self {
             sprites_instance_data: Vec::new(),
@@ -27,21 +26,21 @@ impl UiRenderer {
     pub fn start(&mut self, global_renderer: &mut GlobalRenderer) {
         let (mut mesh, material) = global_renderer.create_mesh_material("ui_sprites", MaterialType::Ui);
         mesh.set(&SPRITES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
-        mesh.create_instance_buffer(size_of::<SpritesVertices>() * Self::MAX_SPRITES_COUNT, None, BufferFlags::RAM);
+        mesh.create_instance_buffer(size_of::<SpritesVertices>() * 64, None, BufferFlags::RAM);
         self.sprites_renderer = Some((mesh, material));
 
         let (mut mesh, material) = global_renderer.create_mesh_material("ui_text", MaterialType::Ui);
         mesh.set(&SPRITES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
-        mesh.create_instance_buffer(size_of::<TextVertices>() * Self::MAX_SPRITES_COUNT, None, BufferFlags::RAM);
+        mesh.create_instance_buffer(size_of::<TextVertices>() * 64, None, BufferFlags::RAM);
         self.text_renderer = Some((mesh, material));
     }
 
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
         let sprites_renderer = self.sprites_renderer.as_mut().unwrap();
-        global_renderer.draw_instanced_with_buffer(&mut sprites_renderer.0, &sprites_renderer.1, &mut self.sprites_instance_data);
+        global_renderer.draw_instanced_with_buffer(&mut sprites_renderer.0, &sprites_renderer.1, &mut self.sprites_instance_data, BufferResizeType::Discard);
 
         let text_renderer = self.text_renderer.as_mut().unwrap();
-        global_renderer.draw_instanced_with_buffer(&mut text_renderer.0, &text_renderer.1, &mut self.text_instance_data);
+        global_renderer.draw_instanced_with_buffer(&mut text_renderer.0, &text_renderer.1, &mut self.text_instance_data, BufferResizeType::Discard);
     }
 
     pub fn cleanup(&mut self) {
@@ -53,9 +52,6 @@ impl UiRenderer {
         text_renderer.0.destroy();
         text_renderer.1.destroy();
     }
-
-    pub fn get_sprites_count(&self) -> usize { self.sprites_instance_data.len() }
-    pub fn get_text_count(&self) -> usize { self.text_instance_data.len() }
 
     pub fn add_sprite(&mut self, data: SpritesVertices) { self.sprites_instance_data.push(data) }
     pub fn add_text(&mut self, data: TextVertices) { self.text_instance_data.push(data) }

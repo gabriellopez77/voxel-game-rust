@@ -5,7 +5,6 @@
 
 
 layout(location = 0) in vec3 Normal;
-
 layout(location = 1) in float FogFactor;
 
 

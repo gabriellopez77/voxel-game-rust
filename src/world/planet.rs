@@ -127,8 +127,8 @@ impl Planet {
             self.need_ordering_chunks = false;
 
             self.ordered_chunks.sort_by(|ch1, ch2| {
-                let ch1_distance = math::get_chunk_distance(ch1.borrow().position, self.last_player_chunk);
-                let ch2_distance = math::get_chunk_distance(ch2.borrow().position, self.last_player_chunk);
+                let ch1_distance = math::get_chunk_distance(ch1.borrow().position, player_chunk);
+                let ch2_distance = math::get_chunk_distance(ch2.borrow().position, player_chunk);
 
                 return ch1_distance.cmp(&ch2_distance);
             });
@@ -382,6 +382,7 @@ impl Planet {
     }
 
     fn change_chunk_logic(&mut self, player_chunk_pos: Vec3i) {
+        self.last_player_chunk = player_chunk_pos;
         self.ordered_chunks.clear();
         self.remove_chunks_list.clear();
 
@@ -452,8 +453,6 @@ impl Planet {
             self.chunks.insert(new_chunk_pos, None);
         }
         }
-
-        self.last_player_chunk = player_chunk_pos;
     }
 
     fn regen_neighbor_chunks(&self, neighbors: &NeighborChunks) {

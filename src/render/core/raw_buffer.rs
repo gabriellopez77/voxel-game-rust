@@ -6,7 +6,13 @@ use super::{vkutl, VulkanApp};
 
 
 #[derive(Copy, Clone, Eq, PartialEq)]
-pub struct BufferFlags(u32);
+pub enum BufferResizeType {
+    Discard,
+    Preserve,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub struct BufferFlags(pub u32);
 
 impl BufferFlags {
     pub const EMPTY: Self = Self(0b0000_0000);
@@ -39,6 +45,7 @@ impl BitOr for BufferFlags {
 
 
 pub struct RawBuffer {
+    pub usage: vk::BufferUsageFlags,
     pub flags: BufferFlags,
     pub size: usize,
 
@@ -46,17 +53,16 @@ pub struct RawBuffer {
     // Ram: not used
     staging_buffer_ranges: [RangeInfo; vkutl::FRAMES_COUNT],
 
+    // VRAM: not used
     buffers: [vk::Buffer; vkutl::FRAMES_COUNT],
     allocations: [vk_mem::Allocation; vkutl::FRAMES_COUNT],
-
-    // Vram: staging buffer
-    // Ram: buffer
     mapped_memory: [*mut u8; vkutl::FRAMES_COUNT],
 }
 
 impl RawBuffer {
     pub fn new() -> Self {
         Self {
+            usage: vk::BufferUsageFlags::empty(),
             flags: BufferFlags::EMPTY,
             size: 0,
 
@@ -78,6 +84,13 @@ impl RawBuffer {
         return unsafe { *self.buffers.get_unchecked(frame_index) };
     }
 
+    pub fn get_mapped_memory(&self, frame_index: usize) -> *mut u8 {
+        assert!(self.flags.contains(BufferFlags::ONCE), "ONCE buffer have not mapped memory");
+
+        // SAFETY: frame_index is always 0..vkutl::FRAMES_COUNT
+        return unsafe { *self.mapped_memory.get_unchecked(frame_index) };
+    }
+
     pub fn get_all_buffers(&self) -> [vk::Buffer; vkutl::FRAMES_COUNT] { self.buffers }
     pub fn get_all_mapped_memory(&self) -> [*mut u8; vkutl::FRAMES_COUNT] { self.mapped_memory }
 
@@ -86,11 +99,13 @@ impl RawBuffer {
         debug_assert!(!(flags.contains(BufferFlags::VRAM) && flags.contains(BufferFlags::RAM)), "Can not have VRAM and RAM flags");
         debug_assert!(!(flags.contains(BufferFlags::RAM) && flags.contains(BufferFlags::ONCE)), "Ram buffer can not have ONCE flag");
         debug_assert!(!(flags.contains(BufferFlags::ONCE) && flags.contains(BufferFlags::RARE_UPDATE)), "ONCE buffer can not have RARE_UPDATE flag");
-        debug_assert_ne!(size, 0, "Invalid buffer size!");
+        debug_assert!(!(flags.contains(BufferFlags::ONCE) && data.is_null()), "data cannot be null if buffer is ONCE");
+        debug_assert!(size > 0, "Invalid buffer size!");
 
         self.size = size;
         self.flags = flags;
-
+        self.usage = usage;
+        
         if flags.contains(BufferFlags::VRAM) {
             let mut allocation_info = vk_mem::AllocationCreateInfo::default();
             allocation_info.usage = vk_mem::MemoryUsage::Auto;
@@ -100,11 +115,11 @@ impl RawBuffer {
             for i in 0..vkutl::FRAMES_COUNT {
                 // create staging buffer
                 if !flags.contains(BufferFlags::RARE_UPDATE) {
-                    self.staging_buffer_ranges[i] = app.allocate_staging_buffer_range(size);
+                    self.staging_buffer_ranges[i] = app.alloc_staging_buffer_range(size);
                 }
 
-                (self.buffers[i], self.allocations[i]) = vkutl::create_buffer(
-                    app, size,
+                (self.buffers[i], self.allocations[i]) = vkutl::create_buffer(app,
+                    size,
                     vk::BufferUsageFlags::TRANSFER_DST | usage,
                     &allocation_info, !flags.contains(BufferFlags::ONCE)
                 );
@@ -115,8 +130,6 @@ impl RawBuffer {
             }
         }
         else {
-            debug_assert!(!flags.contains(BufferFlags::ONCE), "RAM buffer can not be ONCE");
-
             let mut allocation_info = vk_mem::AllocationCreateInfo::default();
             allocation_info.usage = vk_mem::MemoryUsage::Auto;
             allocation_info.preferred_flags = vk::MemoryPropertyFlags::HOST_VISIBLE;
@@ -131,7 +144,30 @@ impl RawBuffer {
                 };
 
                 // if not DUPLICATE then we use only first buffer
-                if flags.contains(BufferFlags::ONCE) { break }
+                if flags.contains(BufferFlags::ONCE) {
+                    let release_barrier = vk::BufferMemoryBarrier::default()
+                        .src_access_mask(vk::AccessFlags::TRANSFER_WRITE)
+                        .src_queue_family_index(app.transfer_queue_index)
+                        .dst_queue_family_index(app.graphics_queue_index)
+                        .buffer(self.buffers[0])
+                        .size(vk::WHOLE_SIZE);
+
+
+                    unsafe {
+                        app.ash_device.cmd_pipeline_barrier(app.get_transfer_cmd(),
+                            vk::PipelineStageFlags::TRANSFER,
+                            vk::PipelineStageFlags::BOTTOM_OF_PIPE,
+                            vk::DependencyFlags::empty(),
+                            &[],
+                            &[release_barrier],
+                            &[]
+                        );
+                    }
+
+                    app.add_buffer_transfer_ownership(self.buffers[0]);
+
+                    break;
+                }
             }
         }
 
@@ -146,77 +182,20 @@ impl RawBuffer {
             }
         }
 
-        if flags.contains(BufferFlags::ONCE) {
-            let release_barrier = vk::BufferMemoryBarrier::default()
-                .src_access_mask(vk::AccessFlags::TRANSFER_WRITE)
-                .src_queue_family_index(app.transfer_queue_index)
-                .dst_queue_family_index(app.graphics_queue_index)
-                .buffer(self.buffers[0])
-                .size(vk::WHOLE_SIZE);
-
-
-            unsafe {
-                app.ash_device.cmd_pipeline_barrier(app.get_transfer_cmd(),
-                    vk::PipelineStageFlags::TRANSFER,
-                    vk::PipelineStageFlags::BOTTOM_OF_PIPE,
-                    vk::DependencyFlags::empty(),
-                    &[],
-                    &[release_barrier],
-                    &[]
-                );
-            }
-
-            app.add_buffer_transfer_ownership(self.buffers[0]);
-        }
-
-        // if ONCE then we do not update the buffer again, in other words, we can destroy staging buffer
+        // if ONCE we do not update the buffer again, then, dealloc staging buffer range
         if self.flags.contains(BufferFlags::ONCE) {
-            app.deallocate_staging_buffer_range(&mut self.staging_buffer_ranges[0]);
-        }
-    }
-
-    pub fn update(&mut self, app: &mut VulkanApp, size: usize, offset: usize, data: *const u8) {
-        assert!(self.size >= size, "Invalid data size");
-        debug_assert!(!data.is_null(), "Data is null!");
-        debug_assert!(!self.flags.contains(BufferFlags::ONCE), "Buffers that constains ONCE flag cant be updated!");
-        debug_assert!(size != 0, "Is not possible update zero bytes");
-
-        self.update_with_index(app, app.frame_index, size, offset,  data);
-    }
-
-    fn update_with_index(&mut self, app: &mut VulkanApp, index: usize, size: usize, offset: usize, data: *const u8) {
-        unsafe {
-            if self.flags.contains(BufferFlags::RARE_UPDATE) {
-                app.update_buffer(self, data, offset, size);
-                return;
-            }
-
-            if self.flags.contains(BufferFlags::VRAM) {
-                app.send_data_to_staging_buffer(self.staging_buffer_ranges[index], offset, size, data);
-                app.copy_stagin_buffer_data_to_buffer_async(self.staging_buffer_ranges[index], offset, size, self.buffers[index]);
-            }
-            else {
-                // copy data to mapped memory
-                std::ptr::copy_nonoverlapping(data, self.mapped_memory[index].byte_add(offset), size);
-
-                // update gpu memory cache
-                app.vma_allocator.flush_allocation(
-                    &self.allocations[index],
-                    offset as u64,
-                    size as u64
-                ).expect("Failed to flush memory ranges!");
-            }
+            app.dealloc_staging_buffer_range(&mut self.staging_buffer_ranges[0]);
         }
     }
 
     pub fn destroy(&mut self, app: &mut VulkanApp) {
-        // buffer is not create or has destroyed
+        // buffer has not be created or has be destroyed
         if self.size == 0 { return }
 
-        // unmap and destroy staging buffer
+        // unmap and dealloc staging buffer range
         if self.flags.contains(BufferFlags::VRAM) && !self.flags.contains(BufferFlags::ONCE) && !self.flags.contains(BufferFlags::RARE_UPDATE) {
             for i in 0..vkutl::FRAMES_COUNT {
-                app.deallocate_staging_buffer_range(&mut self.staging_buffer_ranges[i]);
+                app.dealloc_staging_buffer_range(&mut self.staging_buffer_ranges[i]);
             }
         }
 
@@ -225,5 +204,70 @@ impl RawBuffer {
 
         self.size = 0;
         self.flags = BufferFlags::EMPTY;
+    }
+
+    pub fn update(&mut self, app: &mut VulkanApp, size: usize, offset: usize, data: *const u8) {
+        assert!(self.size >= size, "Invalid data size");
+        debug_assert!(!data.is_null(), "Data is null!");
+        debug_assert!(!self.flags.contains(BufferFlags::ONCE), "Buffers that constains ONCE flag cant be updated!");
+        debug_assert!(size > 0, "Is not possible update zero bytes");
+
+        self.update_with_index(app, app.frame_index, size, offset, data);
+    }
+
+    pub fn update_and_resize(&mut self,
+        app: &mut VulkanApp,
+        size: usize,
+        offset: usize,
+        data: *const u8,
+        resize_type: BufferResizeType
+    ) {
+        debug_assert!(!data.is_null(), "Data is null!");
+        debug_assert!(!self.flags.contains(BufferFlags::ONCE), "Buffers that constains ONCE flag cant be updated!");
+        debug_assert!(size > 0, "Is not possible update zero bytes");
+
+        if size > self.size {
+            let mut new_size = self.size * 2;
+
+            if new_size - self.size < size {
+                new_size += size;
+            }
+
+            println!("Buffer Resized! {} -> {}", self.size, new_size);
+            
+            if resize_type == BufferResizeType::Preserve {
+                app.resize_buffer_preserve_content(self, new_size);
+            }
+            else {
+                let usage = self.usage;
+                let flags = self.flags;
+                
+                self.destroy(app);
+                self.create(app, new_size, std::ptr::null(), usage, flags);
+            }   
+        }
+
+        self.update(app, size, offset, data);
+    }
+
+    fn update_with_index(&mut self, app: &mut VulkanApp, index: usize, size: usize, offset: usize, data: *const u8) {
+        if self.flags.contains(BufferFlags::RARE_UPDATE) {
+            app.update_buffer(self, data, offset, size);
+            return;
+        }
+
+        if self.flags.contains(BufferFlags::VRAM) {
+            app.copy_data_to_staging_buffer(self.staging_buffer_ranges[index], offset, size, data);
+            app.copy_stagin_buffer_async(self.staging_buffer_ranges[index], size, self.buffers[index], offset, 0);
+        }
+        else {
+            unsafe {
+                std::ptr::copy_nonoverlapping(data, self.mapped_memory[index].byte_add(offset), size);
+            }
+
+            // update gpu memory cache
+            app.vma_allocator.flush_allocation(&self.allocations[index], offset as u64, size as u64)
+                .expect("Failed to flush memory ranges!");
+        }
     }
 }

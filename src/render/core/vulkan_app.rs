@@ -1,6 +1,7 @@
 ﻿use std::cell::RefCell;
 use std::collections::HashSet;
 use std::ffi::CStr;
+use std::ptr;
 use std::rc::Rc;
 use ash::{vk, khr::surface};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
@@ -26,7 +27,7 @@ struct BufferDuplicateUpdateInfo {
     pub need_update: [bool; vkutl::FRAMES_COUNT],
     pub used: [bool; vkutl::FRAMES_COUNT],
 
-    pub buffer_range: RangeInfo,
+    pub dst_range: RangeInfo,
 }
 
 impl BufferDuplicateUpdateInfo {
@@ -37,11 +38,11 @@ impl BufferDuplicateUpdateInfo {
 
             buffers: buffer.get_all_buffers(),
             mapped_memory: buffer.get_all_mapped_memory(),
-            need_update: [true; vkutl::FRAMES_COUNT],
             src_offset: [0; vkutl::FRAMES_COUNT],
+            need_update: [true; vkutl::FRAMES_COUNT],
             used: [true; vkutl::FRAMES_COUNT],
 
-            buffer_range: RangeInfo::new(buffer_offset as u32, size as u32),
+            dst_range: RangeInfo::new(buffer_offset as u32, size as u32),
         }
     }
 
@@ -130,7 +131,7 @@ pub struct VulkanApp {
     current_gargabe_list: Vec<GarbageType>,
 
     // global staging buffer
-    pub global_staging_buffer: Rc<RefCell<GlobalStagingBuffer>>,
+    global_staging_buffer: Rc<RefCell<GlobalStagingBuffer>>,
 
     // buffers updates
     updates_list: Vec<BufferDuplicateUpdateInfo>,
@@ -194,13 +195,74 @@ impl VulkanApp {
         }
     }
 
+    pub fn resize_buffer_preserve_content(&mut self, buffer: &mut RawBuffer, new_size: usize) {
+        debug_assert!(!buffer.flags.contains(BufferFlags::ONCE), "invalid buffer");
+
+        let usage = buffer.usage;
+        let flags = buffer.flags;
+        
+        let mut new_buffer = RawBuffer::new();
+        new_buffer.create(self, new_size, ptr::null(), usage, flags);
+
+        for i in 0..vkutl::FRAMES_COUNT {
+            if flags.contains(BufferFlags::VRAM) {
+                vkutl::copy_buffer_async(self,
+                    buffer.get_buffer(self.frame_index),
+                    new_buffer.get_buffer(i),
+                    buffer.size,
+                    0,
+                    0
+                );
+    
+                // create a barrier to guarantee that the copy has be successfully
+                let barrier = vk::BufferMemoryBarrier::default()
+                    .src_access_mask(vk::AccessFlags::TRANSFER_WRITE)
+                    .dst_access_mask(vk::AccessFlags::TRANSFER_WRITE)
+                    .buffer(new_buffer.get_buffer(i))
+                    .size(buffer.size as u64);
+    
+                unsafe {
+                    self.ash_device.cmd_pipeline_barrier(self.get_transfer_cmd(),
+                        vk::PipelineStageFlags::TRANSFER,
+                        vk::PipelineStageFlags::TRANSFER,
+                        vk::DependencyFlags::empty(),
+                        &[],
+                        &[barrier],
+                        &[]
+                    );
+                }
+            }
+            else {
+                unsafe {
+                    std::ptr::copy_nonoverlapping(
+                        buffer.get_mapped_memory(self.frame_index),
+                        new_buffer.get_mapped_memory(i),
+                        buffer.size as usize
+                    );
+                }
+            }
+        }
+
+        // update info for update the new buffer instead old
+        for info in &mut self.updates_list {
+            if info.buffers[0] != buffer.get_buffer(0) { continue }
+
+            info.need_update = [true; vkutl::FRAMES_COUNT];
+            info.used = [true; vkutl::FRAMES_COUNT];
+            info.buffers = new_buffer.get_all_buffers();
+            info.mapped_memory = new_buffer.get_all_mapped_memory();
+        }
+
+        buffer.destroy(self);
+        *buffer = new_buffer;
+    }
+    
     pub fn update_buffer(&mut self, buffer: &RawBuffer, data: *const u8, offset: usize, size: usize) {
-        assert!(buffer.flags.contains(BufferFlags::RARE_UPDATE), "invalid buffer");
+        debug_assert!(buffer.flags.contains(BufferFlags::RARE_UPDATE), "invalid buffer");
         assert!(size > 0, "invalid buffer size");
 
-
-        let allocated_range = self.global_staging_buffer.clone().borrow_mut().allocate(self, size as u32);
-        self.global_staging_buffer.borrow_mut().copy_data(&self.vma_allocator, allocated_range, 0, size as u32, data);
+        let allocated_range = self.alloc_staging_buffer_range(size);
+        self.copy_data_to_staging_buffer(allocated_range, 0, size, data);
 
 
         let info = BufferDuplicateUpdateInfo::new(buffer, allocated_range, offset, size);
@@ -209,8 +271,8 @@ impl VulkanApp {
         for i in (0..self.updates_list.len()).rev() {
             let mut update_info = self.updates_list[i];
 
-            let old_range = update_info.buffer_range;
-            let new_range = info.buffer_range;
+            let old_range = update_info.dst_range;
+            let new_range = info.dst_range;
 
             if update_info.buffers[0] != info.buffers[0] { continue }
             if !update_info.need_update[self.frame_index] { continue }
@@ -229,16 +291,16 @@ impl VulkanApp {
             // the new range start before old range.end(),
             // then we change the old range len to end before new_range.start
             else if new_range.start >= old_range.start && new_range.end() >= old_range.end() {
-                update_info.buffer_range.len = update_info.buffer_range.end() - new_range.start;
+                update_info.dst_range.len = update_info.dst_range.end() - new_range.start;
                 println!("3");
             }
             // the new range start before old_range.start and ends before old_range.end(),
             // then we change the old_range.start to new_range.end() and update his len
             else if new_range.start <= old_range.start && new_range.end() <= old_range.end() {
-                update_info.buffer_range = RangeInfo::new(new_range.end(), old_range.end() - new_range.end());
+                update_info.dst_range = RangeInfo::new(new_range.end(), old_range.end() - new_range.end());
                 update_info.src_offset[self.frame_index] = new_range.end();
 
-                assert!(update_info.buffer_range.len > 0, "Invalid update len: 0");
+                assert!(update_info.dst_range.len > 0, "Invalid update len: 0");
 
                 println!("4");
             }
@@ -246,15 +308,15 @@ impl VulkanApp {
             // then we divide the old range in two new ranges: left and right
             else if new_range.start > old_range.start && new_range.end() < old_range.end() {
                 // updates the left range only change the len
-                update_info.buffer_range.len = new_range.start - old_range.start;
+                update_info.dst_range.len = new_range.start - old_range.start;
 
                 // create the right range
                 let right_range = RangeInfo::new(new_range.end(), old_range.end() - new_range.end());
 
                 // alloc a new range for it
                 // copy the data of old update to allocated range
-                let right_allocated_range = self.global_staging_buffer.clone().borrow_mut().allocate(self, size as u32);
-                self.global_staging_buffer.borrow_mut().copy_to(
+                let right_allocated_range = self.alloc_staging_buffer_range(size);
+                self.global_staging_buffer.borrow_mut().copy_self(
                     &self.vma_allocator,
                     new_range.end(),
                     right_allocated_range.start,
@@ -266,7 +328,7 @@ impl VulkanApp {
                 let mut right_info: BufferDuplicateUpdateInfo = update_info.clone();
                 right_info.allocated_range = right_allocated_range;
                 right_info.src_offset = [0; vkutl::FRAMES_COUNT];
-                right_info.buffer_range = right_range;
+                right_info.dst_range = right_range;
                 right_info.need_update[self.frame_index] = true;
 
                 self.updates_list.push(right_info);
@@ -283,18 +345,18 @@ impl VulkanApp {
     }
 
     /// allocate an range in staging buffer
-    pub fn allocate_staging_buffer_range(&mut self, size: usize) -> RangeInfo {
+    pub fn alloc_staging_buffer_range(&mut self, size: usize) -> RangeInfo {
         self.global_staging_buffer.clone().borrow_mut().allocate(self, size as u32)
     }
 
     /// deallocate the range from staging buffer
-    pub fn deallocate_staging_buffer_range(&mut self, range: &mut RangeInfo) {
+    pub fn dealloc_staging_buffer_range(&mut self, range: &mut RangeInfo) {
         self.current_gargabe_list.push(GarbageType::GlobalStagingBufferRange(*range));
 
         *range = RangeInfo::EMPTY;
     }
 
-    pub fn send_data_to_staging_buffer(&self, range: RangeInfo, offset: usize, size: usize, data: *const u8) {
+    pub fn copy_data_to_staging_buffer(&self, range: RangeInfo, offset: usize, size: usize, data: *const u8) {
         self.global_staging_buffer.borrow_mut().copy_data(
             &self.vma_allocator,
             range,
@@ -304,23 +366,23 @@ impl VulkanApp {
         );
     }
 
-    pub fn copy_stagin_buffer_data_to_buffer_async(&self,
+    pub fn copy_stagin_buffer_async(&self,
         range: RangeInfo,
-        offset: usize,
         size: usize,
-        dst_buffer: vk::Buffer
+        dst_buffer: vk::Buffer,
+        src_offset: usize,
+        dst_offset: usize,
     ) {
-        vkutl::copy_buffer_async(self,
-            self.global_staging_buffer.borrow().buffer,
+        self.global_staging_buffer.borrow().copy_to_buffer_async(self,
             dst_buffer,
-            size,
-            range.start as usize,
-            offset
+            size as u32,
+            (range.start as usize + src_offset) as u32,
+            dst_offset as u32
         );
     }
 
-    pub fn get_global_staging_buffer_used_mb(&self) -> f32 { self.global_staging_buffer.borrow().get_used_mb() }
-    pub fn get_global_staging_buffer_capacity_mb(&self) -> f32 { self.global_staging_buffer.borrow().get_capacity_mb() }
+    pub fn get_staging_buffer_used_mb(&self) -> f32 { self.global_staging_buffer.borrow().get_used_mb() }
+    pub fn get_staging_buffer_capacity_mb(&self) -> f32 { self.global_staging_buffer.borrow().get_capacity_mb() }
 
     pub fn get_graphics_cmd(&self) -> vk::CommandBuffer { self.graphics_command_buffers[self.frame_index] }
     pub fn get_transfer_cmd(&self) -> vk::CommandBuffer { self.transfer_command_buffers[self.frame_index] }
@@ -431,14 +493,14 @@ impl VulkanApp {
 
     pub fn cleanup(&mut self) {
         self.wait_idle(false);
-        
+
         self.global_staging_buffer.clone().borrow_mut().destroy(self);
 
         for garbage in &mut self.current_gargabe_list.clone() {
             self.destroy_garbage(garbage);
         }
 
-        SwapChainInfo::clear(self);  
+        SwapChainInfo::clear(self);
     }
 
     pub fn resize(&mut self, mut width: i32, mut height: i32, glfw_instance: &mut glfw::Glfw, glfw_window: &glfw::PWindow) {
@@ -453,7 +515,7 @@ impl VulkanApp {
 
     fn wait_idle(&mut self, destroy_resources: bool) {
         unsafe { self.ash_device.device_wait_idle().expect("failed to wait idle!"); }
-        
+
         if !destroy_resources {
             return
         }
@@ -463,12 +525,12 @@ impl VulkanApp {
         for info in &mut self.updates_list {
             info.used = [false; vkutl::FRAMES_COUNT];
         }
-        
+
         for garbage in &mut self.current_gargabe_list.clone() {
             self.destroy_garbage(garbage);
         }
     }
-    
+
     fn create_instance(&mut self) {
         let app_info = vk::ApplicationInfo::default()
             .application_name(c"Vulkan App")
@@ -980,6 +1042,7 @@ impl VulkanApp {
         // wait for previous frame and reset fence state
         unsafe {
             self.ash_device.wait_for_fences(&[self.frame_fence[self.frame_index]], true, u64::MAX).unwrap();
+            self.ash_device.reset_fences(&[self.frame_fence[self.frame_index]]).expect("failed to reset fence!");
 
             // get next image from swapChain
             self.image_index = self.ash_swapchain.acquire_next_image(
@@ -988,8 +1051,6 @@ impl VulkanApp {
                 self.acquire_semaphores[self.frame_index],
                 vk::Fence::null()
             ).unwrap().0 as usize;
-
-            self.ash_device.reset_fences(&[self.frame_fence[self.frame_index]]).expect("failed to reset fence!");
         };
 
         // update garbage lists
@@ -1012,7 +1073,10 @@ impl VulkanApp {
             let update_info = &mut self.updates_list[i];
 
             if update_info.can_free() {
-                self.global_staging_buffer.borrow_mut().deallocate(&mut update_info.allocated_range);
+                let mut range = update_info.allocated_range;
+                update_info.allocated_range = RangeInfo::EMPTY;
+                self.dealloc_staging_buffer_range(&mut range);
+                
                 self.updates_list.swap_remove(i);
             }
             else {
@@ -1116,18 +1180,19 @@ impl VulkanApp {
             let info = &self.updates_list[i];
 
             if info.flags.contains(BufferFlags::VRAM) {
-                self.global_staging_buffer.clone().borrow().copy_to_buffer_async(self,
+                self.copy_stagin_buffer_async(
+                    info.allocated_range,
+                    info.dst_range.len as usize,
                     info.buffers[self.frame_index],
-                    info.buffer_range.len,
-                    info.allocated_range.start + info.src_offset[self.frame_index],
-                    info.buffer_range.start,
+                    info.src_offset[self.frame_index] as usize,
+                    info.dst_range.start as usize
                 );
             }
             else {
                 self.global_staging_buffer.borrow().copy_to_memory(
                     info.allocated_range.start + info.src_offset[self.frame_index],
-                    info.buffer_range.start,
-                    info.buffer_range.len,
+                    info.dst_range.start,
+                    info.dst_range.len,
                     info.mapped_memory[self.frame_index]
                 );
             }

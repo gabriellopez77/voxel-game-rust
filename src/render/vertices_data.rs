@@ -99,6 +99,45 @@ pub const CUBE_VERTICES: [i8; 144] = [
     1, 1, 0,   1, 0, 0,
 ];
 
+// vertices, normal, face id
+pub const CLOUDS_VERTICES: [i8; 168] = [
+    // up
+    1, 1, 0,   0, 1, 0,   0,
+    0, 1, 0,   0, 1, 0,   0,
+    0, 1, 1,   0, 1, 0,   0,
+    1, 1, 1,   0, 1, 0,   0,
+
+    // down
+    1, 0, 1,   0, -1, 0,  1,
+    0, 0, 1,   0, -1, 0,  1,
+    0, 0, 0,   0, -1, 0,  1,
+    1, 0, 0,   0, -1, 0,  1,
+
+    // north
+    1, 1, 0,   0, 0, -1,  2,
+    1, 0, 0,   0, 0, -1,  2,
+    0, 0, 0,   0, 0, -1,  2,
+    0, 1, 0,   0, 0, -1,  2,
+    
+    // south
+    0, 1, 1,   0, 0, 1,   3,
+    0, 0, 1,   0, 0, 1,   3,
+    1, 0, 1,   0, 0, 1,   3,
+    1, 1, 1,   0, 0, 1,   3,
+
+    // west
+    0, 1, 0,  -1, 0, 0,   4,
+    0, 0, 0,  -1, 0, 0,   4,
+    0, 0, 1,  -1, 0, 0,   4,
+    0, 1, 1,  -1, 0, 0,   4,
+
+    // east
+    1, 1, 1,   1, 0, 0,   5,
+    1, 0, 1,   1, 0, 0,   5,
+    1, 0, 0,   1, 0, 0,   5,
+    1, 1, 0,   1, 0, 0,   5,
+];
+
 
 
 #[repr(C, align(16))]
@@ -115,7 +154,7 @@ pub struct GlobalUboData {
     // ui
     pub ui_proj: AlignedMatrix,
     pub ui_pixel_scale: f32,
-    
+
     // camera
     pub cam_proj: AlignedMatrix,
     pub cam_view: AlignedMatrix,
@@ -125,7 +164,7 @@ pub struct GlobalUboData {
     // firstPerson
     pub first_person_proj: AlignedMatrix,
     pub first_person_view: AlignedMatrix,
-    
+
     // world
     pub sky_color: AlignedVec3,
     pub fog_color: AlignedVec3,

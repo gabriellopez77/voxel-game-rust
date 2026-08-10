@@ -59,7 +59,7 @@ impl GlobalStagingBuffer {
         vma.flush_allocation(&self.allocation, range.start as u64, size as u64).unwrap();
     }
 
-    pub fn copy_to(&mut self, vma: &vk_mem::Allocator, src_offset: u32, dst_offset: u32, size: u32) {
+    pub fn copy_self(&mut self, vma: &vk_mem::Allocator, src_offset: u32, dst_offset: u32, size: u32) {
         debug_assert!(src_offset + size <= self.capacity, "Invalid src_offset!");
         debug_assert!(dst_offset + size <= self.capacity, "invalid dst_offset!");
 

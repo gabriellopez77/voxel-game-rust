@@ -118,17 +118,14 @@ impl ShadersCompiler {
         }
 
         // read include file
-        let mut include_file_path;
-
-        if Path::new(&file_name).is_absolute() {
-            include_file_path = file_name.clone();
-        }
-        else {
+        let include_file_path = if Path::new(&file_name).is_absolute() {
+            file_name.clone()
+        } else {
             let mut p = parent_dir.to_string();
 
             Self::process_include_file_path(&mut p, &mut file_name);
-            include_file_path = p;
-        }
+            p
+        };
 
         // remove #include directive from the file
         source_text.replace_range(start..=end, "");
@@ -143,11 +140,11 @@ impl ShadersCompiler {
             std::fs::read_to_string(&include_file_path).expect("error to read include file")
         });
 
-        // remove file name and file extension
-        include_file_path.replace_range(include_file_path.rfind('/').unwrap().., "");
-
+        // a slice with the file name and file extension cutted
+        let formatted_include_file_path = &include_file_path[..include_file_path.rfind('/').unwrap()];
+        
         // replace all relatives paths in file by absolutes paths
-        Self::process_logic(&mut content, &include_file_path, true);
+        Self::process_logic(&mut content, formatted_include_file_path, true);
 
         // insert include file content in source file
         source_text.insert_str(start, content);

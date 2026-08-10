@@ -1,7 +1,7 @@
 use crate::math::{Color4b, Vec2, Vec2i, Vec3};
-use crate::render::material::{self, MaterialType};
-use crate::render::{CUBE_INDICES, CUBE_VERTICES, CloudsVertices, GlobalRenderer, Material, Mesh};
-use crate::render::core::raw_buffer::BufferFlags;
+use crate::render::material::MaterialType;
+use crate::render::{CUBE_INDICES, CLOUDS_VERTICES, CloudsVertices, GlobalRenderer, Material, Mesh};
+use crate::render::core::raw_buffer::{BufferFlags, BufferResizeType};
 use crate::resources::ResourceManager;
 use crate::world::Chunk;
 
@@ -19,15 +19,13 @@ pub struct Clouds {
 }
 
 impl Clouds {
-    const MAX_CLOUDS_COUNT: usize = 2048;
-
     const CLOUDS_SIZE: i32 = 12;
     const SLICE_SIZE: i32 = 1;
     const ADDITIONAL_DISTANCE: i32 = 16;
 
     pub fn new() -> Self {
         Self {
-            instance_data: Vec::with_capacity(Self::MAX_CLOUDS_COUNT),
+            instance_data: Vec::new(),
             renderer: None,
 
             clouds_chunk: Vec2i::ZERO,
@@ -41,8 +39,8 @@ impl Clouds {
 
     pub fn start(&mut self, resources: &ResourceManager, global_renderer: &mut GlobalRenderer) {
         let (mut mesh, material) = global_renderer.create_mesh_material("clouds", MaterialType::Alpha);
-        mesh.set(&CUBE_VERTICES, &CUBE_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
-        mesh.create_instance_buffer(size_of::<CloudsVertices>() * Self::MAX_CLOUDS_COUNT, None, BufferFlags::VRAM | BufferFlags::RARE_UPDATE);
+        mesh.set(&CLOUDS_VERTICES, &CUBE_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
+        mesh.create_instance_buffer(size_of::<CloudsVertices>() * 64, None, BufferFlags::VRAM | BufferFlags::RARE_UPDATE);
         self.renderer = Some((mesh, material));
 
 
@@ -81,15 +79,10 @@ impl Clouds {
         let (image_prefix, color_middle, image_suffix) = unsafe { self.image_data.align_to::<Color4b>() };
 
         // check if cast is valid
-        if !image_prefix.is_empty() || !image_suffix.is_empty() { panic!("Cannot cast images pixels [u8] to [Color4b]") }
-
+        assert!(image_prefix.is_empty() && image_suffix.is_empty(), "Cannot cast images pixels [u8] to [Color4b]");
 
         for x in start.x..=end.x {
             for z in start.y..=end.y {
-                if self.instance_data.len() >= Self::MAX_CLOUDS_COUNT {
-                    continue;
-                }
-
                 let mut norm_x = x.abs() % (self.image_width / Self::SLICE_SIZE);
                 let mut norm_z = z.abs() % (self.image_height / Self::SLICE_SIZE);
 
@@ -98,7 +91,7 @@ impl Clouds {
                 norm_z = if z < 0 { if norm_z == 0 { 0 } else { self.image_height / Self::SLICE_SIZE - norm_z } } else { norm_z };
 
                 // if pixel is transparent then we not draw it
-                if color_middle[Self::get_pixel_index(norm_x, norm_z)].a == 0 { continue }
+                if color_middle[self.get_pixel_index(norm_x, norm_z)].a == 0 { continue }
 
 
                 let cullface = self.get_clouds_cullface(&color_middle, norm_x, norm_z);
@@ -113,7 +106,7 @@ impl Clouds {
         }
 
         // update instances data
-        self.renderer.as_mut().unwrap().0.update_instance_buffer(&self.instance_data);
+        self.renderer.as_mut().unwrap().0.update_instance_buffer(&self.instance_data, BufferResizeType::Discard);
     }
 
     pub fn draw(&self, global_renderer: &mut GlobalRenderer) {
@@ -129,38 +122,26 @@ impl Clouds {
         }
     }
 
-    fn get_pixel_index(x: i32, z: i32) -> usize { x as usize + 256 * z as usize }
+    fn get_pixel_index(&self, x: i32, z: i32) -> usize { (x + self.image_width * z) as usize }
 
     fn get_clouds_cullface(&self, data: &[Color4b], x: i32, z: i32) -> u8 {
-        let mut cullface = 0;
+        let mut cullface: u8 = 0b00000011;
 
-        const NORTH_FLAG: u8 = 1;
-        const SOUTH_FLAG: u8 = 1 << 1;
-        const WEST_FLAG: u8 = 1 << 2;
-        const EAST_FLAG: u8 = 1 << 3;
+        const NORTH_FLAG: u8 = 1 << 2;
+        const SOUTH_FLAG: u8 = 1 << 3;
+        const WEST_FLAG: u8 = 1 << 4;
+        const EAST_FLAG: u8 = 1 << 5;
 
-        if z > 0 {
-            let north = (data[Self::get_pixel_index(x, z - 1)].a == 0) as u8;
-            cullface |= north;
-        }
+        if z > 0 { cullface |= ((data[self.get_pixel_index(x, z - 1)].a == 0) as u8) << 2 }
         else if z == 0 { cullface |= NORTH_FLAG }
 
-        if z < self.image_height - 1 {
-            let south = (data[Self::get_pixel_index(x, z + 1)].a == 0) as u8;
-            cullface |= south << 1;
-        }
+        if z < self.image_height - 1 { cullface |= ((data[self.get_pixel_index(x, z + 1)].a == 0) as u8) << 3 }
         else if z == self.image_height -1 { cullface |= SOUTH_FLAG }
 
-        if x > 0 {
-            let west = (data[Self::get_pixel_index(x - 1, z)].a == 0) as u8;
-            cullface |= west << 2;
-        }
+        if x > 0 {cullface |= ((data[self.get_pixel_index(x - 1, z)].a == 0) as u8) << 4 }
         else if x == 0 { cullface |= WEST_FLAG }
 
-        if x < self.image_width - 1 {
-            let east = (data[Self::get_pixel_index(x + 1, z)].a == 0) as u8;
-            cullface |= east << 3;
-        }
+        if x < self.image_width - 1 { cullface |= ((data[self.get_pixel_index(x + 1, z)].a == 0) as u8) << 5 }
         else if x == self.image_width -1 { cullface |= EAST_FLAG }
 
         return cullface;

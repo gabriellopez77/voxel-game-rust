@@ -210,13 +210,12 @@ impl ResourceManager {
             Err(err) => panic!("Error to read Dir: '{path}': {}", err.to_string()),
         };
 
-        let mut files_path: Vec<PathBuf> = vec!();
+        let mut files_path: Vec<PathBuf> = Vec::new();
 
         for file in dir {
             let file_path = file.unwrap().path();
-            let file_extension = file_path.extension();
 
-            if file_extension.is_some()  && file_extension.unwrap() == extension {
+            if let Some(file_extension) = file_path.extension() && file_extension == extension {
                 files_path.push(file_path);
             }
         }

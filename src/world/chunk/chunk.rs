@@ -1,5 +1,4 @@
 ﻿use std::sync::{Arc, RwLock};
-use std::sync::atomic::AtomicI32;
 use crate::math::{self, Vec3, Vec3i};
 use crate::render::{BlockItemVertices, ChunkRenderer, ChunkVertices, GlobalRenderer};
 use crate::utils::SafePtr;
@@ -34,8 +33,6 @@ pub struct Chunk {
 
     pub renderer: Option<ChunkRenderer>,
     pub inside_frustum: bool,
-
-    using_count: AtomicI32,
 }
 
 impl Chunk {
@@ -56,8 +53,6 @@ impl Chunk {
 
             renderer: None,
             inside_frustum: false,
-
-            using_count: AtomicI32::new(0)
         }
     }
 
@@ -74,9 +69,6 @@ impl Chunk {
             renderer.erase();
         }
     }
-
-    pub fn lock(&self) { self.using_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst); }
-    pub fn unlock(&self) { self.using_count.fetch_sub(1, std::sync::atomic::Ordering::SeqCst); }
 
     pub fn gen_mesh(mesh_result: &mut ChunkMeshResult, blocks_manager: &BlocksManager) {
         let chunk_data = &*mesh_result.chunk_data.read().unwrap();
@@ -206,6 +198,7 @@ impl Chunk {
 
 			if ambient_occlusion && dir != Directions::Nothing {
 			    let chunk_block = chunk_block.as_vec3i();
+
                 ao_level1 = Self::get_ao_level(chunk_data, neighbors, chunk_block, vert1.vertices, dir, 1);
                 ao_level2 = Self::get_ao_level(chunk_data, neighbors, chunk_block, vert2.vertices, dir, 2);
                 ao_level3 = Self::get_ao_level(chunk_data, neighbors, chunk_block, vert3.vertices, dir, 3);

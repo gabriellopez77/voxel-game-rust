@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, mem::offset_of, rc::Rc};
 use ash::{vk, vk::Handle};
 
-use crate::{math::Vec3, render::{BlockItemVertices, ChunkVertices, CloudsVertices, DrawInfo, GlobalUboData, Material, Mesh, ParticlesVertices, SkyBodiesVertices, SpritesVertices, TextVertices, Ubo, material::MaterialType, mesh::BuffersTypes}, resources::{ResourceManager, ShadersCompiler}, utils::SafePtrMut};
+use crate::{math::Vec3, render::{BlockItemVertices, ChunkVertices, CloudsVertices, DrawInfo, GlobalUboData, Material, Mesh, ParticlesVertices, SkyBodiesVertices, SpritesVertices, TextVertices, Ubo, core::raw_buffer::BufferResizeType, material::MaterialType, mesh::BuffersTypes}, resources::{ResourceManager, ShadersCompiler}, utils::SafePtrMut};
 use super::core::{vkutl, VulkanApp, DescriptorSet, GraphicsPipeline, PipelineSettings, PipelineLayout, raw_buffer::BufferFlags};
 
 
@@ -133,9 +133,10 @@ impl GlobalRenderer {
             let mut settings = PipelineSettings::new(r"clouds");
             settings.enable_blend = true;
             settings.add_descriptor_set(&self.global_descriptor);
-            settings.vertex_info(6 * size_of::<i8>(), false)
+            settings.vertex_info(7 * size_of::<i8>(), false)
                .add_attrib(vk::Format::R8G8B8_SINT, 0)
-               .add_attrib(vk::Format::R8G8B8_SINT, 3 * size_of::<i8>());
+               .add_attrib(vk::Format::R8G8B8_SINT, 3 * size_of::<i8>())
+               .add_attrib(vk::Format::R8_SINT, 6 * size_of::<i8>());
             settings.vertex_info(size_of::<CloudsVertices>(), true)
                 .add_attrib(vk::Format::R32G32_SFLOAT, offset_of!(CloudsVertices, position))
                 .add_attrib(vk::Format::R8_UINT, offset_of!(CloudsVertices, cullface));
@@ -260,22 +261,27 @@ impl GlobalRenderer {
             self.push_constant_idx = self.push_constant_list.len() as i32;
             self.push_constant_list.push((size as u8, [0u8; vkutl::MAX_PUSH_CONSTANT_SIZE]));
         }
-        
+
         let (push_size, push_data) = &mut self.push_constant_list[self.push_constant_idx as usize];
         *push_size = (*push_size).max((offset + size) as u8);
 
         unsafe {
             std::ptr::copy_nonoverlapping(data as _, push_data.as_mut_ptr().byte_add(offset), size);
-        } 
+        }
     }
 
     pub fn draw_instanced(&mut self, mesh: &Mesh, material: &Material, instance_count: usize) {
         self.prepare_draw_info(mesh, material, instance_count);
     }
 
-    pub fn draw_instanced_with_buffer<T>(&mut self, mesh: &mut Mesh, material: &Material, instance_data: &mut Vec<T>) {
+    pub fn draw_instanced_with_buffer<T>(&mut self,
+        mesh: &mut Mesh,
+        material: &Material,
+        instance_data: &mut Vec<T>,
+        resize_type: BufferResizeType
+    ) {
         if self.prepare_draw_info(mesh, material, instance_data.len()) {
-            mesh.update_instance_buffer(&instance_data);
+            mesh.update_instance_buffer(&instance_data, resize_type);
             instance_data.clear();
         }
     }
@@ -291,7 +297,7 @@ impl GlobalRenderer {
         }
 
         let pipeline = &*material.pipeline.borrow();
-        
+
         let draw_info = DrawInfo {
             pipeline: pipeline.get_pipeline(),
             pipeline_layout: pipeline.pipeline_layout.get_layout(),
@@ -445,6 +451,7 @@ impl GlobalRenderer {
                 //    first_instance: 0,
                 //};
 
+                
                 vulkan_app.ash_device.cmd_draw_indexed(command_buffer,
                     draw_info.index_count,
                     draw_info.instance_count,

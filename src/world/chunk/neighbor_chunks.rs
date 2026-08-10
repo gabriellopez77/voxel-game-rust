@@ -49,8 +49,6 @@ impl NeighborChunks {
         if self.chunk_pos != pos || self.first_time {
             self.first_time = false;
 
-            self.dispose();
-
             self.disposable = false;
 
             self.north = planet.get_chunk_int(pos.x, pos.y, pos.z - 1);
@@ -58,46 +56,14 @@ impl NeighborChunks {
             self.west = planet.get_chunk_int(pos.x - 1, pos.y, pos.z);
             self.east = planet.get_chunk_int(pos.x + 1, pos.y, pos.z);
 
-            if let Some(ref north) = self.north { north.borrow().lock() }
-            if let Some(ref south) = self.south { south.borrow().lock() }
-            if let Some(ref west) = self.west { west.borrow().lock() }
-            if let Some(ref east) = self.east { east.borrow().lock() }
-
             if corners {
                 self.northwest = planet.get_chunk_int(pos.x - 1, pos.y, pos.z - 1);
                 self.northeast = planet.get_chunk_int(pos.x + 1, pos.y, pos.z - 1);
                 self.southwest = planet.get_chunk_int(pos.x - 1, pos.y, pos.z + 1);
                 self.southeast = planet.get_chunk_int(pos.x + 1, pos.y, pos.z + 1);
-
-                if let Some(ref northwest) = self.northwest { northwest.borrow().lock() }
-                if let Some(ref northeast) = self.northeast { northeast.borrow().lock() }
-                if let Some(ref southwest) = self.southwest { southwest.borrow().lock() }
-                if let Some(ref southeast) = self.southeast { southeast.borrow().lock() }
             }
         }
 
         self.chunk_pos = pos;
-    }
-
-    pub fn dispose(&mut self) {
-        if self.disposable { return }
-
-        if let Some(ref north) = self.north { north.borrow().unlock() }
-        if let Some(ref south) = self.south { south.borrow().unlock() }
-        if let Some(ref west) = self.west { west.borrow().unlock() }
-        if let Some(ref east) = self.east { east.borrow().unlock() }
-
-        if let Some(ref northwest) = self.northwest { northwest.borrow().unlock() }
-        if let Some(ref northeast) = self.northeast { northeast.borrow().unlock() }
-        if let Some(ref southwest) = self.southwest { southwest.borrow().unlock() }
-        if let Some(ref southeast) = self.southeast { southeast.borrow().unlock() }
-
-        self.disposable = true;
-    }
-}
-
-impl Drop for NeighborChunks {
-    fn drop(&mut self) {
-        self.dispose();
     }
 }
