@@ -1,7 +1,7 @@
 use crate::math::{Color4b, Vec2, Vec2i, Vec3};
 use crate::render::material::MaterialType;
 use crate::render::{CUBE_INDICES, CLOUDS_VERTICES, CloudsVertices, GlobalRenderer, Material, Mesh};
-use crate::render::core::raw_buffer::{BufferFlags, BufferResizeType};
+use crate::render::core::raw_buffer::{BufferFlags, BufferResizeMode};
 use crate::resources::ResourceManager;
 use crate::world::Chunk;
 
@@ -106,7 +106,7 @@ impl Clouds {
         }
 
         // update instances data
-        self.renderer.as_mut().unwrap().0.update_instance_buffer(&self.instance_data, BufferResizeType::Discard);
+        self.renderer.as_mut().unwrap().0.update_instance_buffer(&self.instance_data, BufferResizeMode::Discard);
     }
 
     pub fn draw(&self, global_renderer: &mut GlobalRenderer) {

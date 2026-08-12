@@ -1,14 +1,14 @@
 use std::{array, sync::{Arc, RwLock}};
 
-use crate::{math::Vec3i, render::{ChunkVertices, chunk_renderer::RendererType}, world::{Chunk, Planet, chunk::{ChunkData, neighbors_data::NeighborsData}}};
+use crate::{math::Vec3i, render::{ChunkVertices, chunks_renderer::ChunksRendererType}, resources::ResourceManager, world::{Chunk, Planet, chunk::{ChunkData, neighbors_data::NeighborsData}}};
 
 
 pub struct ChunkMeshResult {
     pub neighbors_data: NeighborsData,
     pub chunk_data: Arc<RwLock<ChunkData>>,
 
-    pub vertices: [Vec<ChunkVertices>; RendererType::RENDERS_COUNT],
-    pub indices: [Vec<u32>; RendererType::RENDERS_COUNT],
+    pub vertices: [Vec<ChunkVertices>; ChunksRendererType::RENDERS_COUNT],
+    pub indices: [Vec<u32>; ChunksRendererType::RENDERS_COUNT],
 
     pub chunk_pos: Vec3i,
 }
@@ -27,31 +27,12 @@ impl ChunkMeshResult {
     }
 
     pub fn gen_indices(&mut self) {
-        for i in 0..RendererType::RENDERS_COUNT {
-            let indices = &mut self.indices[i];
+        for i in 0..ChunksRendererType::RENDERS_COUNT {
             let vertices = &self.vertices[i];
 
             if vertices.is_empty() { continue }
 
-            let indices_count = vertices.len() / 4;
-
-            if indices.capacity() < indices_count * 6 {
-                indices.reserve(indices_count * 6);
-            }
-
-            let mut current_index: u32 = 0;
-
-            for _ in 0..indices_count {
-                indices.push(current_index + 0);
-                indices.push(current_index + 1);
-                indices.push(current_index + 3);
-
-                indices.push(current_index + 1);
-                indices.push(current_index + 2);
-                indices.push(current_index + 3);
-
-                current_index += 4;
-            }
+            ResourceManager::gen_indices(vertices.len(), &mut self.indices[i]);
         }
     }
 

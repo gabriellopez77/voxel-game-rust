@@ -89,6 +89,8 @@ impl DescriptorSet {
         let mut images_infos = vec![vk::DescriptorImageInfo::default(); self.layouts.len()];
         let mut indexing_images_info: Vec<Vec<vk::DescriptorImageInfo>> = vec![Vec::new(); self.layouts.len()];
 
+        let now = std::time::Instant::now();
+        
         for i in 0..vkutl::FRAMES_COUNT {
             let mut ubos_index = 0;
             let mut images_index = 0;
@@ -145,6 +147,8 @@ impl DescriptorSet {
 
             descriptor_writes.clear();
         }
+
+        println!("{}", now.elapsed().as_micros());
     }
 
     pub fn destroy(&mut self, app: &mut VulkanApp) {

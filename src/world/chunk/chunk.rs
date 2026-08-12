@@ -1,6 +1,6 @@
 ﻿use std::sync::{Arc, RwLock};
 use crate::math::{self, Vec3, Vec3i};
-use crate::render::{BlockItemVertices, ChunkRenderer, ChunkVertices, GlobalRenderer};
+use crate::render::{BlockItemVertices, ChunkMesh, ChunkVertices, ChunksRenderer, GlobalRenderer, MultiMesh};
 use crate::utils::SafePtr;
 use crate::world::blocks::{BlockProperties, BlockTypes, BlocksManager};
 use crate::world::chunk::neighbors_data::NeighborsData;
@@ -31,7 +31,7 @@ pub struct Chunk {
 
     pub chunk_data: Arc<RwLock<ChunkData>>,
 
-    pub renderer: Option<ChunkRenderer>,
+    pub renderer: Option<ChunkMesh>,
     pub inside_frustum: bool,
 }
 
@@ -60,13 +60,13 @@ impl Chunk {
         world_gen.gen_data(self.position, &mut self.chunk_data.write().unwrap(), blocks_manager);
     }
 
-    pub fn draw(&mut self, dt: f32, global_renderer: &mut GlobalRenderer) {
-        self.renderer.as_mut().unwrap().draw(dt, global_renderer);
+    pub fn draw(&mut self, dt: f32, renderer: &mut ChunksRenderer) {
+        self.renderer.as_mut().unwrap().draw(dt, renderer);
     }
 
-    pub fn erase(&mut self) {
-        if let Some(ref mut renderer) = self.renderer {
-            renderer.erase();
+    pub fn erase(&mut self, renderer: &mut ChunksRenderer) {
+        if let Some(ref mut mesh_info) = self.renderer {
+            mesh_info.erase(renderer);
         }
     }
 

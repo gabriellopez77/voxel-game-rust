@@ -1,4 +1,4 @@
-use crate::render::core::raw_buffer::BufferResizeType;
+use crate::render::core::raw_buffer::BufferResizeMode;
 use crate::render::material::MaterialType;
 use crate::render::{GlobalRenderer, Material, Mesh, SPRITES_INDICES, SPRITES_VERTICES, SpritesVertices, TextVertices};
 use super::core::raw_buffer::BufferFlags;
@@ -37,10 +37,10 @@ impl UiRenderer {
 
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
         let sprites_renderer = self.sprites_renderer.as_mut().unwrap();
-        global_renderer.draw_instanced_with_buffer(&mut sprites_renderer.0, &sprites_renderer.1, &mut self.sprites_instance_data, BufferResizeType::Discard);
+        global_renderer.draw_instanced_with_buffer(&mut sprites_renderer.0, &sprites_renderer.1, &mut self.sprites_instance_data, BufferResizeMode::Discard);
 
         let text_renderer = self.text_renderer.as_mut().unwrap();
-        global_renderer.draw_instanced_with_buffer(&mut text_renderer.0, &text_renderer.1, &mut self.text_instance_data, BufferResizeType::Discard);
+        global_renderer.draw_instanced_with_buffer(&mut text_renderer.0, &text_renderer.1, &mut self.text_instance_data, BufferResizeMode::Discard);
     }
 
     pub fn cleanup(&mut self) {

@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use rand::{RngExt, rngs::ThreadRng};
 
-use crate::{math::{Vec2, Vec3}, render::{self, GlobalRenderer, Material, Mesh, PARTICLES_VERTICES, ParticlesVertices, SPRITES_INDICES, core::raw_buffer::{BufferFlags, BufferResizeType}, material::MaterialType::{self}}, resources::ResourceManager, utils::NullSafePtr, world::{blocks::BlockProperties, particles::{BlockDestroy, ParticleBase, ParticleFunc}}};
+use crate::{math::{Vec2, Vec3}, render::{self, GlobalRenderer, Material, Mesh, PARTICLES_VERTICES, ParticlesVertices, SPRITES_INDICES, core::raw_buffer::{BufferFlags, BufferResizeMode}, material::MaterialType::{self}}, resources::ResourceManager, utils::NullSafePtr, world::{blocks::BlockProperties, particles::{BlockDestroy, ParticleBase, ParticleFunc}}};
 
 
 struct ParticlesInfo {
@@ -90,7 +90,7 @@ impl ParticlesManager {
         }
 
         let renderer = self.renderer.as_mut().unwrap();
-        global_renderer.draw_instanced_with_buffer(&mut renderer.0, &renderer.1, &mut self.instance_data, BufferResizeType::Discard);
+        global_renderer.draw_instanced_with_buffer(&mut renderer.0, &renderer.1, &mut self.instance_data, BufferResizeMode::Discard);
     }
 
     pub fn spawn(&mut self, args: ParticlesSpawnArgs) {

@@ -153,7 +153,8 @@ impl ResourceManager {
         unified_vertices.extend_from_slice(&model.west_vertices);
         unified_vertices.extend_from_slice(&model.east_vertices);
 
-        let indices = Self::gen_indices(unified_vertices.len());
+        let mut indices = Vec::new();
+        Self::gen_indices(unified_vertices.len(), &mut indices);
 
         let mesh = Rc::new(RefCell::new(Mesh::new(SafePtrMut::from_ptr(self.app.get_raw()))));
         mesh.borrow_mut().set(&unified_vertices, &indices, BufferFlags::VRAM | BufferFlags::ONCE);
@@ -263,24 +264,26 @@ impl ResourceManager {
         return (vertices, indices);
     }
 
-    pub fn gen_indices(vertices_len: usize) -> Vec<u32> {
+    pub fn gen_indices(vertices_len: usize, vec: &mut Vec<u32>) {
         let indices_count = vertices_len / 4;
+        let required_capacity = indices_count * 6;
+        
+        if vec.capacity() < required_capacity {
+            vec.reserve(required_capacity);
+        }
 
-        let mut indices = Vec::with_capacity(indices_count * 6);
         let mut current_index = 0;
 
         for _ in 0..indices_count {
-            indices.push(current_index + 0);
-            indices.push(current_index + 1);
-            indices.push(current_index + 3);
+            vec.push(current_index + 0);
+            vec.push(current_index + 1);
+            vec.push(current_index + 3);
 
-            indices.push(current_index + 1);
-            indices.push(current_index + 2);
-            indices.push(current_index + 3);
+            vec.push(current_index + 1);
+            vec.push(current_index + 2);
+            vec.push(current_index + 3);
 
             current_index += 4;
         }
-
-        return indices;
     }
 }

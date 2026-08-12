@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
 use crate::math::{Vec3, Vec3i, self};
 
-use crate::render::{ChunkRenderer, ChunkVertices, GlobalRenderer};
+use crate::render::{ChunkMesh, ChunkVertices, ChunksRenderer, GlobalRenderer};
 use crate::resources::Worker;
 use crate::utils::{NullSafePtr, ObjectPool, SafePtr};
 use crate::world::Aabb;
@@ -47,6 +47,8 @@ pub struct Planet {
 
     chunks_mesh_worker: Worker<Box<RefCell<ChunkMeshResult>>>,
     chunks_gen_worker: Worker<Box<RefCell<Chunk>>>,
+
+    pub chunks_renderer: ChunksRenderer,
 }
 
 impl Planet {
@@ -77,16 +79,20 @@ impl Planet {
 
             chunks_mesh_worker: Worker::new(),
             chunks_gen_worker: Worker::new(),
+
+            chunks_renderer: ChunksRenderer::new(),
         }
     }
 
-    pub fn start(&mut self, blocks_manager: &BlocksManager) {
+    pub fn start(&mut self, blocks_manager: &BlocksManager, global_renderer: &mut GlobalRenderer) {
         self.blocks_manager = NullSafePtr::new(blocks_manager);
 
         self.chunks_mesh_worker.start();
         self.chunks_gen_worker.start();
 
         self.world_gen.lock().unwrap().start(blocks_manager);
+
+        self.chunks_renderer.start(global_renderer);
     }
 
     pub fn stop(&mut self) {
@@ -97,7 +103,7 @@ impl Planet {
     pub fn cleanup(&mut self) {
         for (_, chunk) in &mut self.chunks {
             if let Some(chunk) = chunk {
-                chunk.borrow_mut().erase();
+                chunk.borrow_mut().erase(&mut self.chunks_renderer);
             }
         }
 
@@ -117,8 +123,8 @@ impl Planet {
     pub fn update(&mut self, player_pos: Vec3) {
         let player_chunk = math::get_chunk_pos(player_pos);
 
-        if self.last_player_chunk != player_chunk || self.change_chunk_logic {
-        //if self.change_chunk_logic {
+        //if self.last_player_chunk != player_chunk || self.change_chunk_logic {
+        if self.change_chunk_logic {
             self.change_chunk_logic(player_chunk);
         }
 
@@ -156,7 +162,7 @@ impl Planet {
             self.visible_chunks.push(chunk_arc.clone());
 
             if ch.renderer.is_none() {
-                ch.renderer = Some(ChunkRenderer::new(global_renderer));
+                ch.renderer = Some(ChunkMesh::new());
                 ch.chunk_data.write().unwrap().regen_mesh = true;
             }
 
@@ -180,9 +186,13 @@ impl Planet {
             }
         }
 
+
         for ch in &self.visible_chunks {
-            ch.borrow_mut().draw(dt, global_renderer);
+            ch.borrow_mut().draw(dt, &mut self.chunks_renderer);
         }
+
+        self.chunks_renderer.draw(global_renderer);
+
     }
 
     pub fn get_blocks_hitboxes(&mut self, aabb: &Aabb) -> &Vec<Aabb> {
@@ -210,7 +220,7 @@ impl Planet {
 
         let mut chunk_getter = ChunkGetter::new();
         let blocks_manager = SafePtr::from_ptr(self.blocks_manager.get_raw());
-        
+
         for x in x0..x1 {
         for y in y0..y1 {
         for z in z0..z1 {
@@ -242,7 +252,7 @@ impl Planet {
     ) {
         let mut chunk_getter = ChunkGetter::new();
         let blocks_manager = SafePtr::from_ptr(self.blocks_manager.get_raw());
-        
+
         // 1. Initialize current voxel coordinate
         let mut block_pos = Vec3::new(
             ray_origin.x.floor(),
@@ -374,7 +384,7 @@ impl Planet {
         while let Some(mesh_result) = self.chunks_mesh_worker.get_finalized_task() {
             if let Some(ch) = self.get_chunk(mesh_result.borrow().chunk_pos) &&
                 let Some(ref mut ch_renderer) = ch.borrow_mut().renderer {
-                ch_renderer.update_mesh(&mesh_result.borrow());
+                ch_renderer.update_mesh(&mesh_result.borrow(), &mut self.chunks_renderer);
             }
 
             mesh_result.into_inner().restore(self);
@@ -406,7 +416,7 @@ impl Planet {
         for ch in &self.remove_chunks_list {
             let mut ch_borrow = ch.borrow_mut();
 
-            ch_borrow.erase();
+            ch_borrow.erase(&mut self.chunks_renderer);
             self.chunk_data_pool.restore(ch_borrow.chunk_data.clone());
             self.chunks.remove(&ch_borrow.position);
         }

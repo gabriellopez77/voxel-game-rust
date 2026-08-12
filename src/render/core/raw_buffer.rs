@@ -6,7 +6,7 @@ use super::{vkutl, VulkanApp};
 
 
 #[derive(Copy, Clone, Eq, PartialEq)]
-pub enum BufferResizeType {
+pub enum BufferResizeMode {
     Discard,
     Preserve,
 }
@@ -43,7 +43,7 @@ impl BitOr for BufferFlags {
     }
 }
 
-
+#[derive(Clone)]
 pub struct RawBuffer {
     pub usage: vk::BufferUsageFlags,
     pub flags: BufferFlags,
@@ -85,7 +85,7 @@ impl RawBuffer {
     }
 
     pub fn get_mapped_memory(&self, frame_index: usize) -> *mut u8 {
-        assert!(self.flags.contains(BufferFlags::ONCE), "ONCE buffer have not mapped memory");
+        assert!(!self.flags.contains(BufferFlags::ONCE), "ONCE buffer have not mapped memory");
 
         // SAFETY: frame_index is always 0..vkutl::FRAMES_COUNT
         return unsafe { *self.mapped_memory.get_unchecked(frame_index) };
@@ -120,7 +120,7 @@ impl RawBuffer {
 
                 (self.buffers[i], self.allocations[i]) = vkutl::create_buffer(app,
                     size,
-                    vk::BufferUsageFlags::TRANSFER_DST | usage,
+                    vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::TRANSFER_SRC | usage,
                     &allocation_info, !flags.contains(BufferFlags::ONCE)
                 );
 
@@ -220,7 +220,7 @@ impl RawBuffer {
         size: usize,
         offset: usize,
         data: *const u8,
-        resize_type: BufferResizeType
+        resize_mode: BufferResizeMode
     ) {
         debug_assert!(!data.is_null(), "Data is null!");
         debug_assert!(!self.flags.contains(BufferFlags::ONCE), "Buffers that constains ONCE flag cant be updated!");
@@ -233,21 +233,27 @@ impl RawBuffer {
                 new_size += size;
             }
 
-            println!("Buffer Resized! {} -> {}", self.size, new_size);
-            
-            if resize_type == BufferResizeType::Preserve {
-                app.resize_buffer_preserve_content(self, new_size);
-            }
-            else {
-                let usage = self.usage;
-                let flags = self.flags;
-                
-                self.destroy(app);
-                self.create(app, new_size, std::ptr::null(), usage, flags);
-            }   
+            self.resize(app, new_size, resize_mode);
         }
 
         self.update(app, size, offset, data);
+    }
+
+    pub fn resize(&mut self, app: &mut VulkanApp, new_size: usize, resize_mode: BufferResizeMode) {
+        assert!(new_size > self.size, "invalid new size");
+        
+        println!("Buffer Resized! {} -> {}", self.size, new_size);
+        
+        if resize_mode == BufferResizeMode::Preserve {
+            app.resize_buffer_preserve_content(self, new_size);
+        }
+        else {
+            let usage = self.usage;
+            let flags = self.flags;
+            
+            self.destroy(app);
+            self.create(app, new_size, std::ptr::null(), usage, flags);
+        }
     }
 
     fn update_with_index(&mut self, app: &mut VulkanApp, index: usize, size: usize, offset: usize, data: *const u8) {

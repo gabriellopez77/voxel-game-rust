@@ -40,7 +40,7 @@ impl World {
 
         self.player.start();
 
-        self.planet.start(&self.blocks_manager);
+        self.planet.start(&self.blocks_manager, global_renderer);
 
         self.sky.start(resources, global_renderer);
         self.particles_manager.start(resources, global_renderer);
@@ -65,6 +65,14 @@ impl World {
     }
 
     pub fn draw(&mut self, dt: f32, global_renderer: &mut GlobalRenderer) {
+        self.sky.draw(global_renderer);
+        self.player.selection_box.draw(global_renderer);
+        self.player.first_person.draw(global_renderer);
+        self.planet.draw(dt, &self.player.camera, global_renderer);
+        self.particles_manager.draw(global_renderer, self.player.camera.rot);
+
+        self.player.camera.view_changed = false;
+
         let ubo = &mut global_renderer.global_ubo;
 
         // cam matrix
@@ -84,15 +92,6 @@ impl World {
 
         // world
         ubo.data.render_distance = self.planet.render_distance as f32;
-
-
-        self.sky.draw(global_renderer);
-        self.player.selection_box.draw(global_renderer);
-        self.player.first_person.draw(global_renderer);
-        self.planet.draw(dt, &self.player.camera, global_renderer);
-        self.particles_manager.draw(global_renderer, self.player.camera.rot);
-
-        self.player.camera.view_changed = false;
     }
 
     pub fn cleanup(&mut self) {
@@ -102,6 +101,7 @@ impl World {
         self.player.selection_box.cleanup();
         self.player.first_person.cleanup();
         self.particles_manager.cleanup();
+        self.planet.chunks_renderer.cleanup();
     }
 
     pub fn leave(&mut self) {

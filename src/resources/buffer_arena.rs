@@ -130,6 +130,7 @@ impl BufferArena {
         *range = RangeInfo::EMPTY;
     }
 
+    /// None if arena have not capacity for the new reange
     pub fn find_range(&mut self, size: u32) -> Option<RangeInfo> {
         let range = self.find_range_with_margin(size);
 
@@ -138,6 +139,16 @@ impl BufferArena {
         }
 
         return range;
+    }
+
+    /// if arena have not capacity for the new range, then resize it and return the range
+    pub fn find_range_and_resize(&mut self, size: u32) -> RangeInfo {
+        if let Some(range) = self.find_range(size) {
+            return range;
+        }
+
+        self.grow(size);
+        return self.find_range(size).unwrap();
     }
 
     pub fn refind_range(&mut self, range: &mut RangeInfo, new_size: u32) -> Result<(), ()> {

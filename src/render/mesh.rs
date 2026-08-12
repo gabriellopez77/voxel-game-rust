@@ -1,6 +1,6 @@
 ﻿use std::array;
 use ash::vk;
-use crate::{render::core::raw_buffer::BufferResizeType, utils::SafePtrMut};
+use crate::{render::core::raw_buffer::BufferResizeMode, utils::SafePtrMut};
 
 use super::core::{vkutl, VulkanApp, raw_buffer::BufferFlags, RawBuffer};
 
@@ -8,7 +8,9 @@ use super::core::{vkutl, VulkanApp, raw_buffer::BufferFlags, RawBuffer};
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum BuffersTypes {
     Vertex,
-    Instance,
+
+    /// instance / indirect
+    Custom,
     Index,
 }
 
@@ -39,7 +41,7 @@ impl Mesh {
         }
     }
 
-    pub fn get_triangles_count(&self) -> u32 { self.triangles_count }
+    pub fn get_index_count(&self) -> u32 { self.triangles_count }
 
     pub fn get_buffers(&self, frame_index: usize) -> [vk::Buffer; vkutl::MAX_VERTEX_BINDING_COUNT + 1] {
         let mut buffers = [vk::Buffer::null(); vkutl::MAX_VERTEX_BINDING_COUNT + 1];
@@ -57,7 +59,7 @@ impl Mesh {
             indices.len() * size_of::<u32>(),
             indices.as_ptr() as _,
             flags,
-            BufferResizeType::Discard
+            BufferResizeMode::Discard
         );
         
         self.update_or_realloc(
@@ -65,25 +67,25 @@ impl Mesh {
             vertices.len() * size_of::<T>(),
             vertices.as_ptr() as _,
             flags,
-            BufferResizeType::Discard
+            BufferResizeMode::Discard
         );
     }
 
     pub fn create_instance_buffer(&mut self, size: usize, data: Option<*const u8>, flags: BufferFlags) {
-        self.create_buffer(BuffersTypes::Instance, size, data.unwrap_or(std::ptr::null()), flags);
+        self.create_buffer(BuffersTypes::Custom, size, data.unwrap_or(std::ptr::null()), flags);
     }
 
     pub fn create_instance_buffer_from_arr<T>(&mut self, arr: &[T], flags: BufferFlags) {
         self.create_instance_buffer(size_of::<T>() * arr.len(), Some(arr.as_ptr() as _), flags);
     }
 
-    pub fn update_instance_buffer<T>(&mut self, arr: &[T], resize_type: BufferResizeType) {
+    pub fn update_instance_buffer<T>(&mut self, arr: &[T], resize_mode: BufferResizeMode) {
         if arr.len() > 0 {
             self.update_and_resize_buffer(
-                BuffersTypes::Instance,
+                BuffersTypes::Custom,
                 arr.len() * size_of::<T>(),
                 arr.as_ptr() as _,
-                resize_type
+                resize_mode
             );
         }
     }
@@ -104,7 +106,7 @@ impl Mesh {
         size: usize,
         data: *const u8,
         flags: BufferFlags,
-        resize_type: BufferResizeType
+        resize_mode: BufferResizeMode
     ) {
         let buffer = &mut self.raw_buffers[buffer_type as usize];
         let mut usage = vk::BufferUsageFlags::VERTEX_BUFFER;
@@ -121,7 +123,7 @@ impl Mesh {
             buffer.create(&mut self.app, size, data, usage, flags);
         }
         else {
-            self.update_and_resize_buffer(buffer_type, size, data, resize_type);
+            self.update_and_resize_buffer(buffer_type, size, data, resize_mode);
         }
     }
 
@@ -129,12 +131,12 @@ impl Mesh {
         buffer_type: BuffersTypes,
         size: usize,
         data: *const u8,
-        resize_type: BufferResizeType
+        resize_mode: BufferResizeMode
     ) {
         if buffer_type == BuffersTypes::Index {
             self.triangles_count = (size / 4) as u32
         }
 
-        self.raw_buffers[buffer_type as usize].update_and_resize(&mut self.app, size, 0, data, resize_type);
+        self.raw_buffers[buffer_type as usize].update_and_resize(&mut self.app, size, 0, data, resize_mode);
     }
 }

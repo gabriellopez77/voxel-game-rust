@@ -134,30 +134,29 @@ impl FirstPerson {
 
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
         if let Some((model, mesh)) = &self.model_info {
-            let mut model_matrix = Matrix4::IDENTITY;
+            //let mut model_matrix = Matrix4::IDENTITY;
 
-            //if self.last_item_id == 0 {
+            // if self.last_item_id == 0 {
             //    model_matrix.translatev(self.hand_position);
             //    model_matrix.translatev(self.hand_scale * 0.5);
             //    model_matrix.rotatev_xyz(self.hand_rotation);
             //    model_matrix.translatev(self.hand_scale * -0.5);
             //    model_matrix.scalev(self.hand_scale);
-            //}
-            //else {
+            // }
+            // else {
             //    model_matrix = model_matrix * model.first_person_display;
-            //}
+            // }
 
-            //if self.last_item_id == 0 {
-            //    
+            // if self.last_item_id == 0 {
+
             //   //model_matrix = model_matrix * self.anim_result * model.first_person_display;
-            //}
-            //else {
-            //    
-            //}
-            // 
-            
-            model_matrix = model_matrix * model.first_person_display * self.anim_result;
-            //model_matrix = model_matrix * self.anim_result;
+            // }
+            // else {
+
+            // }
+
+
+            let model_matrix = model.first_person_display * self.anim_result;
 
             global_renderer.set_push_constant(0, &model_matrix);
             global_renderer.draw(&mesh.borrow(), self.material.as_ref().unwrap());

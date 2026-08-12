@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, mem::offset_of, rc::Rc};
 use ash::{vk, vk::Handle};
 
-use crate::{math::Vec3, render::{BlockItemVertices, ChunkVertices, CloudsVertices, DrawInfo, GlobalUboData, Material, Mesh, ParticlesVertices, SkyBodiesVertices, SpritesVertices, TextVertices, Ubo, core::raw_buffer::BufferResizeType, material::MaterialType, mesh::BuffersTypes}, resources::{ResourceManager, ShadersCompiler}, utils::SafePtrMut};
+use crate::{math::Vec3, render::{BlockItemVertices, ChunkVertices, CloudsVertices, DrawInfo, GlobalUboData, Material, Mesh, MultiMesh, ParticlesVertices, SkyBodiesVertices, SpritesVertices, TextVertices, Ubo, core::raw_buffer::BufferResizeMode, draw_info::DrawType, material::MaterialType, mesh::BuffersTypes}, resources::{ResourceManager, ShadersCompiler}, utils::SafePtrMut};
 use super::core::{vkutl, VulkanApp, DescriptorSet, GraphicsPipeline, PipelineSettings, PipelineLayout, raw_buffer::BufferFlags};
 
 
@@ -11,8 +11,6 @@ pub struct GlobalRenderer {
     pub global_ubo: Ubo<GlobalUboData>,
     pub global_descriptor: DescriptorSet,
     pipelines: HashMap<&'static str, Rc<RefCell<GraphicsPipeline>>>,
-
-    chunks_pipeline: Option<Rc<RefCell<GraphicsPipeline>>>,
 
     sky_draw_list: Vec<DrawInfo>,
     chunks_opaque_draw_list: Vec<DrawInfo>,
@@ -42,8 +40,6 @@ impl GlobalRenderer {
             global_ubo: Ubo::new(),
             global_descriptor: DescriptorSet::new(),
             pipelines: HashMap::new(),
-
-            chunks_pipeline: None,
 
             sky_draw_list: Vec::new(),
             chunks_opaque_draw_list: Vec::new(),
@@ -211,10 +207,7 @@ impl GlobalRenderer {
             self.create_pipeline_layout(&mut settings.pipeline_layout);
             self.pipelines.insert("firstPerson", Rc::new(RefCell::new(GraphicsPipeline::create(&self.app, &mut shaders_compiler, settings))));
         }
-
-        self.chunks_pipeline = Some(self.pipelines.get("chunks").unwrap().clone());
     }
-
 
     pub fn cleanup(&mut self) {
         self.global_descriptor.destroy(&mut self.app);
@@ -243,13 +236,15 @@ impl GlobalRenderer {
         Mesh::new(self.app.clone())
     }
 
+    pub fn create_multi_mesh(&self, vertices_size: usize) -> MultiMesh {
+        MultiMesh::new(self.app.clone(), vertices_size)
+    }
+    
     pub fn create_material(&mut self, pipeline_name: &'static str, material_type: MaterialType) -> Material {
         Material::new(self.app.clone(), self.pipelines.get(pipeline_name).unwrap().clone(), material_type)
     }
 
-    pub fn create_chunk_material(&mut self, material_type: MaterialType) -> Material {
-        Material::new(self.app.clone(), self.chunks_pipeline.as_ref().unwrap().clone(), material_type)
-    }
+    
 
     pub fn set_push_constant<T>(&mut self, offset: usize, data: *const T) {
         let size = size_of::<T>();
@@ -270,63 +265,47 @@ impl GlobalRenderer {
         }
     }
 
+    pub fn draw_multi_mesh(&mut self, multi_mesh: &MultiMesh, material: &Material, profile_idx: usize) {
+        self.prepare_draw_info(
+            material,
+            multi_mesh.get_buffers(self.frame_index, profile_idx),
+            DrawType::Indirect(multi_mesh.get_profile_draw_count(profile_idx))
+        );
+    }
+
     pub fn draw_instanced(&mut self, mesh: &Mesh, material: &Material, instance_count: usize) {
-        self.prepare_draw_info(mesh, material, instance_count);
+        self.prepare_draw_info(
+            material,
+            mesh.get_buffers(self.frame_index),
+            DrawType::Default(mesh.get_index_count(), instance_count as u32)
+        );
     }
 
     pub fn draw_instanced_with_buffer<T>(&mut self,
         mesh: &mut Mesh,
         material: &Material,
         instance_data: &mut Vec<T>,
-        resize_type: BufferResizeType
-    ) {
-        if self.prepare_draw_info(mesh, material, instance_data.len()) {
-            mesh.update_instance_buffer(&instance_data, resize_type);
+        resize_mode: BufferResizeMode
+    ) {   
+        if self.prepare_draw_info(
+            material,
+            mesh.get_buffers(self.frame_index),
+            DrawType::Default(mesh.get_index_count(), instance_data.len() as u32)
+        ) {
+            mesh.update_instance_buffer(&instance_data, resize_mode);
             instance_data.clear();
         }
     }
 
     pub fn draw(&mut self, mesh: &Mesh, material: &Material) {
-        self.prepare_draw_info(mesh, material, 1);
+        self.prepare_draw_info(
+            material,
+            mesh.get_buffers(self.frame_index),
+            DrawType::Default(mesh.get_index_count(), 1)
+        );
     }
 
-    fn prepare_draw_info(&mut self, mesh: &Mesh, material: &Material, instance_count: usize) -> bool {
-        if instance_count == 0 || mesh.get_triangles_count() == 0 {
-            self.push_constant_idx = -1;
-            return false;
-        }
 
-        let pipeline = &*material.pipeline.borrow();
-
-        let draw_info = DrawInfo {
-            pipeline: pipeline.get_pipeline(),
-            pipeline_layout: pipeline.pipeline_layout.get_layout(),
-            descriptors_sets: *pipeline.pipeline_layout.get_descriptors_sets(self.frame_index),
-            descriptors_count: pipeline.pipeline_layout.descriptors_count,
-
-            buffers: mesh.get_buffers(self.frame_index),
-
-            index_count: mesh.get_triangles_count(),
-            instance_count: instance_count as u32,
-
-            push_constant_idx: self.push_constant_idx,
-        };
-
-        self.push_constant_idx = -1;
-
-        match material.get_type() {
-            MaterialType::ChunksOpaque => self.chunks_opaque_draw_list.push(draw_info),
-            MaterialType::ChunksAlpha => self.chunks_alpha_draw_list.push(draw_info),
-            MaterialType::Opaque => self.opaque_draw_list.push(draw_info),
-            MaterialType::Alpha => self.alpha_draw_list.push(draw_info),
-            MaterialType::Sky => self.sky_draw_list.push(draw_info),
-            MaterialType::Ui => self.ui_draw_list.push(draw_info),
-            MaterialType::Particle => self.particle_draw_list.push(draw_info),
-            MaterialType::FirstPerson => self.first_person_draw_list.push(draw_info),
-        }
-
-        return true;
-    }
 
     pub fn begin(&mut self) {
         self.push_constant_list.clear();
@@ -350,6 +329,7 @@ impl GlobalRenderer {
         self.opaque_draw_list.sort();
         self.alpha_draw_list.sort();
         //println!("{}", now.elapsed().as_micros());
+
         //let now = std::time::Instant::now();
         self.render(&self.sky_draw_list);
         self.render(&self.chunks_opaque_draw_list);
@@ -429,7 +409,7 @@ impl GlobalRenderer {
             let offsets = [0u64; vkutl::MAX_VERTEX_BINDING_COUNT];
 
             unsafe {
-                let count = if draw_info.buffers[BuffersTypes::Instance as usize].is_null() { 1 } else { 2 };
+                let count = if draw_info.buffers[BuffersTypes::Custom as usize].is_null() || matches!(draw_info.draw_type, DrawType::Indirect(_)) { 1 } else { 2 };
 
                 vulkan_app.ash_device.cmd_bind_vertex_buffers(command_buffer,
                     0,
@@ -443,21 +423,65 @@ impl GlobalRenderer {
                     vk::IndexType::UINT32
                 );
 
-                //let d = vk::DrawIndexedIndirectCommand {
-                //    index_count: draw_info.index_count,
-                //    instance_count: 1,
-                //    first_index: 0, // range.start in index buffer
-                //    vertex_offset: 0, // range.start in vertices buffer
-                //    first_instance: 0,
-                //};
 
+                match draw_info.draw_type {
+                    DrawType::Default(index_count, instance_count) => {
+                        vulkan_app.ash_device.cmd_draw_indexed(command_buffer,
+                            index_count,
+                            instance_count,
+                            0, 0, 0
+                        );
+                    }
+                    DrawType::Indirect(draw_count) => {
+                        vulkan_app.ash_device.cmd_draw_indexed_indirect(command_buffer,
+                            draw_info.buffers[BuffersTypes::Custom as usize],
+                            0,
+                            draw_count,
+                            size_of::<vk::DrawIndexedIndirectCommand>() as u32
+                        );
+                    }
+                }
                 
-                vulkan_app.ash_device.cmd_draw_indexed(command_buffer,
-                    draw_info.index_count,
-                    draw_info.instance_count,
-                    0, 0, 0
-                );
             }
         }
+    }
+
+    fn prepare_draw_info(&mut self, material: &Material, buffers: [vk::Buffer; 3], draw_type: DrawType) -> bool {
+        let push_constant_idx = self.push_constant_idx;
+        self.push_constant_idx = -1;
+
+        match draw_type {
+            DrawType::Default(index_count, instance_count) => if index_count == 0 || instance_count == 0 { return false }
+            DrawType::Indirect(draw_count) => if draw_count == 0 { return false }
+        }
+
+        let pipeline = &*material.pipeline.borrow();
+
+        let draw_info = DrawInfo {
+            pipeline: pipeline.get_pipeline(),
+            pipeline_layout: pipeline.pipeline_layout.get_layout(),
+            descriptors_sets: *pipeline.pipeline_layout.get_descriptors_sets(self.frame_index),
+            descriptors_count: pipeline.pipeline_layout.descriptors_count,
+
+            buffers,
+
+            draw_type,
+
+            push_constant_idx: push_constant_idx,
+        };
+
+
+        match material.get_type() {
+            MaterialType::ChunksOpaque => self.chunks_opaque_draw_list.push(draw_info),
+            MaterialType::ChunksAlpha => self.chunks_alpha_draw_list.push(draw_info),
+            MaterialType::Opaque => self.opaque_draw_list.push(draw_info),
+            MaterialType::Alpha => self.alpha_draw_list.push(draw_info),
+            MaterialType::Sky => self.sky_draw_list.push(draw_info),
+            MaterialType::Ui => self.ui_draw_list.push(draw_info),
+            MaterialType::Particle => self.particle_draw_list.push(draw_info),
+            MaterialType::FirstPerson => self.first_person_draw_list.push(draw_info),
+        }
+
+        return true;
     }
 }

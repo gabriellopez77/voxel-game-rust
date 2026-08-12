@@ -200,12 +200,14 @@ impl VulkanApp {
 
         let usage = buffer.usage;
         let flags = buffer.flags;
-        
+
         let mut new_buffer = RawBuffer::new();
         new_buffer.create(self, new_size, ptr::null(), usage, flags);
 
         for i in 0..vkutl::FRAMES_COUNT {
             if flags.contains(BufferFlags::VRAM) {
+                if buffer.size == 0 { continue }
+
                 vkutl::copy_buffer_async(self,
                     buffer.get_buffer(self.frame_index),
                     new_buffer.get_buffer(i),
@@ -213,14 +215,16 @@ impl VulkanApp {
                     0,
                     0
                 );
-    
+
                 // create a barrier to guarantee that the copy has be successfully
                 let barrier = vk::BufferMemoryBarrier::default()
                     .src_access_mask(vk::AccessFlags::TRANSFER_WRITE)
                     .dst_access_mask(vk::AccessFlags::TRANSFER_WRITE)
+                    .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+                    .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
                     .buffer(new_buffer.get_buffer(i))
                     .size(buffer.size as u64);
-    
+
                 unsafe {
                     self.ash_device.cmd_pipeline_barrier(self.get_transfer_cmd(),
                         vk::PipelineStageFlags::TRANSFER,
@@ -256,7 +260,7 @@ impl VulkanApp {
         buffer.destroy(self);
         *buffer = new_buffer;
     }
-    
+
     pub fn update_buffer(&mut self, buffer: &RawBuffer, data: *const u8, offset: usize, size: usize) {
         debug_assert!(buffer.flags.contains(BufferFlags::RARE_UPDATE), "invalid buffer");
         assert!(size > 0, "invalid buffer size");
@@ -281,18 +285,18 @@ impl VulkanApp {
             // the old range is equal to new range, old update is unnecessary
             if new_range.start == old_range.start && new_range.len == old_range.len {
                 update_info.need_update[self.frame_index] = false;
-                println!("1");
+                //println!("1");
             }
             // the old range is completely within the new range, old update is unnecessary
             else if new_range.start <= old_range.start && new_range.end() >= old_range.end() {
                 update_info.need_update[self.frame_index] = false;
-                println!("2");
+                //println!("2");
             }
-            // the new range start before old range.end(),
+            // the new range starts before old range.end(),
             // then we change the old range len to end before new_range.start
             else if new_range.start >= old_range.start && new_range.end() >= old_range.end() {
-                update_info.dst_range.len = update_info.dst_range.end() - new_range.start;
-                println!("3");
+                update_info.dst_range.len = new_range.start - update_info.dst_range.start;
+                //println!("3");
             }
             // the new range start before old_range.start and ends before old_range.end(),
             // then we change the old_range.start to new_range.end() and update his len
@@ -302,7 +306,7 @@ impl VulkanApp {
 
                 assert!(update_info.dst_range.len > 0, "Invalid update len: 0");
 
-                println!("4");
+                //println!("4");
             }
             // the new range is completely within the old range,
             // then we divide the old range in two new ranges: left and right
@@ -332,7 +336,7 @@ impl VulkanApp {
                 right_info.need_update[self.frame_index] = true;
 
                 self.updates_list.push(right_info);
-                println!("5");
+                //println!("5");
             }
             else {
                 panic!("Error");
@@ -696,7 +700,8 @@ impl VulkanApp {
             .shader_sampled_image_array_non_uniform_indexing(true);
 
         let features = vk::PhysicalDeviceFeatures::default()
-            .wide_lines(true);
+            .wide_lines(true)
+            .multi_draw_indirect(true);
 
         // get queue families indices supported by physical device
         let indices = self.find_queue_families(self.physical_device);
@@ -1020,6 +1025,7 @@ impl VulkanApp {
         let pool_info = vk::DescriptorPoolCreateInfo::default()
             .pool_sizes(&POOL_SIZES)
             .max_sets(MAX_SETS_IN_DESCRIPTORS);
+        //.flags(vk::DescriptorPoolCreateFlags::UPDATE_AFTER_BIND);
 
 
         self.descriptor_pool = unsafe {
@@ -1076,7 +1082,7 @@ impl VulkanApp {
                 let mut range = update_info.allocated_range;
                 update_info.allocated_range = RangeInfo::EMPTY;
                 self.dealloc_staging_buffer_range(&mut range);
-                
+
                 self.updates_list.swap_remove(i);
             }
             else {
@@ -1173,6 +1179,7 @@ impl VulkanApp {
         // updates buffers
         for i in (0..self.updates_list.len()).rev() {
             if !self.updates_list[i].need_update[self.frame_index] { continue }
+            if self.updates_list[i].dst_range.len == 0 { continue }
 
             self.updates_list[i].need_update[self.frame_index] = false;
             self.updates_list[i].used[self.frame_index] = true;

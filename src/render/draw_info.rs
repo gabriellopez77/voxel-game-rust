@@ -2,6 +2,10 @@ use ash::vk;
 
 use crate::render::core::vkutl;
 
+pub enum DrawType {
+    Indirect(u32),
+    Default(u32, u32)
+}
 
 pub struct DrawInfo {
     pub pipeline: vk::Pipeline,
@@ -11,8 +15,7 @@ pub struct DrawInfo {
 
     pub buffers: [vk::Buffer; vkutl::MAX_VERTEX_BINDING_COUNT + 1],
 
-    pub index_count: u32,
-    pub instance_count: u32,
+    pub draw_type: DrawType,
 
     pub push_constant_idx: i32,
 }
