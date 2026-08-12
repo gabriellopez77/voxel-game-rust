@@ -6,14 +6,14 @@ use super::core::{VulkanApp, GraphicsPipeline};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum MaterialType {
+    Sky,
     ChunksOpaque,
     ChunksAlpha,
     Opaque,
     Alpha,
-    Ui,
-    Sky,
     Particle,
     FirstPerson,
+    Ui,
 }
 
 pub struct Material {

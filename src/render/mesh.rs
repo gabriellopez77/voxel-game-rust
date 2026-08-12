@@ -17,7 +17,7 @@ pub enum BuffersTypes {
 pub struct Mesh {
     app: SafePtrMut<VulkanApp>,
     
-    raw_buffers: [RawBuffer; vkutl::MAX_VERTEX_BINDING_COUNT + 1],
+    raw_buffers: [RawBuffer; vkutl::MAX_BUFFERS_REQUIRED_TO_DRAW_COUNT],
 
     triangles_count: u32,
 }
@@ -43,10 +43,10 @@ impl Mesh {
 
     pub fn get_index_count(&self) -> u32 { self.triangles_count }
 
-    pub fn get_buffers(&self, frame_index: usize) -> [vk::Buffer; vkutl::MAX_VERTEX_BINDING_COUNT + 1] {
-        let mut buffers = [vk::Buffer::null(); vkutl::MAX_VERTEX_BINDING_COUNT + 1];
+    pub fn get_buffers(&self, frame_index: usize) -> [vk::Buffer; vkutl::MAX_BUFFERS_REQUIRED_TO_DRAW_COUNT] {
+        let mut buffers = [vk::Buffer::null(); vkutl::MAX_BUFFERS_REQUIRED_TO_DRAW_COUNT];
 
-        for i in 0..vkutl::MAX_VERTEX_BINDING_COUNT + 1 {
+        for i in 0..vkutl::MAX_BUFFERS_REQUIRED_TO_DRAW_COUNT {
             buffers[i] = self.raw_buffers[i].get_buffer(frame_index);
         }
 

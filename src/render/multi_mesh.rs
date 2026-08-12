@@ -82,7 +82,7 @@ impl MultiMesh {
         }
     }
 
-    pub fn get_buffers(&self, frame_index: usize, profile_idx: usize) -> [vk::Buffer; vkutl::MAX_VERTEX_BINDING_COUNT + 1] {
+    pub fn get_buffers(&self, frame_index: usize, profile_idx: usize) -> [vk::Buffer; vkutl::MAX_BUFFERS_REQUIRED_TO_DRAW_COUNT] {
         return [
             self.vertices_buffer.get_buffer(frame_index),
             self.profiles.get(profile_idx).buffer.get_buffer(frame_index),

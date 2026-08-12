@@ -23,7 +23,7 @@ struct BufferDuplicateUpdateInfo {
 
     pub buffers: [vk::Buffer; vkutl::FRAMES_COUNT],
     pub mapped_memory: [*mut u8; vkutl::FRAMES_COUNT],
-    pub src_offset: [u32; vkutl::FRAMES_COUNT],
+    pub src_offset: [u32; vkutl::FRAMES_COUNT], // addional offset (allocated_range.start + src_offset[self.frame_index])
     pub need_update: [bool; vkutl::FRAMES_COUNT],
     pub used: [bool; vkutl::FRAMES_COUNT],
 
@@ -293,18 +293,18 @@ impl VulkanApp {
                 //println!("2");
             }
             // the new range starts before old range.end(),
-            // then we change the old range len to end before new_range.start
+            // then we change the old range len to ends before new_range.start
             else if new_range.start >= old_range.start && new_range.end() >= old_range.end() {
-                update_info.dst_range.len = new_range.start - update_info.dst_range.start;
+                update_info.dst_range.len = new_range.start - old_range.start;
                 //println!("3");
             }
             // the new range start before old_range.start and ends before old_range.end(),
             // then we change the old_range.start to new_range.end() and update his len
             else if new_range.start <= old_range.start && new_range.end() <= old_range.end() {
+                let src_offset = new_range.end() - old_range.start;
+                
                 update_info.dst_range = RangeInfo::new(new_range.end(), old_range.end() - new_range.end());
-                update_info.src_offset[self.frame_index] = new_range.end();
-
-                assert!(update_info.dst_range.len > 0, "Invalid update len: 0");
+                update_info.src_offset[self.frame_index] = src_offset;
 
                 //println!("4");
             }
@@ -336,11 +336,9 @@ impl VulkanApp {
                 right_info.need_update[self.frame_index] = true;
 
                 self.updates_list.push(right_info);
-                //println!("5");
+                println!("5");
             }
-            else {
-                panic!("Error");
-            }
+            else { panic!("invalid range!") }
 
             self.updates_list[i] = update_info;
         }

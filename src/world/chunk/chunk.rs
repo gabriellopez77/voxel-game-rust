@@ -1,6 +1,6 @@
 ﻿use std::sync::{Arc, RwLock};
 use crate::math::{self, Vec3, Vec3i};
-use crate::render::{BlockItemVertices, ChunkMesh, ChunkVertices, ChunksRenderer, GlobalRenderer, MultiMesh};
+use crate::render::{BlockItemVertices, ChunkMesh, ChunkVertices, ChunksRenderer};
 use crate::utils::SafePtr;
 use crate::world::blocks::{BlockProperties, BlockTypes, BlocksManager};
 use crate::world::chunk::neighbors_data::NeighborsData;

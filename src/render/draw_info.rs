@@ -13,7 +13,7 @@ pub struct DrawInfo {
     pub descriptors_sets: [vk::DescriptorSet; vkutl::MAX_DESCRIPTORS_BINDING_COUNT],
     pub descriptors_count: u32,
 
-    pub buffers: [vk::Buffer; vkutl::MAX_VERTEX_BINDING_COUNT + 1],
+    pub buffers: [vk::Buffer; vkutl::MAX_BUFFERS_REQUIRED_TO_DRAW_COUNT],
 
     pub draw_type: DrawType,
 
