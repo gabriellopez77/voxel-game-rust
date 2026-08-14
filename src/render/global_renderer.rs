@@ -265,7 +265,7 @@ impl GlobalRenderer {
         }
     }
 
-    pub fn draw_multi_mesh(&mut self, multi_mesh: &MultiMesh, material: &Material, profile_idx: usize) {
+    pub fn draw_multi_mesh(&mut self, multi_mesh: &MultiMesh, material: &mut Material, profile_idx: usize) {
         self.prepare_draw_info(
             material,
             multi_mesh.get_buffers(self.frame_index, profile_idx),
@@ -273,7 +273,7 @@ impl GlobalRenderer {
         );
     }
 
-    pub fn draw_instanced(&mut self, mesh: &Mesh, material: &Material, instance_count: usize) {
+    pub fn draw_instanced(&mut self, mesh: &Mesh, material: &mut Material, instance_count: usize) {
         self.prepare_draw_info(
             material,
             mesh.get_buffers(self.frame_index),
@@ -283,7 +283,7 @@ impl GlobalRenderer {
 
     pub fn draw_instanced_with_buffer<T>(&mut self,
         mesh: &mut Mesh,
-        material: &Material,
+        material: &mut Material,
         instance_data: &mut Vec<T>,
         resize_mode: BufferResizeMode
     ) {
@@ -297,7 +297,7 @@ impl GlobalRenderer {
         }
     }
 
-    pub fn draw(&mut self, mesh: &Mesh, material: &Material) {
+    pub fn draw(&mut self, mesh: &Mesh, material: &mut Material) {
         self.prepare_draw_info(
             material,
             mesh.get_buffers(self.frame_index),
@@ -453,7 +453,7 @@ impl GlobalRenderer {
     }
 
     fn prepare_draw_info(&mut self,
-        material: &Material,
+        material: &mut Material,
         buffers: [vk::Buffer; vkutl::MAX_BUFFERS_REQUIRED_TO_DRAW_COUNT],
         draw_type: DrawType
     ) -> bool {

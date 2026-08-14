@@ -53,10 +53,10 @@ impl SelectionBox {
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
         if !self.visible { return }
 
-        let renderer = self.renderer.as_ref().unwrap();
+        let renderer = self.renderer.as_mut ().unwrap();
         global_renderer.set_push_constant(0, &self.position);
         global_renderer.set_push_constant(size_of::<Vec4>(), &self.size);
-        global_renderer.draw(&renderer.0, &renderer.1);
+        global_renderer.draw(&renderer.0, &mut renderer.1);
 
     }
 }

@@ -10,6 +10,7 @@ pub struct PipelineSettings {
     pub vertex_shader_path: String,
     pub fragment_shader_path: String,
 
+    pub pipeline_layout: PipelineLayout,
     //pub dynamic_states: Option<&'a [vk::DynamicState]>,
 
     pub cull_mode: vk::CullModeFlags,
@@ -20,8 +21,6 @@ pub struct PipelineSettings {
 
     bindings_info: [vk::VertexInputBindingDescription; vkutl::MAX_VERTEX_BINDING_COUNT],
     attributes_info: [vk::VertexInputAttributeDescription; vkutl::MAX_VERTEX_ATTRIBUTES_COUNT],
-
-    pub pipeline_layout: PipelineLayout,
 
     current_location: u32,
     current_binding: u32,

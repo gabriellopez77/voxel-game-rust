@@ -159,7 +159,7 @@ impl FirstPerson {
             let model_matrix = model.first_person_display * self.anim_result;
 
             global_renderer.set_push_constant(0, &model_matrix);
-            global_renderer.draw(&mesh.borrow(), self.material.as_ref().unwrap());
+            global_renderer.draw(&mesh.borrow(), self.material.as_mut().unwrap());
         }
     }
 

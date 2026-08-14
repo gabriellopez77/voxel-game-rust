@@ -11,7 +11,7 @@ pub struct Clouds {
     renderer: Option<(Mesh, Material)>,
 
     clouds_chunk: Vec2i,
-    
+
     first_time: bool,
 
     image_data: Vec<u8>,
@@ -31,7 +31,7 @@ impl Clouds {
             renderer: None,
 
             clouds_chunk: Vec2i::ZERO,
-            
+
             first_time: true,
 
             image_data: Vec::new(),
@@ -77,13 +77,13 @@ impl Clouds {
 
         let start = self.clouds_chunk - (c + Self::ADDITIONAL_DISTANCE);
         let end = self.clouds_chunk + (c + Self::ADDITIONAL_DISTANCE);
-  
+
         // cast image pixels [u8] to [Color4b]
         let (image_prefix, color_middle, image_suffix) = unsafe { self.image_data.align_to::<Color4b>() };
 
         // check if cast is valid
         assert!(image_prefix.is_empty() && image_suffix.is_empty(), "Cannot cast images pixels [u8] to [Color4b]");
-        
+
         for x in start.x..=end.x {
             for z in start.y..=end.y {
                 let mut norm_x = x.abs() % (self.image_width / Self::SLICE_SIZE);
@@ -112,10 +112,10 @@ impl Clouds {
         self.renderer.as_mut().unwrap().0.update_instance_buffer(&self.instance_data, BufferResizeMode::Discard);
     }
 
-    pub fn draw(&self, global_renderer: &mut GlobalRenderer) {
-        let renderer = self.renderer.as_ref().unwrap();
+    pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
+        let renderer = self.renderer.as_mut().unwrap();
 
-        global_renderer.draw_instanced(&renderer.0, &renderer.1, self.instance_data.len());
+        global_renderer.draw_instanced(&renderer.0, &mut renderer.1, self.instance_data.len());
     }
 
     fn get_clouds_chunk(global_coords: Vec3) -> Vec2i {

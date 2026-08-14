@@ -21,7 +21,7 @@ impl ChunksRenderer {
     pub fn new() -> Self {
         Self {
             multi_mesh: None,
-            
+
             materials: None
         }
     }
@@ -30,7 +30,7 @@ impl ChunksRenderer {
         let mut multi_mesh =  global_renderer.create_multi_mesh(size_of::<ChunkVertices>());
         multi_mesh.start(BufferFlags::VRAM | BufferFlags::RARE_UPDATE);
         multi_mesh.create_profile(BufferFlags::RAM);
-        
+
         self.multi_mesh = Some(multi_mesh);
 
         self.materials = Some([
@@ -50,7 +50,7 @@ impl ChunksRenderer {
 
         *info = multi_mesh.add_mesh(
             &mesh_result.vertices[render_type as usize],
-            &mesh_result.indices[render_type as usize],  
+            &mesh_result.indices[render_type as usize],
         );
     }
 
@@ -66,11 +66,11 @@ impl ChunksRenderer {
 
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
         let multi_mesh = self.multi_mesh.as_mut().unwrap();
-                
+
         for i in 0..ChunksRendererType::RENDERS_COUNT {
             multi_mesh.update_profile(i);
 
-            global_renderer.draw_multi_mesh(multi_mesh, &self.materials.as_ref().unwrap()[i], i);
+            global_renderer.draw_multi_mesh(multi_mesh, &mut self.materials.as_mut().unwrap()[i], i);
         }
     }
 }

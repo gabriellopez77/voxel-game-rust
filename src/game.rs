@@ -48,7 +48,7 @@ pub struct Game {
 
     events_queue: VecDeque<GameEvents>,
 
-    pub imgui_renderer: Option<imgui_rs_vulkan_renderer::Renderer>,
+    //pub imgui_renderer: Option<imgui_rs_vulkan_renderer::Renderer>,
 }
 
 impl Game {
@@ -67,7 +67,7 @@ impl Game {
 
             events_queue: VecDeque::new(),
 
-            imgui_renderer: None,
+            //imgui_renderer: None,
         }
     }
 

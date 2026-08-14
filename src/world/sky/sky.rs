@@ -183,7 +183,7 @@ impl Sky {
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
         // draw sky dome
         let renderer = self.renderer.as_mut().unwrap();
-        global_renderer.draw(&renderer.0, &renderer.1);
+        global_renderer.draw(&renderer.0, &mut renderer.1);
 
         // draw stars, sun, moon and clouds
         self.sky_bodies.draw(global_renderer);

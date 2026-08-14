@@ -90,7 +90,7 @@ impl ParticlesManager {
         }
 
         let renderer = self.renderer.as_mut().unwrap();
-        global_renderer.draw_instanced_with_buffer(&mut renderer.0, &renderer.1, &mut self.instance_data, BufferResizeMode::Discard);
+        global_renderer.draw_instanced_with_buffer(&mut renderer.0, &mut renderer.1, &mut self.instance_data, BufferResizeMode::Discard);
     }
 
     pub fn spawn(&mut self, args: ParticlesSpawnArgs) {
