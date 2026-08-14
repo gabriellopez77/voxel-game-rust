@@ -239,12 +239,12 @@ impl GlobalRenderer {
     pub fn create_multi_mesh(&self, vertices_size: usize) -> MultiMesh {
         MultiMesh::new(self.app.clone(), vertices_size)
     }
-    
+
     pub fn create_material(&mut self, pipeline_name: &'static str, material_type: MaterialType) -> Material {
         Material::new(self.app.clone(), self.pipelines.get(pipeline_name).unwrap().clone(), material_type)
     }
 
-    
+
 
     pub fn set_push_constant<T>(&mut self, offset: usize, data: *const T) {
         let size = size_of::<T>();
@@ -286,7 +286,7 @@ impl GlobalRenderer {
         material: &Material,
         instance_data: &mut Vec<T>,
         resize_mode: BufferResizeMode
-    ) {   
+    ) {
         if self.prepare_draw_info(
             material,
             mesh.get_buffers(self.frame_index),
@@ -409,16 +409,8 @@ impl GlobalRenderer {
             let offsets = [0u64; vkutl::MAX_VERTEX_BINDING_COUNT];
 
             unsafe {
-                let count = if draw_info.buffers[BuffersTypes::Custom as usize].is_null() || matches!(draw_info.draw_type, DrawType::Indirect(_)) { 1 } else { 2 };
-
-                vulkan_app.ash_device.cmd_bind_vertex_buffers(command_buffer,
-                    0,
-                    &draw_info.buffers[0..count],
-                    &offsets[0..count],
-                );
-
                 vulkan_app.ash_device.cmd_bind_index_buffer(command_buffer,
-                    draw_info.buffers[BuffersTypes::Index as usize],
+                    draw_info.index_buffer,
                     0,
                     vk::IndexType::UINT32
                 );
@@ -426,6 +418,14 @@ impl GlobalRenderer {
 
                 match draw_info.draw_type {
                     DrawType::Default(index_count, instance_count) => {
+                        let count = if draw_info.buffers[BuffersTypes::Custom as usize].is_null() { 1 } else { 2 };
+
+                        vulkan_app.ash_device.cmd_bind_vertex_buffers(command_buffer,
+                            0,
+                            &draw_info.buffers[0..count],
+                            &offsets[0..count],
+                        );
+
                         vulkan_app.ash_device.cmd_draw_indexed(command_buffer,
                             index_count,
                             instance_count,
@@ -433,6 +433,12 @@ impl GlobalRenderer {
                         );
                     }
                     DrawType::Indirect(draw_count) => {
+                        vulkan_app.ash_device.cmd_bind_vertex_buffers(command_buffer,
+                            0,
+                            &draw_info.buffers[0..2],
+                            &offsets[0..2],
+                        );
+
                         vulkan_app.ash_device.cmd_draw_indexed_indirect(command_buffer,
                             draw_info.buffers[BuffersTypes::Custom as usize],
                             0,
@@ -441,12 +447,16 @@ impl GlobalRenderer {
                         );
                     }
                 }
-                
+
             }
         }
     }
 
-    fn prepare_draw_info(&mut self, material: &Material, buffers: [vk::Buffer; 3], draw_type: DrawType) -> bool {
+    fn prepare_draw_info(&mut self,
+        material: &Material,
+        buffers: [vk::Buffer; vkutl::MAX_BUFFERS_REQUIRED_TO_DRAW_COUNT],
+        draw_type: DrawType
+    ) -> bool {
         let push_constant_idx = self.push_constant_idx;
         self.push_constant_idx = -1;
 
@@ -463,7 +473,8 @@ impl GlobalRenderer {
             descriptors_sets: *pipeline.pipeline_layout.get_descriptors_sets(self.frame_index),
             descriptors_count: pipeline.pipeline_layout.descriptors_count,
 
-            buffers,
+            buffers: [buffers[BuffersTypes::Vertex as usize], buffers[BuffersTypes::Custom as usize]],
+            index_buffer: buffers[BuffersTypes::Index as usize],
 
             draw_type,
 

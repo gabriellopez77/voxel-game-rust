@@ -5,6 +5,7 @@
 #define UI_FONTS_TEXTURE_IDX (2)
 #define SKY_BODIES_TEXTURE_IDX (3)
 
+
 layout(set = 0, binding = 0) uniform sampler2D GLOBAL_TEXTURES[];
 
 vec4 bindlessTexture(uint idx, vec2 uv)

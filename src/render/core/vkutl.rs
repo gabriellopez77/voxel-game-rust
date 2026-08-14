@@ -5,8 +5,8 @@ use super::vulkan_app::VulkanApp;
 
 
 // core
-pub const V_SYNC: bool = true;
-pub const VALIDATION_LAYERS_ENABLED: bool = true;
+pub const V_SYNC: bool = false;
+pub const VALIDATION_LAYERS_ENABLED: bool = false;
 pub const FRAMES_COUNT: usize = 2;
 pub const SWAPCHAIN_IMAGES_COUNT: usize = 3;
 

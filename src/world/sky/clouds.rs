@@ -11,6 +11,7 @@ pub struct Clouds {
     renderer: Option<(Mesh, Material)>,
 
     clouds_chunk: Vec2i,
+    
     first_time: bool,
 
     image_data: Vec<u8>,
@@ -20,6 +21,7 @@ pub struct Clouds {
 
 impl Clouds {
     const CLOUDS_SIZE: i32 = 12;
+    const CLOUDS_SIZEF: f32 = 12.0;
     const SLICE_SIZE: i32 = 1;
     const ADDITIONAL_DISTANCE: i32 = 16;
 
@@ -29,6 +31,7 @@ impl Clouds {
             renderer: None,
 
             clouds_chunk: Vec2i::ZERO,
+            
             first_time: true,
 
             image_data: Vec::new(),
@@ -70,17 +73,17 @@ impl Clouds {
         self.instance_data.clear();
 
 
-        let c = (render_distance as f32 * Chunk::CHUNK_SIZEF.x / (Self::SLICE_SIZE as f32 * Self::CLOUDS_SIZE as f32)).ceil() as i32;
+        let c = (render_distance as f32 * Chunk::CHUNK_SIZEF.x / (Self::SLICE_SIZE as f32 * Self::CLOUDS_SIZEF)).ceil() as i32;
 
-        let start = self.clouds_chunk - c - Self::ADDITIONAL_DISTANCE;
-        let end = self.clouds_chunk + c + Self::ADDITIONAL_DISTANCE;
-
+        let start = self.clouds_chunk - (c + Self::ADDITIONAL_DISTANCE);
+        let end = self.clouds_chunk + (c + Self::ADDITIONAL_DISTANCE);
+  
         // cast image pixels [u8] to [Color4b]
         let (image_prefix, color_middle, image_suffix) = unsafe { self.image_data.align_to::<Color4b>() };
 
         // check if cast is valid
         assert!(image_prefix.is_empty() && image_suffix.is_empty(), "Cannot cast images pixels [u8] to [Color4b]");
-
+        
         for x in start.x..=end.x {
             for z in start.y..=end.y {
                 let mut norm_x = x.abs() % (self.image_width / Self::SLICE_SIZE);
@@ -117,8 +120,8 @@ impl Clouds {
 
     fn get_clouds_chunk(global_coords: Vec3) -> Vec2i {
         Vec2i {
-            x: (global_coords.x / (Self::SLICE_SIZE as f32 * Self::CLOUDS_SIZE as f32)).floor() as i32,
-            y: (global_coords.z / (Self::SLICE_SIZE as f32 * Self::CLOUDS_SIZE as f32)).floor() as i32,
+            x: (global_coords.x / (Self::SLICE_SIZE as f32 * Self::CLOUDS_SIZEF)).floor() as i32,
+            y: (global_coords.z / (Self::SLICE_SIZE as f32 * Self::CLOUDS_SIZEF)).floor() as i32,
         }
     }
 

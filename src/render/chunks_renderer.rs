@@ -1,4 +1,4 @@
-use crate::{render::{ChunkVertices, GlobalRenderer, Material, MultiMesh, core::raw_buffer::BufferFlags, global_renderer, material::MaterialType, multi_mesh::MultiMeshInfo}, world::chunk::ChunkMeshResult};
+use crate::{render::{ChunkVertices, GlobalRenderer, Material, MultiMesh, core::raw_buffer::BufferFlags, material::MaterialType, multi_mesh::MultiMeshInfo}, world::chunk::ChunkMeshResult};
 
 
 #[derive(Copy, Clone)]

@@ -161,10 +161,9 @@ impl Planet {
 
             self.visible_chunks.push(chunk_arc.clone());
 
-            if ch.renderer.is_none() {
-                ch.renderer = Some(ChunkMesh::new());
-                ch.chunk_data.write().unwrap().regen_mesh = true;
-            }
+
+            //ch.chunk_data.write().unwrap().regen_mesh = true;
+
 
             if ch.chunk_data.read().unwrap().regen_mesh {
                 ch.chunk_data.write().unwrap().regen_mesh = false;
@@ -373,7 +372,7 @@ impl Planet {
             *self.chunks.get_mut(&chunk_pos).unwrap() = Some(chunk_arc);
 
             // fix visual glitch
-            let neighbor_chunks = NeighborChunks::new_set(self, chunk_pos, false);
+            let neighbor_chunks = NeighborChunks::new(self, chunk_pos, false);
             self.regen_neighbor_chunks(&neighbor_chunks);
         }
     }
@@ -382,20 +381,21 @@ impl Planet {
         self.chunks_mesh_worker.process_tasks();
 
         while let Some(mesh_result) = self.chunks_mesh_worker.get_finalized_task() {
-            if let Some(ch) = self.get_chunk(mesh_result.borrow().chunk_pos) &&
-                let Some(ref mut ch_renderer) = ch.borrow_mut().renderer {
-                ch_renderer.update_mesh(&mesh_result.borrow(), &mut self.chunks_renderer);
+            let mesh_result = mesh_result.into_inner();
+            
+            if let Some(ch) = self.get_chunk(mesh_result.chunk_pos) {
+                ch.borrow_mut().renderer.update_mesh(&mesh_result, &mut self.chunks_renderer);
             }
 
-            mesh_result.into_inner().restore(self);
+            mesh_result.restore(self);
         }
     }
 
     fn change_chunk_logic(&mut self, player_chunk_pos: Vec3i) {
-        self.last_player_chunk = player_chunk_pos;
         self.ordered_chunks.clear();
         self.remove_chunks_list.clear();
 
+        self.last_player_chunk = player_chunk_pos;
         self.change_chunk_logic = false;
         self.need_ordering_chunks = true;
 

@@ -31,7 +31,7 @@ pub struct Chunk {
 
     pub chunk_data: Arc<RwLock<ChunkData>>,
 
-    pub renderer: Option<ChunkMesh>,
+    pub renderer: ChunkMesh,
     pub inside_frustum: bool,
 }
 
@@ -51,7 +51,7 @@ impl Chunk {
 
             chunk_data: if chunk_data.is_none() { Arc::new(RwLock::new(ChunkData::new(position, blocks_manager))) } else { chunk_data.unwrap() },
 
-            renderer: None,
+            renderer: ChunkMesh::new(),
             inside_frustum: false,
         }
     }
@@ -61,13 +61,11 @@ impl Chunk {
     }
 
     pub fn draw(&mut self, dt: f32, renderer: &mut ChunksRenderer) {
-        self.renderer.as_mut().unwrap().draw(dt, renderer);
+        self.renderer.draw(dt, renderer);
     }
 
     pub fn erase(&mut self, renderer: &mut ChunksRenderer) {
-        if let Some(ref mut mesh_info) = self.renderer {
-            mesh_info.erase(renderer);
-        }
+        self.renderer.erase(renderer);
     }
 
     pub fn gen_mesh(mesh_result: &mut ChunkMeshResult, blocks_manager: &BlocksManager) {

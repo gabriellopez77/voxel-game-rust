@@ -1,12 +1,12 @@
 #include "globals.glsl"
 
+
 float calculateFog(vec3 viewSpace)
 {
-    if (!bool(globalUbo.fogEnable))
+    if (globalUbo.fogEnable == 0)
         return 1.0f;
 
-    float distanceFromCamera = length(viewSpace);
-    return exp(-pow(distanceFromCamera * globalUbo.fogDistance, globalUbo.fogDensity));
+    return exp(-pow(length(viewSpace) * globalUbo.fogDistance, globalUbo.fogDensity));
 }
 
 void applyFog(inout vec3 fragColor, float factor)

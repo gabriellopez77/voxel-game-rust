@@ -4,7 +4,7 @@ use crate::render::core::vkutl;
 
 pub enum DrawType {
     Indirect(u32),
-    Default(u32, u32)
+    Default(u32, u32),
 }
 
 pub struct DrawInfo {
@@ -13,8 +13,9 @@ pub struct DrawInfo {
     pub descriptors_sets: [vk::DescriptorSet; vkutl::MAX_DESCRIPTORS_BINDING_COUNT],
     pub descriptors_count: u32,
 
-    pub buffers: [vk::Buffer; vkutl::MAX_BUFFERS_REQUIRED_TO_DRAW_COUNT],
-
+    pub buffers: [vk::Buffer; vkutl::MAX_VERTEX_BINDING_COUNT],
+    pub index_buffer: vk::Buffer,
+    
     pub draw_type: DrawType,
 
     pub push_constant_idx: i32,

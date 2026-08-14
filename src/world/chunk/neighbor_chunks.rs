@@ -16,12 +16,11 @@ pub struct NeighborChunks {
 
     chunk_pos: Vec3i,
     first_time: bool,
-    disposable: bool,
 }
 
 impl NeighborChunks {
-    pub fn new() -> Self {
-        Self {
+    pub fn new(planet: &Planet, pos: Vec3i, corners: bool) -> Self {
+        let mut neighbors = Self {
             north: None,
             south: None,
             west: None,
@@ -34,22 +33,15 @@ impl NeighborChunks {
 
             chunk_pos: Vec3i::ZERO,
             first_time: true,
-            disposable: false,
-        }
-    }
+        };
 
-    pub fn new_set(planet: &Planet, pos: Vec3i, corners: bool) -> Self {
-        let mut neighbor_chunks = Self::new();
-        neighbor_chunks.change(planet, pos, corners);
-
-        return neighbor_chunks;
+        neighbors.change(planet, pos, corners);
+        neighbors
     }
 
     pub fn change(&mut self, planet: &Planet, pos: Vec3i, corners: bool) {
         if self.chunk_pos != pos || self.first_time {
             self.first_time = false;
-
-            self.disposable = false;
 
             self.north = planet.get_chunk_int(pos.x, pos.y, pos.z - 1);
             self.south = planet.get_chunk_int(pos.x, pos.y, pos.z + 1);
