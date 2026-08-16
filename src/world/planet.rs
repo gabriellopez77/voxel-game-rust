@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
 use crate::math::{Vec3, Vec3i, self};
 
-use crate::render::{ChunkMesh, ChunkVertices, ChunksRenderer, GlobalRenderer};
+use crate::render::{ChunkVertices, ChunksRenderer, GlobalRenderer};
 use crate::resources::Worker;
 use crate::utils::{NullSafePtr, ObjectPool, SafePtr};
 use crate::world::Aabb;

@@ -1,8 +1,8 @@
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 use rand::{RngExt, rngs::ThreadRng};
 
-use crate::{math::{Vec2, Vec3}, render::{self, GlobalRenderer, Material, Mesh, PARTICLES_VERTICES, ParticlesVertices, SPRITES_INDICES, core::raw_buffer::{BufferFlags, BufferResizeMode}, material::MaterialType::{self}}, resources::ResourceManager, utils::NullSafePtr, world::{blocks::BlockProperties, particles::{BlockDestroy, ParticleBase, ParticleFunc}}};
+use crate::{math::{Vec2, Vec3}, render::{GlobalRenderer, Material, Mesh, PARTICLES_VERTICES, ParticlesVertices, SPRITES_INDICES, core::raw_buffer::{BufferFlags, BufferResizeMode}}, resources::ResourceManager, utils::NullSafePtr, world::{blocks::BlockProperties, particles::{BlockDestroy, ParticleBase, ParticleFunc}}};
 
 
 struct ParticlesInfo {
@@ -16,7 +16,7 @@ pub enum ParticlesSpawnArgs<'a> {
 }
 
 pub struct ParticlesManager {
-    renderer: Option<(Mesh, Material)>,
+    renderer: Option<(Mesh, Rc<RefCell<Material>>)>,
     instance_data: Vec<ParticlesVertices>,
     resources: NullSafePtr<ResourceManager>,
 
@@ -44,7 +44,7 @@ impl ParticlesManager {
     }
 
     pub fn start(&mut self, resources_manager: &ResourceManager, global_renderer: &mut GlobalRenderer) {
-        let (mut mesh, material) = global_renderer.create_mesh_material("particles", MaterialType::Particle);
+        let (mut mesh, material) = global_renderer.create_mesh_material("particles");
         mesh.set(&PARTICLES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
         mesh.create_instance_buffer(size_of::<ParticlesVertices>() * Self::MAX_PARTICLES_COUNT, None, BufferFlags::RAM);
 
@@ -90,7 +90,7 @@ impl ParticlesManager {
         }
 
         let renderer = self.renderer.as_mut().unwrap();
-        global_renderer.draw_instanced_with_buffer(&mut renderer.0, &mut renderer.1, &mut self.instance_data, BufferResizeMode::Discard);
+        global_renderer.draw_instanced_with_buffer(&mut renderer.0, &mut renderer.1.borrow_mut(), &mut self.instance_data, BufferResizeMode::Discard);
     }
 
     pub fn spawn(&mut self, args: ParticlesSpawnArgs) {
@@ -135,7 +135,6 @@ impl ParticlesManager {
     pub fn cleanup(&mut self) {
         let renderer = self.renderer.as_mut().unwrap();
         renderer.0.destroy();
-        renderer.1.destroy();
     }
 
     pub fn reset(&mut self) {

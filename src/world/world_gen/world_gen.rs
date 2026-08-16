@@ -2,7 +2,7 @@
 
 use rand::RngExt;
 use rand::rngs::ThreadRng;
-use crate::math::{self, Vec3i};
+use crate::math::Vec3i;
 use crate::world::world_gen::biomes::*;
 use crate::world::Chunk;
 use crate::world::blocks::BlocksManager;

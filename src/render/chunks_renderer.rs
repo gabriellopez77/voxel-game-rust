@@ -1,4 +1,6 @@
-use crate::{render::{ChunkVertices, GlobalRenderer, Material, MultiMesh, core::raw_buffer::BufferFlags, material::MaterialType, multi_mesh::MultiMeshInfo}, world::chunk::ChunkMeshResult};
+use std::{cell::RefCell, rc::Rc};
+
+use crate::{render::{ChunkVertices, GlobalRenderer, Material, MultiMesh, core::raw_buffer::BufferFlags, multi_mesh::MultiMeshInfo}, world::chunk::ChunkMeshResult};
 
 
 #[derive(Copy, Clone)]
@@ -14,7 +16,7 @@ impl ChunksRendererType {
 pub struct ChunksRenderer {
     multi_mesh: Option<MultiMesh>,
 
-    materials: Option<[Material; ChunksRendererType::RENDERS_COUNT]>,
+    materials: Option<[Rc<RefCell<Material>>; ChunksRendererType::RENDERS_COUNT]>,
 }
 
 impl ChunksRenderer {
@@ -34,8 +36,8 @@ impl ChunksRenderer {
         self.multi_mesh = Some(multi_mesh);
 
         self.materials = Some([
-            global_renderer.create_material("chunks", MaterialType::ChunksOpaque),
-            global_renderer.create_material("chunks", MaterialType::ChunksAlpha),
+            global_renderer.get_material("chunks"),
+            global_renderer.get_material("chunksAlpha"),
         ]);
     }
 
@@ -70,7 +72,7 @@ impl ChunksRenderer {
         for i in 0..ChunksRendererType::RENDERS_COUNT {
             multi_mesh.update_profile(i);
 
-            global_renderer.draw_multi_mesh(multi_mesh, &mut self.materials.as_mut().unwrap()[i], i);
+            global_renderer.draw_multi_mesh(multi_mesh, &mut self.materials.as_mut().unwrap()[i].borrow_mut(), i);
         }
     }
 }

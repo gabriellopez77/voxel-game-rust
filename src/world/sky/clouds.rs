@@ -1,5 +1,7 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::math::{Color4b, Vec2, Vec2i, Vec3};
-use crate::render::material::MaterialType;
 use crate::render::{CUBE_INDICES, CLOUDS_VERTICES, CloudsVertices, GlobalRenderer, Material, Mesh};
 use crate::render::core::raw_buffer::{BufferFlags, BufferResizeMode};
 use crate::resources::ResourceManager;
@@ -8,7 +10,7 @@ use crate::world::Chunk;
 
 pub struct Clouds {
     instance_data: Vec<CloudsVertices>,
-    renderer: Option<(Mesh, Material)>,
+    renderer: Option<(Mesh, Rc<RefCell<Material>>)>,
 
     clouds_chunk: Vec2i,
 
@@ -41,7 +43,7 @@ impl Clouds {
     }
 
     pub fn start(&mut self, resources: &ResourceManager, global_renderer: &mut GlobalRenderer) {
-        let (mut mesh, material) = global_renderer.create_mesh_material("clouds", MaterialType::Alpha);
+        let (mut mesh, material) = global_renderer.create_mesh_material("clouds");
         mesh.set(&CLOUDS_VERTICES, &CUBE_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
         mesh.create_instance_buffer(size_of::<CloudsVertices>() * 64, None, BufferFlags::VRAM | BufferFlags::RARE_UPDATE);
         self.renderer = Some((mesh, material));
@@ -57,7 +59,6 @@ impl Clouds {
     pub fn cleanup(&mut self) {
         let renderer = self.renderer.as_mut().unwrap();
         renderer.0.destroy();
-        renderer.1.destroy();
     }
 
     pub fn update(&mut self, player_pos: Vec3, render_distance: i32) {
@@ -115,7 +116,7 @@ impl Clouds {
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
         let renderer = self.renderer.as_mut().unwrap();
 
-        global_renderer.draw_instanced(&renderer.0, &mut renderer.1, self.instance_data.len());
+        global_renderer.draw_instanced(&renderer.0, &mut renderer.1.borrow_mut(), self.instance_data.len());
     }
 
     fn get_clouds_chunk(global_coords: Vec3) -> Vec2i {

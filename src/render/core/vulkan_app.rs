@@ -60,6 +60,8 @@ enum GarbageType {
     Buffer([vk::Buffer; vkutl::FRAMES_COUNT], [vk_mem::Allocation; vkutl::FRAMES_COUNT], [bool; vkutl::FRAMES_COUNT]),
     Image(vk::Image, vk_mem::Allocation, vk::ImageView, vk::Sampler),
     DescriptorSetLayout(vk::DescriptorSetLayout),
+    GraphicsPipeline(vk::Pipeline),
+    PipelineLayout(vk::PipelineLayout),
     GlobalStagingBufferRange(RangeInfo),
 }
 
@@ -437,6 +439,18 @@ impl VulkanApp {
         *sampler = vk::Sampler::null();
     }
 
+    pub fn destroy_graphics_pipeline(&mut self, pipeline: &mut vk::Pipeline) {
+        self.current_gargabe_list.push(GarbageType::GraphicsPipeline(*pipeline));
+
+        *pipeline = vk::Pipeline::null();
+    }
+
+    pub fn destroy_pipeline_layout(&mut self, layout: &mut vk::PipelineLayout) {
+        self.current_gargabe_list.push(GarbageType::PipelineLayout(*layout));
+
+        *layout = vk::PipelineLayout::null();
+    } 
+
     fn destroy_garbage(&self, garbage: &mut GarbageType) {
         unsafe {
             match garbage {
@@ -455,6 +469,8 @@ impl VulkanApp {
                     self.vma_allocator.destroy_image(*image, allocation);
                 }
                 GarbageType::DescriptorSetLayout(layout) => self.ash_device.destroy_descriptor_set_layout(*layout, None),
+                GarbageType::GraphicsPipeline(pipeline) => self.ash_device.destroy_pipeline(*pipeline, None),
+                GarbageType::PipelineLayout(layout) => self.ash_device.destroy_pipeline_layout(*layout, None),
                 GarbageType::GlobalStagingBufferRange(range) => self.global_staging_buffer.borrow_mut().deallocate(range),
             }
         }

@@ -1,11 +1,11 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{math::{Matrix4, Vec3}, render::{GlobalRenderer, Material, Mesh, material::MaterialType}, resources::{AnimationFrame, GenericModel, ResourceManager, animation_frame::{AnimationKeyFrameValue, AnimationRunMode, AnimationStatus}}, world::{player::ItemStack, world::WorldUpdateArgs}};
+use crate::{math::{Matrix4, Vec3}, render::{GlobalRenderer, Material, Mesh}, resources::{AnimationFrame, GenericModel, ResourceManager, animation_frame::{AnimationKeyFrameValue, AnimationRunMode, AnimationStatus}}, world::{player::ItemStack, world::WorldUpdateArgs}};
 
 
 pub struct FirstPerson {
     model_info: Option<(Rc<GenericModel>, Rc<RefCell<Mesh>>)>,
-    material: Option<Material>,
+    material: Option<Rc<RefCell<Material>>>,
 
     last_item_id: u16,
 
@@ -39,7 +39,7 @@ impl FirstPerson {
 
 
     pub fn start(&mut self, global_renderer: &mut GlobalRenderer, resources: &mut ResourceManager) {
-        self.material = Some(global_renderer.create_material("firstPerson", MaterialType::FirstPerson));
+        self.material = Some(global_renderer.get_material("firstPerson"));
 
         self.swap_down_anim.start(1.0, vec![
             (0.0, AnimationKeyFrameValue::new(Vec3::new(0.0, 0.0, 0.0), Vec3::ZERO, Vec3::ZERO)),
@@ -159,11 +159,11 @@ impl FirstPerson {
             let model_matrix = model.first_person_display * self.anim_result;
 
             global_renderer.set_push_constant(0, &model_matrix);
-            global_renderer.draw(&mesh.borrow(), self.material.as_mut().unwrap());
+            global_renderer.draw(&mesh.borrow(), &mut self.material.as_mut().unwrap().borrow_mut());
         }
     }
 
     pub fn cleanup(&mut self) {
-        self.material.as_mut().unwrap().destroy();
+
     }
 }

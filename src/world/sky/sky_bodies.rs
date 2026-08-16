@@ -1,7 +1,9 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use rand::RngExt;
 use crate::math;
 use crate::math::{KeyFrame, Matrix4, Vec3, Vec4};
-use crate::render::material::MaterialType;
 use crate::render::core::raw_buffer::BufferFlags;
 use crate::render::{CENTER_SPRITES_VERTICES, GlobalRenderer, Material, Mesh, SPRITES_INDICES, SkyBodiesVertices};
 use crate::resources::{ResourceManager, TexCoords};
@@ -9,8 +11,8 @@ use crate::world::sky::Sky;
 
 
 pub struct SkyBodies {
-    stars_renderer: Option<(Mesh, Material)>,
-    sun_moon_renderer: Option<(Mesh, Material)>,
+    stars_renderer: Option<(Mesh, Rc<RefCell<Material>>)>,
+    sun_moon_renderer: Option<(Mesh, Rc<RefCell<Material>>)>,
 
     stars_transparency_gradient: KeyFrame<f32>,
     bodies_rotation_gradient: KeyFrame<f32>,
@@ -123,12 +125,12 @@ impl SkyBodies {
             }
         ];
 
-        let (mut stars_mesh, stars_material) = global_renderer.create_mesh_material("skyBodies", MaterialType::Sky);
+        let (mut stars_mesh, stars_material) = global_renderer.create_mesh_material("skyBodies");
         stars_mesh.set(&CENTER_SPRITES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
         stars_mesh.create_instance_buffer_from_arr(&stars_buffer, BufferFlags::VRAM | BufferFlags::ONCE);
         self.stars_renderer = Some((stars_mesh, stars_material));
 
-        let (mut sun_moon_mesh, sun_moon_material) = global_renderer.create_mesh_material("skyBodies", MaterialType::Sky);
+        let (mut sun_moon_mesh, sun_moon_material) = global_renderer.create_mesh_material("skyBodies");
         sun_moon_mesh.set(&CENTER_SPRITES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
         sun_moon_mesh.create_instance_buffer_from_arr(&sun_moon_buffer, BufferFlags::VRAM | BufferFlags::ONCE);
         self.sun_moon_renderer = Some((sun_moon_mesh, sun_moon_material));
@@ -167,11 +169,9 @@ impl SkyBodies {
     pub fn cleanup(&mut self) {
         let stars_renderer = self.stars_renderer.as_mut().unwrap();
         stars_renderer.0.destroy();
-        stars_renderer.1.destroy();
 
         let sun_moon_renderer = self.sun_moon_renderer.as_mut().unwrap();
         sun_moon_renderer.0.destroy();
-        sun_moon_renderer.1.destroy();
     }
 
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
@@ -180,13 +180,13 @@ impl SkyBodies {
             global_renderer.set_push_constant(size_of::<Matrix4>(), &self.stars_alpha);
 
             let renderer = self.stars_renderer.as_mut().unwrap();
-            global_renderer.draw_instanced(&renderer.0, &mut renderer.1, Self::STARS_COUNT);
+            global_renderer.draw_instanced(&renderer.0, &mut renderer.1.borrow_mut(), Self::STARS_COUNT);
         }
 
         global_renderer.set_push_constant(0, &self.matrix);
         global_renderer.set_push_constant(size_of::<Matrix4>(), &self.stars_alpha);
 
         let renderer = self.sun_moon_renderer.as_mut().unwrap();
-        global_renderer.draw_instanced(&renderer.0, &mut renderer.1, Self::STARS_COUNT);
+        global_renderer.draw_instanced(&renderer.0, &mut renderer.1.borrow_mut(), Self::STARS_COUNT);
     }
 }

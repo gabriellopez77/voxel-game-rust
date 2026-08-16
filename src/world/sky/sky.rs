@@ -1,6 +1,9 @@
-use crate::resources::{ResourceManager, resources_manager};
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use crate::resources::ResourceManager;
 use crate::math::{Color3b, KeyFrame};
-use crate::render::{GlobalRenderer, Material, Mesh, material};
+use crate::render::{GlobalRenderer, Material, Mesh};
 use crate::render::core::raw_buffer::BufferFlags;
 use crate::world::Chunk;
 use crate::world::player::Camera;
@@ -8,7 +11,7 @@ use crate::world::sky::{Clouds, SkyBodies};
 
 
 pub struct Sky {
-    renderer: Option<(Mesh, Material)>,
+    renderer: Option<(Mesh, Rc<RefCell<Material>>)>,
 
     sky_bodies: SkyBodies,
     clouds: Clouds,
@@ -93,7 +96,7 @@ impl Sky {
     pub fn start(&mut self, resources_manager: &ResourceManager, global_renderer: &mut GlobalRenderer) {
         let (vertices, indices) = ResourceManager::gen_sphere(16.0, 16.0);
 
-        let (mut mesh, material) = global_renderer.create_mesh_material("skyDome", material::MaterialType::Sky);
+        let (mut mesh, material) = global_renderer.create_mesh_material("skyDome");
         mesh.set(&vertices, &indices, BufferFlags::VRAM | BufferFlags::ONCE);
         self.renderer = Some((mesh, material));
 
@@ -143,7 +146,6 @@ impl Sky {
     pub fn cleanup(&mut self) {
         let renderer = self.renderer.as_mut().unwrap();
         renderer.0.destroy();
-        renderer.1.destroy();
 
         self.sky_bodies.cleanup();
         self.clouds.cleanup();
@@ -183,7 +185,7 @@ impl Sky {
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
         // draw sky dome
         let renderer = self.renderer.as_mut().unwrap();
-        global_renderer.draw(&renderer.0, &mut renderer.1);
+        global_renderer.draw(&renderer.0, &mut renderer.1.borrow_mut());
 
         // draw stars, sun, moon and clouds
         self.sky_bodies.draw(global_renderer);

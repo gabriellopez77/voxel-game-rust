@@ -3,6 +3,7 @@ use ash::vk;
 use std::ffi::c_char;
 use vk_mem::Alloc;
 
+
 // core
 pub const V_SYNC: bool = true;
 pub const VALIDATION_LAYERS_ENABLED: bool = true;
@@ -25,9 +26,8 @@ pub const VALIDATE_LAYER_NAMES: [*const c_char; 2] = [
 // device extensions required by this application
 pub const REQUIRED_DEVICE_EXTENSIONS: [*const c_char; 1] = [vk::KHR_SWAPCHAIN_NAME.as_ptr()];
 
-pub fn null_allocation() -> vk_mem::Allocation {
-    unsafe { std::mem::zeroed() }
-}
+
+pub fn null_allocation() -> vk_mem::Allocation { unsafe { std::mem::zeroed() } }
 
 pub fn create_image_view(
     app: &VulkanApp,
@@ -46,9 +46,7 @@ pub fn create_image_view(
     create_info.subresource_range.layer_count = 1;
 
     return unsafe {
-        app.ash_device
-            .create_image_view(&create_info, None)
-            .expect("Failed to create image views!")
+        app.ash_device.create_image_view(&create_info, None).expect("Failed to create image views!")
     };
 }
 
@@ -58,7 +56,7 @@ pub fn create_image(
     height: u32,
     format: vk::Format,
     usage: vk::ImageUsageFlags,
-    dedicated_memory: bool,
+    dedicated_memory: bool
 ) -> (vk::Image, vk_mem::Allocation) {
     let create_info = vk::ImageCreateInfo::default()
         .image_type(vk::ImageType::TYPE_2D)
@@ -85,9 +83,7 @@ pub fn create_image(
     allocation_info.preferred_flags = vk::MemoryPropertyFlags::DEVICE_LOCAL;
 
     return unsafe {
-        app.vma_allocator
-            .create_image(&create_info, &allocation_info)
-            .expect("Failed to create vma allocator!")
+        app.vma_allocator.create_image(&create_info, &allocation_info).expect("Failed to create vma allocator!")
     };
 }
 
@@ -96,7 +92,7 @@ pub fn create_buffer(
     size: usize,
     usage: vk::BufferUsageFlags,
     alloc_info: &vk_mem::AllocationCreateInfo,
-    concurrent: bool,
+    concurrent: bool
 ) -> (vk::Buffer, vk_mem::Allocation) {
     let families = [app.transfer_queue_index, app.graphics_queue_index];
 
@@ -112,9 +108,7 @@ pub fn create_buffer(
     }
 
     return unsafe {
-        app.vma_allocator
-            .create_buffer(&buffer_info, &alloc_info)
-            .expect("Failed to create buffer!")
+        app.vma_allocator.create_buffer(&buffer_info, &alloc_info).expect("Failed to create buffer!")
     };
 }
 
@@ -132,8 +126,7 @@ pub fn copy_buffer_async(
         .dst_offset(dst_offset as u64);
 
     unsafe {
-        app.ash_device
-            .cmd_copy_buffer(app.get_transfer_cmd(), src, dst, &[copy_region]);
+        app.ash_device.cmd_copy_buffer(app.get_transfer_cmd(), src, dst, &[copy_region]);
     }
 }
 
@@ -159,9 +152,7 @@ pub fn transition_image_layout(
     let dst_stage: vk::PipelineStageFlags;
     let cmd: vk::CommandBuffer;
 
-    if old_layout == vk::ImageLayout::UNDEFINED
-        && new_layout == vk::ImageLayout::TRANSFER_DST_OPTIMAL
-    {
+    if old_layout == vk::ImageLayout::UNDEFINED && new_layout == vk::ImageLayout::TRANSFER_DST_OPTIMAL {
         barrier.src_access_mask = vk::AccessFlags::NONE;
         barrier.dst_access_mask = vk::AccessFlags::TRANSFER_WRITE;
 
@@ -172,9 +163,8 @@ pub fn transition_image_layout(
         barrier.dst_queue_family_index = vk::QUEUE_FAMILY_IGNORED;
 
         cmd = app.get_transfer_cmd();
-    } else if old_layout == vk::ImageLayout::TRANSFER_DST_OPTIMAL
-        && new_layout == vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
-    {
+    }
+    else if old_layout == vk::ImageLayout::TRANSFER_DST_OPTIMAL && new_layout == vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL {
         barrier.src_access_mask = vk::AccessFlags::TRANSFER_WRITE;
         barrier.dst_access_mask = vk::AccessFlags::SHADER_READ;
 
@@ -185,13 +175,13 @@ pub fn transition_image_layout(
         barrier.dst_queue_family_index = app.graphics_queue_index;
 
         cmd = app.get_graphics_cmd();
-    } else {
+    }
+    else {
         panic!("Unsupported layout transition!")
     }
 
     unsafe {
-        app.ash_device.cmd_pipeline_barrier(
-            cmd,
+        app.ash_device.cmd_pipeline_barrier(cmd,
             src_stage,
             dst_stage,
             vk::DependencyFlags::empty(),
@@ -246,8 +236,7 @@ pub fn copy_buffer_to_image(
                 layer_count: 1,
             });
 
-        app.ash_device.cmd_pipeline_barrier(
-            app.get_transfer_cmd(),
+        app.ash_device.cmd_pipeline_barrier(app.get_transfer_cmd(),
             vk::PipelineStageFlags::TRANSFER,
             vk::PipelineStageFlags::BOTTOM_OF_PIPE,
             vk::DependencyFlags::empty(),
