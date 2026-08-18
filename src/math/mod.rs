@@ -13,6 +13,7 @@ pub mod color3b;
 pub mod color4b;
 
 pub mod matrix4;
+pub mod quaternion;
 
 pub mod math;
 
@@ -37,6 +38,7 @@ pub use {
     color3b::Color3b,
 
     matrix4::Matrix4,
-
+    quaternion::Quaternion,
+    
     key_frame::KeyFrame,
 };

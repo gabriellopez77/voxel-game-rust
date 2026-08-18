@@ -1,4 +1,4 @@
-use crate::math::{KeyFrame, Vec3};
+use crate::math::{KeyFrame, Quaternion, Vec3};
 
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -21,8 +21,12 @@ pub struct AnimationKeyFrameValue {
 }
 
 impl AnimationKeyFrameValue {
-    pub fn new(position: Vec3, scale: Vec3, rotation: Vec3,) -> Self {
-        Self { position, scale, rotation }
+    pub fn new(position: Vec3, scale: Vec3, rotation: Vec3) -> Self {
+        Self {
+            position,
+            scale,
+            rotation
+        }
     }
 }
 
@@ -43,6 +47,7 @@ impl AnimationFrame {
             key_frames: KeyFrame::new(|key, a, b| {
                 let position = Vec3::lerp(a.position, b.position, key);
                 let scale = Vec3::lerp(a.scale, b.scale, key);
+                //let rotation = Quaternion::slerp(a.rotation, b.rotation, key).normalized();
                 let rotation = Vec3::lerp(a.rotation, b.rotation, key);
 
                 return AnimationKeyFrameValue { position, scale, rotation };
@@ -67,15 +72,17 @@ impl AnimationFrame {
         }
     }
 
+    pub fn is_running(&self) -> bool { self.run }
+
     pub fn update(&mut self, dt: f32) -> Option<(AnimationKeyFrameValue, AnimationStatus)> {
-        if !self.run {
+        if !self.run && self.run_mode != AnimationRunMode::Repeat {
             return None;
         }
 
         self.time += dt * self.speed;
 
         let mut finished = false;
-    
+
         if self.time >= self.key_frames.get_highest_key() {
             self.run = false;
             finished = true;

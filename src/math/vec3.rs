@@ -63,7 +63,7 @@ impl Vec3 {
         }
     }
 
-    pub fn length(&self) -> f32 { (self.x * self.x) + (self.y * self.y) + (self.z * self.z).sqrt() }
+    pub fn length(&self) -> f32 { ((self.x * self.x) + (self.y * self.y) + (self.z * self.z)).sqrt() }
 }
 
 

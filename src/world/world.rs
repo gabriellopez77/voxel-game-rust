@@ -99,7 +99,6 @@ impl World {
         self.planet.stop();
         self.sky.cleanup();
         self.player.selection_box.cleanup();
-        self.player.first_person.cleanup();
         self.particles_manager.cleanup();
         self.planet.chunks_renderer.cleanup();
     }

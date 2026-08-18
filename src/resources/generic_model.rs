@@ -44,6 +44,10 @@ pub struct GenericModel {
 
     pub icon_coords: TexCoords,
     pub first_person_display: Matrix4,
+
+    pub pos: Vec3,
+    pub rot: Vec3,
+    pub scale: Vec3,
 }
 
 impl GenericModel {
@@ -70,6 +74,10 @@ impl GenericModel {
 
             icon_coords: TexCoords::ZERO,
             first_person_display: Matrix4::ZERO,
+
+            pos: Vec3::ZERO,
+            rot: Vec3::ZERO,
+            scale: Vec3::ZERO,
         };
 
         match instance.read(models_path, &file_content, texture) {
@@ -90,9 +98,13 @@ impl GenericModel {
 
             particle_coords: TexCoords::ZERO,
             ambient_occlusion: false,
-            
+
             icon_coords: TexCoords::ZERO,
             first_person_display: Matrix4::ZERO,
+
+            pos: Vec3::ZERO,
+            rot: Vec3::ZERO,
+            scale: Vec3::ZERO,
         };
 
         match instance.read("", &ERROR_MODEL, texture) {
@@ -430,22 +442,26 @@ impl GenericModel {
         }
     }
 
-    fn read_display_info(&mut self, display_info: &Option<DisplayInfo>) { 
+    fn read_display_info(&mut self, display_info: &Option<DisplayInfo>) {
         let mut block_preset = Matrix4::IDENTITY;
         block_preset.translate(0.4, -0.67, -1.0);
         block_preset.translatev(Vec3::new(0.375, 0.375, 0.375) * 0.5);
         block_preset.rotate_xyz(0.0, 45.0, 0.0);
         block_preset.translatev(Vec3::new(0.375, 0.375, 0.375) * -0.5);
         block_preset.scale(0.375, 0.375, 0.375);
-        
+
         if display_info.is_none() {
             self.first_person_display = block_preset;
+
+            self.pos = Vec3::new(0.4, -0.67, -1.0);
+            self.rot = Vec3::new(0.0, 45.0, 0.0);
+            self.scale = Vec3::new(0.375, 0.375, 0.375);
             return
         }
 
-        
+
         let info = display_info.as_ref().unwrap();
-        
+
         if let Some(ref first_person) = info.first_person {
             //match first_person {
                 //DisplayTypesInfo::Preset(preset) => {
@@ -459,7 +475,7 @@ impl GenericModel {
                     let pos_vec = Vec3::from_arr(first_person.position);
                     let scale_vec = Vec3::from_arr(first_person.scale);
                     let rotate_vec = Vec3::from_arr(first_person.rotation);
-                    
+
                     let mut model = Matrix4::IDENTITY;
                     model.translatev(pos_vec);
                     model.translatev(scale_vec * 0.5);
@@ -468,11 +484,15 @@ impl GenericModel {
                     model.scalev(scale_vec);
 
                     self.first_person_display = model;
+
+                    self.pos = pos_vec;
+                    self.rot = rotate_vec;
+                    self.scale = scale_vec;
                 //}
                 //}
         }
     }
-    
+
     fn get_tex_coords(
         used_textures: &HashMap<String, TexCoords>,
         face_info: &FaceInfo,

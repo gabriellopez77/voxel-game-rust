@@ -13,6 +13,8 @@ impl Vec2 {
 
     pub fn new(x: f32, y: f32) -> Self { Self { x, y, } }
     pub fn from1(value: f32) -> Self { Self { x: value, y: value } }
+
+    pub fn length(&self) -> f32 { ((self.x * self.x) + (self.y * self.y)).sqrt() }
 }
 
 impl PartialEq for Vec2 {

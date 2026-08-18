@@ -59,7 +59,7 @@ impl Planet {
 
             blocks_manager: NullSafePtr::null(),
 
-            render_distance: 14,
+            render_distance: 4,
 
             pendings_chunks_count: 0,
 
@@ -382,7 +382,7 @@ impl Planet {
 
         while let Some(mesh_result) = self.chunks_mesh_worker.get_finalized_task() {
             let mesh_result = mesh_result.into_inner();
-            
+
             if let Some(ch) = self.get_chunk(mesh_result.chunk_pos) {
                 ch.borrow_mut().renderer.update_mesh(&mesh_result, &mut self.chunks_renderer);
             }
