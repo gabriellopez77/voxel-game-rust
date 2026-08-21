@@ -8,6 +8,7 @@ pub struct WorldUpdateArgs<'a> {
     pub events_queue: &'a mut VecDeque<GameEvents>,
     pub inputs: &'a mut Inputs,
     pub dt: f32,
+    pub time: f32,
     pub current_screen_id: ScreensId,
     pub resources: &'a mut ResourceManager,
 }

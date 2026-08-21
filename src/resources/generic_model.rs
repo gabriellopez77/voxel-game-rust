@@ -30,6 +30,7 @@ const ERROR_MODEL: &'static str =
 	]
 }";
 
+#[derive(Default)]
 pub struct GenericModel {
     pub nothing_vertices: Vec<BlockItemVertices>,
     pub up_vertices: Vec<BlockItemVertices>,
@@ -43,11 +44,10 @@ pub struct GenericModel {
     pub ambient_occlusion: bool,
 
     pub icon_coords: TexCoords,
-    pub first_person_display: Matrix4,
 
-    pub pos: Vec3,
-    pub rot: Vec3,
-    pub scale: Vec3,
+    pub first_person_display_pos: Vec3,
+    pub first_person_display_rot: Vec3,
+    pub first_person_display_scale: Vec3,
 }
 
 impl GenericModel {
@@ -60,25 +60,7 @@ impl GenericModel {
             }
         };
 
-        let mut instance = Self {
-            nothing_vertices: Vec::new(),
-            up_vertices: Vec::new(),
-            down_vertices: Vec::new(),
-            south_vertices: Vec::new(),
-            north_vertices: Vec::new(),
-            west_vertices: Vec::new(),
-            east_vertices: Vec::new(),
-
-            particle_coords: TexCoords::ZERO,
-            ambient_occlusion: false,
-
-            icon_coords: TexCoords::ZERO,
-            first_person_display: Matrix4::ZERO,
-
-            pos: Vec3::ZERO,
-            rot: Vec3::ZERO,
-            scale: Vec3::ZERO,
-        };
+        let mut instance = Self::default();
 
         match instance.read(models_path, &file_content, texture) {
             Ok(()) => Ok(instance),
@@ -87,25 +69,7 @@ impl GenericModel {
     }
 
     pub fn read_error_model(texture: &Texture) -> Self {
-        let mut instance = Self {
-            nothing_vertices: Vec::new(),
-            up_vertices: Vec::new(),
-            down_vertices: Vec::new(),
-            south_vertices: Vec::new(),
-            north_vertices: Vec::new(),
-            west_vertices: Vec::new(),
-            east_vertices: Vec::new(),
-
-            particle_coords: TexCoords::ZERO,
-            ambient_occlusion: false,
-
-            icon_coords: TexCoords::ZERO,
-            first_person_display: Matrix4::ZERO,
-
-            pos: Vec3::ZERO,
-            rot: Vec3::ZERO,
-            scale: Vec3::ZERO,
-        };
+        let mut instance = Self::default();
 
         match instance.read("", &ERROR_MODEL, texture) {
             Ok(()) => instance,
@@ -443,19 +407,10 @@ impl GenericModel {
     }
 
     fn read_display_info(&mut self, display_info: &Option<DisplayInfo>) {
-        let mut block_preset = Matrix4::IDENTITY;
-        block_preset.translate(0.4, -0.67, -1.0);
-        block_preset.translatev(Vec3::new(0.375, 0.375, 0.375) * 0.5);
-        block_preset.rotate_xyz(0.0, 45.0, 0.0);
-        block_preset.translatev(Vec3::new(0.375, 0.375, 0.375) * -0.5);
-        block_preset.scale(0.375, 0.375, 0.375);
-
         if display_info.is_none() {
-            self.first_person_display = block_preset;
-
-            self.pos = Vec3::new(0.4, -0.67, -1.0);
-            self.rot = Vec3::new(0.0, 45.0, 0.0);
-            self.scale = Vec3::new(0.375, 0.375, 0.375);
+            self.first_person_display_pos = Vec3::new(0.4, -0.67, -1.0);
+            self.first_person_display_rot = Vec3::new(0.0, 45.0, 0.0);
+            self.first_person_display_scale = Vec3::new(0.375, 0.375, 0.375);
             return
         }
 
@@ -472,22 +427,10 @@ impl GenericModel {
                 //    }
                 //}
                 //DisplayTypesInfo::CustomSet(value) => {
-                    let pos_vec = Vec3::from_arr(first_person.position);
-                    let scale_vec = Vec3::from_arr(first_person.scale);
-                    let rotate_vec = Vec3::from_arr(first_person.rotation);
-
-                    let mut model = Matrix4::IDENTITY;
-                    model.translatev(pos_vec);
-                    model.translatev(scale_vec * 0.5);
-                    model.rotatev_xyz(rotate_vec);
-                    model.translatev(scale_vec * -0.5);
-                    model.scalev(scale_vec);
-
-                    self.first_person_display = model;
-
-                    self.pos = pos_vec;
-                    self.rot = rotate_vec;
-                    self.scale = scale_vec;
+                //DisplayTypesInfo::CustomSet(value) => {
+                    self.first_person_display_pos = Vec3::from_arr(first_person.position);
+                    self.first_person_display_rot = Vec3::from_arr(first_person.rotation);
+                    self.first_person_display_scale = Vec3::from_arr(first_person.scale);
                 //}
                 //}
         }
@@ -581,12 +524,6 @@ struct FaceInfo {
 struct DisplayInfo {
     #[serde(rename = "firstPerson")]
     first_person: Option<DisplayValueInfo>
-}
-
-#[derive(Deserialize)]
-enum DisplayTypesInfo {
-    Preset(String),
-    CustomSet(DisplayValueInfo),
 }
 
 #[derive(Deserialize)]

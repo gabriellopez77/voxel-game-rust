@@ -304,7 +304,7 @@ impl VulkanApp {
             // then we change the old_range.start to new_range.end() and update his len
             else if new_range.start <= old_range.start && new_range.end() <= old_range.end() {
                 let src_offset = new_range.end() - old_range.start;
-                
+
                 update_info.dst_range = RangeInfo::new(new_range.end(), old_range.end() - new_range.end());
                 update_info.src_offset[self.frame_index] = src_offset;
 
@@ -449,7 +449,7 @@ impl VulkanApp {
         self.current_gargabe_list.push(GarbageType::PipelineLayout(*layout));
 
         *layout = vk::PipelineLayout::null();
-    } 
+    }
 
     fn destroy_garbage(&self, garbage: &mut GarbageType) {
         unsafe {

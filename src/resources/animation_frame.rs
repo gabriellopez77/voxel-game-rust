@@ -1,4 +1,6 @@
-use crate::math::{KeyFrame, Quaternion, Vec3};
+use std::f32;
+
+use crate::math::{KeyFrame, Vec3};
 
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -13,7 +15,7 @@ pub enum AnimationStatus {
     Running,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct AnimationKeyFrameValue {
     pub position: Vec3,
     pub scale: Vec3,
@@ -31,38 +33,67 @@ impl AnimationKeyFrameValue {
 }
 
 pub struct AnimationFrame {
-    key_frames: KeyFrame<AnimationKeyFrameValue>,
+    position_frames: KeyFrame<Vec3>,
+    scale_frames: KeyFrame<Vec3>,
+    rotation_frames: KeyFrame<Vec3>,
 
     run_mode: AnimationRunMode,
 
-    time: f32,
     pub speed: f32,
 
+    highest_key: f32,
+    time: f32,
     run: bool,
 }
 
 impl AnimationFrame {
     pub fn new(run_mode: AnimationRunMode) -> Self {
         Self {
-            key_frames: KeyFrame::new(|key, a, b| {
-                let position = Vec3::lerp(a.position, b.position, key);
-                let scale = Vec3::lerp(a.scale, b.scale, key);
-                //let rotation = Quaternion::slerp(a.rotation, b.rotation, key).normalized();
-                let rotation = Vec3::lerp(a.rotation, b.rotation, key);
-
-                return AnimationKeyFrameValue { position, scale, rotation };
-            }),
+            position_frames: KeyFrame::new(|key, a, b| Vec3::lerp(a, b, key)),
+            scale_frames: KeyFrame::new(|key, a, b| Vec3::lerp(a, b, key)),
+            rotation_frames: KeyFrame::new(|key, a, b| Vec3::lerp(a, b, key)),
 
             run_mode,
-            time: 0.0,
+
             speed: 1.0,
+
+            highest_key: 0.0,
+            time: 0.0,
             run: false,
         }
     }
 
-    pub fn start(&mut self, speed: f32, frames: Vec<(f32, AnimationKeyFrameValue)>) {
-        self.key_frames.set_frames(frames);
+    pub fn is_running(&self) -> bool { self.run }
+
+    pub fn start(&mut self, speed: f32, frames: Vec<(f32, Option<Vec3>, Option<Vec3>, Option<Vec3>)>) {
+        let mut positions = Vec::<(f32, Vec3)>::new();
+        let mut scales = Vec::<(f32, Vec3)>::new();
+        let mut rotations = Vec::<(f32, Vec3)>::new();
+
+        let mut highest_key = f32::MIN;
+
+        for (key, position, scale, rotation) in &frames {
+            highest_key = highest_key.max(*key);
+
+            if let Some(position) = position {
+                positions.push((*key, *position));
+            }
+
+            if let Some(scale) = scale {
+                scales.push((*key, *scale));
+            }
+
+            if let Some(rotation) = rotation {
+                rotations.push((*key, *rotation));
+            }
+        }
+
         self.speed = speed;
+        self.highest_key = highest_key;
+
+        self.position_frames.set_frames(positions);
+        self.scale_frames.set_frames(scales);
+        self.rotation_frames.set_frames(rotations);
     }
 
     pub fn play(&mut self) {
@@ -72,7 +103,10 @@ impl AnimationFrame {
         }
     }
 
-    pub fn is_running(&self) -> bool { self.run }
+    pub fn reset(&mut self) {
+        self.time = 0.0;
+        self.run = false;
+    }
 
     pub fn update(&mut self, dt: f32) -> Option<(AnimationKeyFrameValue, AnimationStatus)> {
         if !self.run && self.run_mode != AnimationRunMode::Repeat {
@@ -83,7 +117,7 @@ impl AnimationFrame {
 
         let mut finished = false;
 
-        if self.time >= self.key_frames.get_highest_key() {
+        if self.time >= self.highest_key {
             self.run = false;
             finished = true;
 
@@ -93,8 +127,12 @@ impl AnimationFrame {
             }
         }
 
-        let value = self.key_frames.get(self.time);
+        let position = self.position_frames.get(self.time);
+        let scale = self.scale_frames.get(self.time);
+        let rotation = self.rotation_frames.get(self.time);
 
-        return Some((value, if finished { AnimationStatus::Finished } else { AnimationStatus::Running }));
+        let key_frame = AnimationKeyFrameValue { position, scale, rotation };
+
+        return Some((key_frame, if finished { AnimationStatus::Finished } else { AnimationStatus::Running }));
     }
 }

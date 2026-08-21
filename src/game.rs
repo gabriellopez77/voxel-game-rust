@@ -100,7 +100,7 @@ impl Game {
         imgui.io_mut().display_size = [1050.0, 650.0];
     }
 
-    pub fn update(&mut self, dt: f32, window: &mut Window, inputs: &mut Inputs) {
+    pub fn update(&mut self, dt: f32, time: f32, window: &mut Window, inputs: &mut Inputs) {
         // process events
         self.process_events(window);
 
@@ -143,6 +143,7 @@ impl Game {
                 events_queue: &mut self.events_queue,
                 inputs,
                 dt,
+                time,
                 current_screen_id: self.ui_manager.borrow().get_current_screen(),
                 resources: &mut self.resources_manager,
             };
@@ -173,32 +174,32 @@ impl Game {
         self.global_renderer.end();
 
         // 1. Build the ImGui user interface
-        let ui = imgui.new_frame();
+        //let ui = imgui.new_frame();
 
-        if let Some(wt) = ui.window("Debug Menu")
-            .size([700.0, 500.0], imgui::Condition::FirstUseEver)
-            .begin() {
+        //if let Some(wt) = ui.window("Debug Menu")
+        //    .size([700.0, 500.0], imgui::Condition::FirstUseEver)
+        //    .begin() {
 
-            let first_person = &mut self.world.player.first_person;
+        //    let first_person = &mut self.world.player.first_person;
 
-            ui.slider("Position X", -5.0, 5.0, &mut first_person.pos.x);
-            ui.slider("Position Y", -5.0, 5.0, &mut first_person.pos.y);
-            ui.slider("Position Z", -5.0, 5.0, &mut first_person.pos.z);
+        //    ui.slider("Position X", -5.0, 5.0, &mut first_person.pos.x);
+        //    ui.slider("Position Y", -5.0, 5.0, &mut first_person.pos.y);
+        //    ui.slider("Position Z", -5.0, 5.0, &mut first_person.pos.z);
 
-            //ui.slider("Scale X", 0.0, 1.0, &mut first_person.hand_scale.x);
-            //ui.slider("Scale Y", 0.0, 1.0, &mut first_person.hand_scale.y);
-            //ui.slider("Scale Z", 0.0, 1.0, &mut first_person.hand_scale.z);
+        //    //ui.slider("Scale X", 0.0, 1.0, &mut first_person.hand_scale.x);
+        //    //ui.slider("Scale Y", 0.0, 1.0, &mut first_person.hand_scale.y);
+        //    //ui.slider("Scale Z", 0.0, 1.0, &mut first_person.hand_scale.z);
 
-            ui.slider("Rotate X", -360.0, 360.0, &mut first_person.rot.x);
-            ui.slider("Rotate Y", -360.0, 360.0, &mut first_person.rot.y);
-            ui.slider("Rotate Z", -360.0, 360.0, &mut first_person.rot.z);
+        //    ui.slider("Rotate X", -360.0, 360.0, &mut first_person.rot.x);
+        //    ui.slider("Rotate Y", -360.0, 360.0, &mut first_person.rot.y);
+        //    ui.slider("Rotate Z", -360.0, 360.0, &mut first_person.rot.z);
 
-            wt.end();
-        }
+        //    wt.end();
+        //}
 
-        self.imgui_renderer.as_mut().unwrap()
-            .cmd_draw(self.global_renderer.app.get_graphics_cmd(), &imgui.render())
-            .expect("Failed to record ImGui draw commands");
+        //self.imgui_renderer.as_mut().unwrap()
+        //    .cmd_draw(self.global_renderer.app.get_graphics_cmd(), &imgui.render())
+        //    .expect("Failed to record ImGui draw commands");
     }
 
     pub fn cleanup(&mut self, app: &mut VulkanApp) {
@@ -225,7 +226,7 @@ impl Game {
         while let Some(event) = self.events_queue.pop_front() {
             match event {
                 GameEvents::QuitGame => window.close(),
-                GameEvents::SetCursorMode(mode) => window.set_cursor(glfw::CursorMode::Normal),
+                GameEvents::SetCursorMode(mode) => window.set_cursor(mode),
                 GameEvents::ChangeScreen(id) => self.ui_manager.clone().borrow_mut().change(id, self),
                 GameEvents::LoadChunks => {
                     self.add_event(GameEvents::ChangeScreen(ScreensId::LoadingScreen));

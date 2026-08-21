@@ -101,11 +101,10 @@ impl Window {
                 first_time = false;
             }
 
-            game.update(dt, self, &mut inputs);
+            game.update(dt, time, self, &mut inputs);
             game.render(dt, &mut imgui);
 
             vulkan_app.end_frame();
-
         }
 
         game.cleanup(&mut vulkan_app);

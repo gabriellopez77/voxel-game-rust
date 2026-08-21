@@ -124,7 +124,7 @@ impl GlobalStagingBuffer {
         self.buffer = new_buffer;
         self.allocation = new_allocation;
         self.mapped_memory = new_mapped_memory;
-        
+
         // the arena grew, then is guaranteed that contains capacity for the range
         return self.arena.find_range(size).unwrap();
     }

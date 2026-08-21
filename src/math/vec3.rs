@@ -26,7 +26,7 @@ impl Vec3 {
             math::lerp(a.z, b.z, t),
         )
     }
-    
+
     pub fn as_vec3i(&self) -> Vec3i {
         Vec3i {
             x: self.x as i32,

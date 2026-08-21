@@ -1,33 +1,32 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{math::{Matrix4, Vec2, Vec3}, render::{GlobalRenderer, Material, Mesh}, resources::{AnimationFrame, GenericModel, ResourceManager, animation_frame::{AnimationKeyFrameValue, AnimationRunMode, AnimationStatus}}, world::{player::ItemStack, world::WorldUpdateArgs}};
+use crate::{math::{Matrix4, Vec2, Vec3, math}, render::{GlobalRenderer, Material, Mesh}, resources::{AnimationFrame, GenericModel, ResourceManager, animation_frame::{AnimationKeyFrameValue, AnimationRunMode, AnimationStatus}}, world::{player::ItemStack, world::WorldUpdateArgs}};
 
 
 pub struct FirstPerson {
     model_info: Option<(Rc<GenericModel>, Rc<RefCell<Mesh>>)>,
     material: Option<Rc<RefCell<Material>>>,
 
-    last_item_id: u16,
-
     swap_down_anim: AnimationFrame,
     swap_up_anim: AnimationFrame,
 
-    interact_start_anim: AnimationFrame,
+    interact_hand_anim: AnimationFrame,
+    interact_anim: AnimationFrame,
     need_play_interact_anim: bool,
-
-    //interact_hand_start_anim: AnimationFrame,
-    //interact_hand_end_anim: AnimationFrame,
 
     bobbing_anim: AnimationFrame,
 
+    swap_down_anim_result: AnimationKeyFrameValue,
+    swap_up_anim_result: AnimationKeyFrameValue,
+    interact_anim_result: AnimationKeyFrameValue,
 
-    pub pos: Vec3,
-    pub rot: Vec3,
+    bobbing_translate: Vec3,
 
-    swap_down_anim_key_frame: AnimationKeyFrameValue,
-    swap_up_anim_key_frame: AnimationKeyFrameValue,
+    camera_translate: Vec3,
+    idle_translate: Vec3,
 
-    interact_start_key_frame: AnimationKeyFrameValue,
+    last_item_id: u16,
+    is_hand_model: bool,
 }
 
 impl FirstPerson {
@@ -39,24 +38,23 @@ impl FirstPerson {
             swap_down_anim: AnimationFrame::new(AnimationRunMode::Once),
             swap_up_anim: AnimationFrame::new(AnimationRunMode::Once),
 
-            interact_start_anim: AnimationFrame::new(AnimationRunMode::Once),
+            interact_hand_anim: AnimationFrame::new(AnimationRunMode::Once),
+            interact_anim: AnimationFrame::new(AnimationRunMode::Once),
             need_play_interact_anim: false,
 
-            //interact_hand_start_anim: AnimationFrame::new(AnimationRunMode::Once),
-            //interact_hand_end_anim: AnimationFrame::new(AnimationRunMode::Once),
+            bobbing_anim: AnimationFrame::new(AnimationRunMode::Once),
 
-            bobbing_anim: AnimationFrame::new(AnimationRunMode::Repeat),
+            swap_down_anim_result: AnimationKeyFrameValue::default(),
+            swap_up_anim_result: AnimationKeyFrameValue::default(),
+            interact_anim_result: AnimationKeyFrameValue::default(),
 
+            bobbing_translate: Vec3::ZERO,
+
+            camera_translate: Vec3::ZERO,
+            idle_translate: Vec3::ZERO,
 
             last_item_id: 0,
-
-            pos: Vec3::new(-0.5, 0.175, -0.1),
-            rot: Vec3::new(-80.0, 0.0, 45.0),
-
-            swap_down_anim_key_frame: AnimationKeyFrameValue::new(Vec3::ZERO, Vec3::ZERO, Vec3::ZERO),
-            swap_up_anim_key_frame: AnimationKeyFrameValue::new(Vec3::ZERO, Vec3::ZERO, Vec3::ZERO),
-
-            interact_start_key_frame: AnimationKeyFrameValue::new(Vec3::ZERO, Vec3::ZERO, Vec3::ZERO),
+            is_hand_model: true,
         }
     }
 
@@ -64,38 +62,52 @@ impl FirstPerson {
         self.material = Some(global_renderer.get_material("firstPerson"));
 
         self.swap_down_anim.start(1.0, vec![
-            (0.0, AnimationKeyFrameValue::new(Vec3::new(0.0, 0.0, 0.0), Vec3::ZERO, Vec3::ZERO)),
-            (0.2, AnimationKeyFrameValue::new(Vec3::new(0.0, -0.5, 0.0), Vec3::ZERO, Vec3::ZERO)),
+            (0.0, Some(Vec3::ZERO), None, None),
+            (0.2, Some(Vec3::new(0.0, -0.5, 0.0)), None, None),
         ]);
         self.swap_up_anim.start(1.0, vec![
-            (0.0, AnimationKeyFrameValue::new(Vec3::new(0.0, -0.5, 0.0), Vec3::ZERO, Vec3::ZERO)),
-            (0.2, AnimationKeyFrameValue::new(Vec3::new(0.0, 0.0, 0.0), Vec3::ZERO, Vec3::ZERO)),
+            (0.0, Some(Vec3::new(0.0, -0.5, 0.0)), None, None),
+            (0.2, Some(Vec3::ZERO), None, None),
         ]);
 
 
-        self.interact_start_anim.start(4.0, vec![
-            (0.0, AnimationKeyFrameValue::new(Vec3::new(0.0, 0.0, 0.0), Vec3::ZERO, Vec3::ZERO)),
-            (0.5, AnimationKeyFrameValue::new(Vec3::new(-0.5, 0.175, -0.1), Vec3::ZERO, Vec3::new(-80.0, 0.0, 45.0))),
-            (0.75, AnimationKeyFrameValue::new(Vec3::new(-0.25, -0.175, -0.05), Vec3::ZERO, Vec3::new(-40.0, 0.0, 22.50))),
-            (1.0, AnimationKeyFrameValue::new(Vec3::new(0.0, 0.0, 0.0), Vec3::ZERO, Vec3::ZERO)),
+        self.interact_anim.start(4.0, vec![
+            (0.0, Some(Vec3::ZERO), None, Some(Vec3::ZERO)),
+            (0.5, Some(Vec3::new(-0.5, 0.175, -0.1)), None, Some(Vec3::new(-80.0, 0.0, 45.0))),
+            (1.0, Some(Vec3::new(-0.25, -0.2, -0.05)), None, None),
+            (1.5, Some(Vec3::ZERO), None, Some(Vec3::ZERO)),
         ]);
 
-        self.bobbing_anim.start(5.0, vec![
-            (0.0, AnimationKeyFrameValue::new(Vec3::new(0.0, 0.0, 0.0), Vec3::ZERO, Vec3::ZERO)),
-            (1.0, AnimationKeyFrameValue::new(Vec3::new(-0.02, 0.02, 0.0), Vec3::ZERO, Vec3::ZERO)),
-            (2.0, AnimationKeyFrameValue::new(Vec3::new(0.0, 0.0, 0.0), Vec3::ZERO, Vec3::ZERO)),
-            (3.0, AnimationKeyFrameValue::new(Vec3::new(0.02, 0.02, 0.0), Vec3::ZERO, Vec3::ZERO)),
-            (4.0, AnimationKeyFrameValue::new(Vec3::new(0.0, 0.0, 0.0), Vec3::ZERO, Vec3::ZERO)),
+        self.interact_hand_anim.start(4.0, vec![
+            (0.0, Some(Vec3::ZERO), None, Some(Vec3::ZERO)),
+            (0.5, Some(Vec3::new(-0.17, 0.1, 0.0)), None, Some(Vec3::new(0.0, 70.0, 0.0))),
+            (1.0, Some(Vec3::new(-0.17, -0.2, 0.0)), None, None),
+            (1.5, Some(Vec3::ZERO), None, Some(Vec3::ZERO)),
+        ]);
+
+        self.bobbing_anim.start(1.0, vec![
+            (0.0, Some(Vec3::new(0.0, 0.0, 0.0)), None, None),
+            (0.5, Some(Vec3::new(-0.04, 0.03, 0.0)), None, None),
+            (1.0, Some(Vec3::new(0.0, 0.0, 0.0)), None, None),
+            (1.5, Some(Vec3::new(0.04, 0.03, 0.0)), None, None),
+            (2.0, Some(Vec3::new(0.0, 0.0, 0.0)), None, None),
         ]);
 
         let hand_model = resources.get_model("playerHand");
         self.model_info = Some((hand_model.clone(), resources.get_or_load_model_mesh("playerHand", &hand_model)));
     }
 
-    pub fn update(&mut self, args: &mut WorldUpdateArgs, hand_item: &ItemStack, action: bool, player_vel: Vec3) {
-        self.swap_down_anim_key_frame = AnimationKeyFrameValue::new(Vec3::ZERO, Vec3::ZERO, Vec3::ZERO);
-        self.swap_up_anim_key_frame = AnimationKeyFrameValue::new(Vec3::ZERO, Vec3::ZERO, Vec3::ZERO);
-        self.interact_start_key_frame = AnimationKeyFrameValue::new(Vec3::ZERO, Vec3::ZERO, Vec3::ZERO);
+    pub fn update(&mut self,
+        args: &mut WorldUpdateArgs,
+        hand_item: &ItemStack,
+        action: bool,
+        walking: bool,
+        player_vel: Vec3,
+        camera_delta: Option<Vec2>,
+    ) {
+        self.swap_down_anim_result = AnimationKeyFrameValue::default();
+        self.swap_up_anim_result = AnimationKeyFrameValue::default();
+        self.interact_anim_result = AnimationKeyFrameValue::default();
 
         let model: Rc<GenericModel>;
         let item_id: u16;
@@ -121,76 +133,127 @@ impl FirstPerson {
         if let Some((result, status)) = self.swap_down_anim.update(args.dt) {
             if status == AnimationStatus::Finished {
                 self.model_info = Some((model.clone(), args.resources.get_or_load_model_mesh(model_name, &model)));
+                self.is_hand_model = item_id == 0;
                 self.swap_up_anim.play();
             }
             else {
-                self.swap_down_anim_key_frame = result;
+                self.swap_down_anim_result = result;
             }
         }
 
         if let Some((result, status)) = self.swap_up_anim.update(args.dt) {
             if status == AnimationStatus::Running {
-                self.swap_down_anim_key_frame = result;
+                self.swap_down_anim_result = result;
             }
         }
 
 
-        //self.interact_start_anim.start(1.0, vec![
-        //    (0.0, AnimationKeyFrameValue::new(Vec3::new(0.0, 0.0, 0.0), Vec3::ZERO, Vec3::ZERO)),
-        //    (0.5, AnimationKeyFrameValue::new(self.pos, Vec3::ZERO, self.rot)),
-        //    (1.0, AnimationKeyFrameValue::new(Vec3::ZERO, Vec3::ZERO, Vec3::ZERO)),
-
+        //self.interact_hand_anim.start(1.0, vec![
+        //    (0.0, Some(Vec3::ZERO), None, Some(Vec3::ZERO)),
+        //    (0.5, Some(self.pos), None, Some(self.rot)),
+        //    (0.75, Some(Vec3::new(-0.1, -0.1, 0.0)), None, None),
+        //    (1.0, Some(Vec3::ZERO), None, Some(Vec3::ZERO)),
         //]);
 
 
+        let interact_anim = if self.is_hand_model {
+            &mut self.interact_hand_anim
+        }
+        else { &mut self.interact_anim };
 
         if action {
-            if self.interact_start_anim.is_running() {
+            if interact_anim.is_running() {
                 self.need_play_interact_anim = true;
 
-                self.interact_start_anim.speed *= 3.0;
+                interact_anim.speed = 8.0;
             }
 
-            self.interact_start_anim.play();
+            interact_anim.play();
         }
 
-        if let Some((result, status)) = self.interact_start_anim.update(args.dt) {
+        if let Some((result, status)) = interact_anim.update(args.dt) {
             if status == AnimationStatus::Finished {
                 if self.need_play_interact_anim {
-                    self.interact_start_anim.play();
-                    self.interact_start_anim.speed /= 3.0;
+                    interact_anim.play();
+                    interact_anim.speed = 4.0;
                 }
 
                 self.need_play_interact_anim = false;
             }
             else {
-                self.interact_start_key_frame = result;
+                self.interact_anim_result = result;
             }
         }
 
-        //self.bobbing_anim.speed = (Vec2::new(player_vel.x, player_vel.z).length() * 1.5).min(8.0);
-        //if let Some((result, _)) = self.bobbing_anim.update(args.dt) {
-        //    self.parent_result.translatev(result.position);
-        //}
+
+
+        // camera translate
+        if let Some(camera_delta) = camera_delta && camera_delta != Vec2::ZERO {
+            self.camera_translate.x += (camera_delta.y * 0.01).clamp(-0.25, 0.25);
+            self.camera_translate.y += (camera_delta.x * 0.01).clamp(-0.25, 0.25);
+
+            self.camera_translate.x = self.camera_translate.x.clamp(-5.0, 5.0);
+            self.camera_translate.y = self.camera_translate.y.clamp(-5.0, 5.0);
+        }
+        else {
+            self.camera_translate.x -= self.camera_translate.x * (math::FRICTION * args.dt);
+            self.camera_translate.y -= self.camera_translate.y * (math::FRICTION * args.dt);
+
+            if self.camera_translate.x.abs() < math::EPSILON { self.camera_translate.x = 0.0 }
+            if self.camera_translate.y.abs() < math::EPSILON { self.camera_translate.y = 0.0 }
+        }
+
+
+        // walking animation
+        if walking {
+            let velo_len = (Vec2::new(player_vel.x, player_vel.z).length().abs() * 0.4).min(4.0);
+            self.bobbing_anim.play();
+            self.bobbing_anim.speed = velo_len;
+        }
+        else {
+            self.bobbing_anim.reset();
+        }
+
+        if let Some((result, status)) = self.bobbing_anim.update(args.dt) {
+            if status == AnimationStatus::Running {
+                self.bobbing_translate = result.position;
+            }
+        }
+        else {
+            self.bobbing_translate.x -= self.bobbing_translate.x * (math::FRICTION * args.dt);
+            self.bobbing_translate.y -= self.bobbing_translate.y * (math::FRICTION * args.dt);
+
+            if self.bobbing_translate.x.abs() < math::EPSILON { self.bobbing_translate.x = 0.0 }
+            if self.bobbing_translate.y.abs() < math::EPSILON { self.bobbing_translate.y = 0.0 }
+        }
+
+        // idle animation
+        self.idle_translate.x += args.time.sin() * args.dt * 0.5;
+        self.idle_translate.z += args.time.cos() * args.dt * 0.5;
     }
 
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
         if let Some((model, mesh)) = &self.model_info {
             let mut model_matrix = Matrix4::IDENTITY;
-            model_matrix.translatev(model.pos);
-            model_matrix.translatev(self.swap_down_anim_key_frame.position);
-            model_matrix.translatev(self.swap_up_anim_key_frame.position);
-            model_matrix.translatev(self.interact_start_key_frame.position);
+            model_matrix.rotatev_xyz(self.camera_translate);
 
-            model_matrix.translatev(model.scale * 0.5);
-            model_matrix.rotatev_xyz(self.interact_start_key_frame.rotation);
-            model_matrix.translatev(model.scale * -0.5);
+            model_matrix.rotatev_xyz(self.idle_translate);
 
-            model_matrix.translatev(model.scale * 0.5);
-            model_matrix.rotatev_xyz(model.rot);
-            model_matrix.translatev(model.scale * -0.5);
+            model_matrix.translatev(model.first_person_display_pos);
+            model_matrix.translatev(self.swap_down_anim_result.position);
+            model_matrix.translatev(self.swap_up_anim_result.position);
+            model_matrix.translatev(self.interact_anim_result.position);
+            model_matrix.translatev(self.bobbing_translate);
 
-            model_matrix.scalev(model.scale);
+            model_matrix.translatev(model.first_person_display_scale * 0.5);
+            model_matrix.rotatev_xyz(self.interact_anim_result.rotation);
+            model_matrix.translatev(model.first_person_display_scale * -0.5);
+
+            model_matrix.translatev(model.first_person_display_scale * 0.5);
+            model_matrix.rotatev_xyz(model.first_person_display_rot);
+            model_matrix.translatev(model.first_person_display_scale * -0.5);
+
+            model_matrix.scalev(model.first_person_display_scale);
 
             global_renderer.set_push_constant(0, &model_matrix);
             global_renderer.draw(&mesh.borrow(), &mut self.material.as_mut().unwrap().borrow_mut());

@@ -2,7 +2,7 @@ use crate::math::Vec2;
 
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct TexCoords {
     pub minx: f32,
     pub miny: f32,
@@ -11,8 +11,8 @@ pub struct TexCoords {
 }
 
 impl TexCoords {
-    pub const DEFAULT: Self = Self{ minx: 0.0, miny: 0.0, maxx: 1.0, maxy: 1.0 };
-    pub const ZERO: Self = Self{ minx: 0.0, miny: 0.0, maxx: 0.0, maxy: 0.0 };
+    pub const DEFAULT: Self = Self { minx: 0.0, miny: 0.0, maxx: 1.0, maxy: 1.0 };
+    pub const ZERO: Self = Self { minx: 0.0, miny: 0.0, maxx: 0.0, maxy: 0.0 };
 
     pub const fn new(minx: f32, miny: f32, maxx: f32, maxy: f32) -> Self { Self { minx, miny, maxx, maxy } }
 

@@ -1,11 +1,14 @@
-pub struct KeyFrame<T: Copy> {
+use crate::math;
+
+
+pub struct KeyFrame<T: Copy + Default> {
     frames: Vec<(f32, T)>,
     func: fn (f32, T, T) -> T,
 
     highest_key: f32,
 }
 
-impl<T: Copy> KeyFrame<T> {
+impl<T: Copy + Default> KeyFrame<T> {
     pub fn new(func: fn (f32, T, T) -> T) -> Self {
         Self {
             frames: Vec::new(),
@@ -15,11 +18,10 @@ impl<T: Copy> KeyFrame<T> {
         }
     }
 
-    pub fn get_highest_key(&self) -> f32 { self.highest_key }
-    pub fn get_first_key_frame(&self) -> (f32, T) { self.frames[0] }
-
     pub fn set_frames(&mut self, mut frames: Vec<(f32, T)>) {
-        debug_assert!(!frames.is_empty(), "Frames is empty!");
+        if frames.is_empty() {
+            return
+        }
 
         frames.sort_by(|a, b| a.0.total_cmp(&b.0));
 
@@ -38,6 +40,10 @@ impl<T: Copy> KeyFrame<T> {
     }
 
     pub fn get(&self, mut t: f32) -> T {
+        if self.frames.is_empty() {
+            return T::default()
+        }
+
         t /= self.highest_key;
 
         let start_value = self.frames[0].1;
@@ -53,7 +59,7 @@ impl<T: Copy> KeyFrame<T> {
             let next = &self.frames[i + 1];
 
             if t >= current.0 && t <= next.0 {
-                let factor = (t - current.0) / (next.0 - current.0);
+                let mut factor = (t - current.0) / (next.0 - current.0);
 
                 return (self.func)(factor, current.1, next.1);
             }

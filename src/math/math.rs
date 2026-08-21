@@ -1,4 +1,6 @@
-﻿use crate::math::{Matrix4, Vec2i, Vec3, Vec3i, Vec4};
+﻿use std::f32;
+
+use crate::math::{Matrix4, Vec2i, Vec3, Vec3i, Vec4};
 use crate::world::Chunk;
 
 

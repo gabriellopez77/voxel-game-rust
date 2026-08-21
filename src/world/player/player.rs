@@ -83,7 +83,7 @@ impl Player {
         } else { PlayerStates::Menu };
 
 
-        self.process_input(args);
+        let walking = self.process_input(args);
         self.process_collision(args.dt, planet, args.inputs);
 
         self.in_water = false;
@@ -94,7 +94,7 @@ impl Player {
             }
         });
 
-        self.camera.update(&self.aabb, planet, args.inputs.get_camera_delta() * args.inputs.mouse_down(inputs::MouseButton::Right) as i32 as f32);
+        self.camera.update(&self.aabb, planet, args.inputs.get_camera_delta());
 
 
         let ray_result = self.update_ray_casting(planet, particles_manager, args.inputs);
@@ -132,8 +132,13 @@ impl Player {
             }
         }
 
-
-        self.first_person.update(args, self.inventory.get_hand_slot(), action, self.velocity);
+        self.first_person.update(args,
+            self.inventory.get_hand_slot(),
+            action,
+            walking,
+            self.velocity,
+            if self.state == PlayerStates::Active { Some(args.inputs.get_camera_delta()) } else { None }
+        );
 
         if args.inputs.key_pressed(inputs::Keys::E) {
             args.events_queue.push_back(GameEvents::ChangeScreen(ScreensId::InventoryScreen));
@@ -181,18 +186,19 @@ impl Player {
         return result;
     }
 
-    fn process_input(&mut self, args: &mut WorldUpdateArgs) {
-        if self.state == PlayerStates::Menu { return }
+    fn process_input(&mut self, args: &mut WorldUpdateArgs) -> bool {
+        if self.state == PlayerStates::Menu { return false }
 
+        let mut walking = false;
         let mut dir = Vec3::ZERO;
 
         let yaw = self.camera.rot.x.to_radians();
         let front = Vec3 { x: yaw.cos(), y: 0.0, z: yaw.sin() };
 
-        if args.inputs.key_down(inputs::Keys::W) { dir = dir + front };
-        if args.inputs.key_down(inputs::Keys::A) { dir = dir - front.cross(Vec3::UP) };
-        if args.inputs.key_down(inputs::Keys::S) { dir = dir - front };
-        if args.inputs.key_down(inputs::Keys::D) { dir = dir + front.cross(Vec3::UP) };
+        if args.inputs.key_down(inputs::Keys::W) { dir = dir + front; walking = true };
+        if args.inputs.key_down(inputs::Keys::A) { dir = dir - front.cross(Vec3::UP); walking = true };
+        if args.inputs.key_down(inputs::Keys::S) { dir = dir - front; walking = true };
+        if args.inputs.key_down(inputs::Keys::D) { dir = dir + front.cross(Vec3::UP); walking = true };
         if args.inputs.key_down(inputs::Keys::Space) {
             if self.in_water && self.velocity.y < 3.0 {
                 self.velocity.y += SWIM_SPEED_UP * args.dt;
@@ -215,6 +221,8 @@ impl Player {
 
         let speed = if self.flying_mode { FLY_X_SPEED } else { SPEED };
         self.velocity += dir * (speed * args.dt);
+
+        return walking;
     }
 
     fn process_collision(&mut self, dt: f32, planet: &mut Planet, inputs: &Inputs) {

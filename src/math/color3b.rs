@@ -3,7 +3,7 @@ use std::ops::Mul;
 use crate::math::Vec3;
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct Color3b {
     pub r: u8,
     pub g: u8,
