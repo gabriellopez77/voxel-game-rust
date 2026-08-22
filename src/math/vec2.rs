@@ -1,4 +1,4 @@
-use std::ops::{Add, Mul, Div, Sub, AddAssign, MulAssign, DivAssign, SubAssign};
+use std::ops::{Add, Mul, Div, Sub, AddAssign, MulAssign, DivAssign, SubAssign, Neg};
 
 
 #[repr(C)]
@@ -39,3 +39,4 @@ impl AddAssign<f32> for Vec2 { fn add_assign(&mut self, o: f32) { self.x += o; s
 impl MulAssign<f32> for Vec2 { fn mul_assign(&mut self, o: f32) { self.x *= o; self.y *= o; } }
 impl DivAssign<f32> for Vec2 { fn div_assign(&mut self, o: f32) { self.x /= o; self.y /= o; } }
 impl SubAssign<f32> for Vec2 { fn sub_assign(&mut self, o: f32) { self.x -= o; self.y -= o; } }
+impl Neg for Vec2 { type Output = Self; fn neg(self) -> Vec2 { Vec2::new(-self.x, -self.y) } }

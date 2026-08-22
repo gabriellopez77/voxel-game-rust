@@ -70,7 +70,7 @@ impl World {
         self.player.selection_box.draw(global_renderer);
         self.player.first_person.draw(global_renderer);
         self.planet.draw(dt, &self.player.camera, global_renderer);
-        self.particles_manager.draw(global_renderer, self.player.camera.rot);
+        self.particles_manager.draw(global_renderer, self.player.camera.get_rot());
 
         self.player.camera.view_changed = false;
 

@@ -1,7 +1,16 @@
-﻿use crate::math::{self, Matrix4, Vec2, Vec3, Vec3i};
+﻿use std::f32;
+
+use crate::math::{self, Matrix4, Vec2, Vec3, Vec3i};
 
 use crate::world::{Aabb, Chunk, Planet};
 
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum PerspectiveMode {
+    FirstPerson,
+    ThridPersonBack,
+    ThridPersonFront,
+}
 
 #[derive(Copy, Clone)]
 struct Plane {
@@ -18,9 +27,9 @@ pub struct Camera {
     chunk_block: Vec3i,
     chunk_pos: Vec3i,
 
+    target: Vec3,
     direction: Vec3,
-    pub rot: Vec2,
-    pub view_changed: bool,
+    rot: Vec2,
 
     pub view_matrix: Matrix4,
     pub projection_matrix: Matrix4,
@@ -30,7 +39,9 @@ pub struct Camera {
 
     frustum_planes: [Plane; 6],
 
+    pub view_changed: bool,
     pub is_underwater: bool,
+    perspective_mode: PerspectiveMode,
 }
 
 impl Camera {
@@ -40,9 +51,9 @@ impl Camera {
             chunk_block: Vec3i::ZERO,
             chunk_pos: Vec3i::ZERO,
 
+            target: Vec3::ZERO,
             direction: Vec3::new(1.0, 0.0, 0.0),
             rot: Vec2::ZERO,
-            view_changed: false,
 
             view_matrix: Matrix4::ZERO,
             projection_matrix: Matrix4::ZERO,
@@ -50,9 +61,11 @@ impl Camera {
             view_no_translate_matrix: Matrix4::ZERO,
             first_person_projection_matrix: Matrix4::ZERO,
 
-            frustum_planes: [Plane{normal: Vec3::ZERO, d: 0.0}; 6],
+            frustum_planes: [Plane { normal: Vec3::ZERO, d: 0.0 }; 6],
 
+            view_changed: false,
             is_underwater: false,
+            perspective_mode: PerspectiveMode::FirstPerson,
         }
     }
 
@@ -60,20 +73,31 @@ impl Camera {
 
     }
 
-    pub fn get_pos(&self) -> Vec3 {
-        self.position
+    pub fn get_camera_type(&self) -> PerspectiveMode { self.perspective_mode }
+    pub fn get_pos(&self) -> Vec3 { self.position }
+    pub fn get_dir(&self) -> Vec3 { self.direction }
+    pub fn get_rot(&self) -> Vec2 {
+        match self.perspective_mode {
+            PerspectiveMode::ThridPersonFront => -self.rot,
+            _ => self.rot
+        }
     }
 
-    pub fn get_dir(&self) -> Vec3 {
-        self.direction
+    pub fn get_forward(&self) -> Vec3 {
+        let yaw_rad = self.rot.x.to_radians();
+
+        Vec3::new(yaw_rad.cos(), 0.0, yaw_rad.sin())
+    }
+
+    pub fn change_type(&mut self, new_type: PerspectiveMode) {
+        self.view_changed = true;
+
+        self.perspective_mode = new_type;
     }
 
     pub fn update(&mut self, player_aabb: &Aabb, planet: &Planet, camera_delta: Vec2) {
-        let new_pos = Vec3::new(
-            player_aabb.get_min().x + player_aabb.get_size().x / 2.0,
-            player_aabb.get_min().y + 1.7,
-            player_aabb.get_min().z + player_aabb.get_size().z / 2.0,
-        );
+        let mut new_pos = player_aabb.get_center();
+        new_pos.y = player_aabb.y0 + 1.7;
 
         if self.position != new_pos {
             self.view_changed = true;
@@ -83,17 +107,20 @@ impl Camera {
         self.chunk_pos = math::get_chunk_pos(new_pos);
         self.chunk_block = math::get_chunk_block(self.chunk_pos, new_pos);
 
+        // check if camera is on water
         self.is_underwater = if let Some(chunk) = planet.get_chunk(self.chunk_pos) {
             let block_info = chunk.borrow().chunk_data.read().unwrap().get_block_info(self.chunk_block);
 
             *planet.blocks_manager.get_properties_from_block_info(block_info) == planet.blocks_manager.water_block
         } else { false };
 
-        self.process_rotation(camera_delta);
+
+        self.process_rotation(camera_delta, planet);
+
 
         if !self.view_changed { return }
 
-        self.view_matrix = Matrix4::look_at(self.position, self.position + self.direction);
+        self.view_matrix = Matrix4::look_at(self.position, self.target);
         self.viewproj_matrix = self.projection_matrix * self.view_matrix;
         self.view_no_translate_matrix = self.view_matrix.remove_translation();
         self.update_frustum_planes();
@@ -102,11 +129,11 @@ impl Camera {
     pub fn resize(&mut self, width: f32, height: f32) {
         self.view_changed = true;
 
-        self.view_matrix = Matrix4::look_at(self.position, self.position + self.direction);
+        self.view_matrix = Matrix4::look_at(self.position, self.target);
         self.projection_matrix = Matrix4::perspective(70.0, width / height, 0.04, 1000.0);
         self.viewproj_matrix = self.projection_matrix * self.view_matrix;
         self.view_no_translate_matrix = self.view_matrix.remove_translation();
-        self.first_person_projection_matrix = Matrix4::perspective(60.0, width / height, 0.04, 100.0);
+        self.first_person_projection_matrix = Matrix4::perspective(60.0, width / height, 0.04, 10.0);
         self.update_frustum_planes();
     }
 
@@ -127,25 +154,39 @@ impl Camera {
         return true;
     }
 
-    fn process_rotation(&mut self, camera_delta: Vec2) {
+    fn process_rotation(&mut self, camera_delta: Vec2, planet: &Planet) {
         const SENSITIVYTY: f32 = 0.2;
 
         let delta = camera_delta * SENSITIVYTY;
 
 
         let last_rotate = self.rot;
+
         self.rot.x += delta.x;
         self.rot.y -= delta.y;
 
         self.rot.y = self.rot.y.clamp(-89.0, 89.0);
 
-        let direction = Vec3 {
-            x: f32::to_radians(self.rot.x).cos() * f32::to_radians(self.rot.y).cos(),
-            y: f32::to_radians(self.rot.y).sin(),
-            z: f32::to_radians(self.rot.x).sin() * f32::to_radians(self.rot.y).cos()
-        };
+        self.direction = Vec3::new(
+            f32::to_radians(self.rot.x).cos() * f32::to_radians(self.rot.y).cos(),
+            f32::to_radians(self.rot.y).sin(),
+            f32::to_radians(self.rot.x).sin() * f32::to_radians(self.rot.y).cos()
+        ).normalized();
 
-        self.direction = direction.normalized();
+        match self.perspective_mode {
+            PerspectiveMode::FirstPerson => self.target = self.position + self.direction,
+            PerspectiveMode::ThridPersonBack => {
+                self.target = self.position;
+
+                self.position = Self::get_ray_pos(self.target, -self.direction, planet);
+            }
+
+            PerspectiveMode::ThridPersonFront => {
+                self.target = self.position;
+
+                self.position = Self::get_ray_pos(self.target, self.direction, planet);
+            }
+        }
 
         if last_rotate != self.rot {
             self.view_changed = true;
@@ -188,6 +229,30 @@ impl Camera {
 
             plane.normal /= length;
             plane.d /= length;
+        }
+    }
+
+    fn get_ray_pos(ray_origin: Vec3, ray_dir: Vec3, planet: &Planet) -> Vec3 {
+        const DISTANCE: f32 = 2.5;
+
+        let mut pos = Option::<Vec3>::None;
+
+        planet.iterate_over_blocks_raycast(ray_origin, ray_dir, DISTANCE, |stop, it| {
+            if let Some(selection_box) = it.block_properties.selection_box {
+                let aabb = selection_box.clone_movev(it.global_block);
+
+                if let Some(hit) = aabb.ray_intersect(ray_origin, ray_dir) {
+                    *stop = true;
+                    pos = Some(hit + (-ray_dir * 0.15));
+                }
+            }
+        });
+
+        if let Some(pos) = pos {
+            return pos
+        }
+        else {
+            return ray_origin + ray_dir * DISTANCE;
         }
     }
 }

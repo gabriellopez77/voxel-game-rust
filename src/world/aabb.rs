@@ -41,6 +41,7 @@ impl Aabb {
     pub fn get_size(&self) -> Vec3 { Vec3::new(self.x1 - self.x0, self.y1 - self.y0, self.z1 - self.z0) }
     pub fn get_min(&self) -> Vec3 { Vec3::new(self.x0, self.y0, self.z0) }
     pub fn get_max(&self) -> Vec3 { Vec3::new(self.x1, self.y1, self.z1) }
+    pub fn get_center(&self) -> Vec3 { self.get_min() + (self.get_size() / 2.0)  }
 
     pub fn intersects(&self, other: &Self) -> bool {
         if other.x1 <= self.x0 || other.x0 >= self.x1 { return false }

@@ -1,4 +1,4 @@
-use std::ops::{Add, Mul, Div, Sub, AddAssign, MulAssign, DivAssign, SubAssign};
+use std::ops::{Add, Mul, Div, Sub, AddAssign, MulAssign, DivAssign, SubAssign, Neg};
 
 use crate::math::{Vec3i, Vec4, math};
 
@@ -88,3 +88,4 @@ impl AddAssign<f32> for Vec3 { fn add_assign(&mut self, o: f32) { self.x += o; s
 impl MulAssign<f32> for Vec3 { fn mul_assign(&mut self, o: f32) { self.x *= o; self.y *= o; self.z *= o; } }
 impl DivAssign<f32> for Vec3 { fn div_assign(&mut self, o: f32) { self.x /= o; self.y /= o; self.z /= o; } }
 impl SubAssign<f32> for Vec3 { fn sub_assign(&mut self, o: f32) { self.x -= o; self.y -= o; self.z -= o; } }
+impl Neg for Vec3 { type Output = Self; fn neg(self) -> Vec3 { Vec3::new(-self.x, -self.y, -self.z) } }

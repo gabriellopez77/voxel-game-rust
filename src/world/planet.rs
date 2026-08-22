@@ -14,7 +14,7 @@ use crate::world::{Chunk, player::Camera};
 
 
 pub struct BlockIteraterInfo {
-    pub global_block: Vec3i,
+    pub global_block: Vec3,
     pub chunk_block: Vec3i,
     pub chunk: Arc<RefCell<Chunk>>,
     pub block_properties: SafePtr<BlockProperties>,
@@ -59,7 +59,7 @@ impl Planet {
 
             blocks_manager: NullSafePtr::null(),
 
-            render_distance: 14,
+            render_distance: 4,
 
             pendings_chunks_count: 0,
 
@@ -300,7 +300,7 @@ impl Planet {
                 let block_properties = self.blocks_manager.get_properties_from_block_info(block_info);
 
                 let iterater_info = BlockIteraterInfo {
-                    global_block: block_pos.as_vec3i(),
+                    global_block: block_pos,
                     chunk_block,
                     chunk: chunk.clone(),
                     block_properties,

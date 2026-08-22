@@ -8,7 +8,7 @@ use crate::{inputs, math};
 use crate::inputs::Inputs;
 use crate::math::Vec3;
 use crate::world::{Aabb, Planet};
-use crate::world::player::camera::Camera;
+use crate::world::player::camera::{Camera, PerspectiveMode};
 use crate::world::player::{FirstPerson, PlayerInventory, SelectionBox};
 
 
@@ -94,6 +94,14 @@ impl Player {
             }
         });
 
+        if args.inputs.key_pressed(inputs::Keys::F5) {
+            match self.camera.get_camera_type() {
+                PerspectiveMode::FirstPerson => self.camera.change_type(PerspectiveMode::ThridPersonBack),
+                PerspectiveMode::ThridPersonBack => self.camera.change_type(PerspectiveMode::ThridPersonFront),
+                PerspectiveMode::ThridPersonFront => self.camera.change_type(PerspectiveMode::FirstPerson),
+            }
+        }
+
         self.camera.update(&self.aabb, planet, args.inputs.get_camera_delta());
 
 
@@ -158,21 +166,19 @@ impl Player {
 
         planet.iterate_over_blocks_raycast(ray_pos, ray_dir, RAY_LENGHT, |stop, it| {
             if let Some(ref selection_box) = it.block_properties.selection_box {
-                let target_block = it.global_block.as_vec3();
-
-                let aabb = selection_box.clone_movev(target_block);
+                let aabb = selection_box.clone_movev(it.global_block);
 
                 if let Some(hit) = aabb.ray_intersect(ray_pos, ray_dir) {
                     // break block
                     if inputs.mouse_pressed(inputs::MouseButton::Left) && self.state == PlayerStates::Active {
                         let block_properties = it.chunk.borrow().chunk_data.read().unwrap().get_block_properties(it.chunk_block);
-                        particles_manager.spawn(ParticlesSpawnArgs::BlockDestroy(&block_properties, target_block));
+                        particles_manager.spawn(ParticlesSpawnArgs::BlockDestroy(&block_properties, it.global_block));
 
                         it.chunk.borrow().chunk_data.write().unwrap().set_block(it.chunk_block, it.blocks_manager.air);
                     }
 
-                    result = Some(RaycastingResult{
-                        block_pos: target_block,
+                    result = Some(RaycastingResult {
+                        block_pos: it.global_block,
                         hit_normal: aabb.get_ray_hit_normal(hit),
                         block_properties: it.block_properties.clone(),
                         block_selection_box: aabb,
@@ -192,13 +198,12 @@ impl Player {
         let mut walking = false;
         let mut dir = Vec3::ZERO;
 
-        let yaw = self.camera.rot.x.to_radians();
-        let front = Vec3 { x: yaw.cos(), y: 0.0, z: yaw.sin() };
+        let forward = self.camera.get_forward();
 
-        if args.inputs.key_down(inputs::Keys::W) { dir = dir + front; walking = true };
-        if args.inputs.key_down(inputs::Keys::A) { dir = dir - front.cross(Vec3::UP); walking = true };
-        if args.inputs.key_down(inputs::Keys::S) { dir = dir - front; walking = true };
-        if args.inputs.key_down(inputs::Keys::D) { dir = dir + front.cross(Vec3::UP); walking = true };
+        if args.inputs.key_down(inputs::Keys::W) { dir = dir + forward; walking = true };
+        if args.inputs.key_down(inputs::Keys::A) { dir = dir - forward.cross(Vec3::UP); walking = true };
+        if args.inputs.key_down(inputs::Keys::S) { dir = dir - forward; walking = true };
+        if args.inputs.key_down(inputs::Keys::D) { dir = dir + forward.cross(Vec3::UP); walking = true };
         if args.inputs.key_down(inputs::Keys::Space) {
             if self.in_water && self.velocity.y < 3.0 {
                 self.velocity.y += SWIM_SPEED_UP * args.dt;
