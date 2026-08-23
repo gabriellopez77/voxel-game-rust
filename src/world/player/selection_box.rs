@@ -29,7 +29,7 @@ impl SelectionBox {
     }
 
     pub fn start(&mut self, global_renderer: &mut GlobalRenderer) {
-        let (mut mesh, material) = global_renderer.create_mesh_material("selectionBox");
+        let (mut mesh, material) = global_renderer.create_mesh_and_get_material("selectionBox");
         mesh.set(&OUTLINE_CUBE_VERTICES, &OUTLINE_CUBE_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
 
         self.renderer = Some((mesh, material));

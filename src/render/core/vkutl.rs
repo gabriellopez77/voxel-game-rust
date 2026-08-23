@@ -11,7 +11,7 @@ pub const FRAMES_COUNT: usize = 2;
 pub const SWAPCHAIN_IMAGES_COUNT: usize = 3;
 
 // limits
-pub const MAX_VERTEX_ATTRIBUTES_COUNT: usize = 10;
+pub const MAX_VERTEX_ATTRIBUTES_COUNT: usize = 16;
 pub const MAX_VERTEX_BINDING_COUNT: usize = 2;
 pub const MAX_BUFFERS_REQUIRED_TO_DRAW_COUNT: usize = 3;
 pub const MAX_DESCRIPTORS_BINDING_COUNT: usize = 2;

@@ -138,18 +138,56 @@ pub const CLOUDS_VERTICES: [i8; 168] = [
     1, 1, 0,   1, 0, 0,   5,
 ];
 
+// vertices, normal, face id
+pub const ENTITIES_CUBES_VERTICES: [f32; 216] = [
+    // up
+    1.0,  1.0,  0.0,    0.0,  1.0,  0.0,    0.0, 0.0,    0.0,
+    0.0,  1.0,  0.0,    0.0,  1.0,  0.0,    0.0, 1.0,    0.0,
+    0.0,  1.0,  1.0,    0.0,  1.0,  0.0,    1.0, 1.0,    0.0,
+    1.0,  1.0,  1.0,    0.0,  1.0,  0.0,    1.0, 0.0,    0.0,
+
+    // down
+    1.0,  0.0,  1.0,    0.0, -1.0,  0.0,    0.0, 0.0,    1.0,
+    0.0,  0.0,  1.0,    0.0, -1.0,  0.0,    0.0, 1.0,    1.0,
+    0.0,  0.0,  0.0,    0.0, -1.0,  0.0,    1.0, 1.0,    1.0,
+    1.0,  0.0,  0.0,    0.0, -1.0,  0.0,    1.0, 0.0,    1.0,
+
+    // south
+    0.0,  1.0,  1.0,    0.0,  0.0,  1.0,    0.0, 0.0,    2.0,
+    0.0,  0.0,  1.0,    0.0,  0.0,  1.0,    0.0, 1.0,    2.0,
+    1.0,  0.0,  1.0,    0.0,  0.0,  1.0,    1.0, 1.0,    2.0,
+    1.0,  1.0,  1.0,    0.0,  0.0,  1.0,    1.0, 0.0,    2.0,
+
+    // north
+    1.0,  1.0,  0.0,    0.0,  0.0, -1.0,    0.0, 0.0,    3.0,
+    1.0,  0.0,  0.0,    0.0,  0.0, -1.0,    0.0, 1.0,    3.0,
+    0.0,  0.0,  0.0,    0.0,  0.0, -1.0,    1.0, 1.0,    3.0,
+    0.0,  1.0,  0.0,    0.0,  0.0, -1.0,    1.0, 0.0,    3.0,
+
+    // west
+    0.0,  1.0,  0.0,   -1.0,  0.0,  0.0,    0.0, 0.0,    4.0,
+    0.0,  0.0,  0.0,   -1.0,  0.0,  0.0,    0.0, 1.0,    4.0,
+    0.0,  0.0,  1.0,   -1.0,  0.0,  0.0,    1.0, 1.0,    4.0,
+    0.0,  1.0,  1.0,   -1.0,  0.0,  0.0,    1.0, 0.0,    4.0,
+
+    // east
+    1.0,  1.0,  1.0,    1.0,  0.0,  0.0,    0.0, 0.0,    5.0,
+    1.0,  0.0,  1.0,    1.0,  0.0,  0.0,    0.0, 1.0,    5.0,
+    1.0,  0.0,  0.0,    1.0,  0.0,  0.0,    1.0, 1.0,    5.0,
+    1.0,  1.0,  0.0,    1.0,  0.0,  0.0,    1.0, 0.0,    5.0,
+];
 
 
 #[repr(C, align(16))]
-#[derive(Copy, Clone, Default)]
+#[derive(Clone, Copy, Default)]
 pub struct AlignedMatrix(pub Matrix4);
 
 #[repr(C, align(16))]
-#[derive(Copy, Clone, Default)]
+#[derive(Clone, Copy, Default)]
 pub struct AlignedVec3(pub Vec3);
 
 #[repr(C)]
-#[derive(Copy, Clone, Default)]
+#[derive(Clone, Copy, Default)]
 pub struct GlobalUboData {
     // ui
     pub ui_proj: AlignedMatrix,
@@ -163,7 +201,6 @@ pub struct GlobalUboData {
 
     // firstPerson
     pub first_person_proj: AlignedMatrix,
-    pub first_person_view: AlignedMatrix,
 
     // world
     pub sky_color: AlignedVec3,
@@ -243,4 +280,20 @@ pub struct ParticlesVertices {
     pub rotation: Vec3,
     pub uv: TexCoords,
     pub texture_idx: u8,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct EntitiesCubesVertices {
+    pub up_tex_coords: TexCoords,
+    pub down_tex_coords: TexCoords,
+    pub south_tex_coords: TexCoords,
+    pub north_tex_coords: TexCoords,
+    pub west_tex_coords: TexCoords,
+    pub east_tex_coords: TexCoords,
+
+    pub color: Color4b,
+    pub texture_idx: u32,
+
+    pub local_matrix: Matrix4,
 }

@@ -11,7 +11,6 @@ layout(std140, set = 0, binding = 1) readonly uniform sla {
 
     // first person
     mat4 firstPersonProj;
-    mat4 firstPersonView;
 
     // world
     vec4 skyColor;

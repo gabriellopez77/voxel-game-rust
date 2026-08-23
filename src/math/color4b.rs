@@ -2,7 +2,7 @@
 
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct Color4b {
     pub r: u8,
     pub g: u8,

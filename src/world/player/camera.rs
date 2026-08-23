@@ -73,12 +73,12 @@ impl Camera {
 
     }
 
-    pub fn get_camera_type(&self) -> PerspectiveMode { self.perspective_mode }
+    pub fn get_perspective_type(&self) -> PerspectiveMode { self.perspective_mode }
     pub fn get_pos(&self) -> Vec3 { self.position }
     pub fn get_dir(&self) -> Vec3 { self.direction }
     pub fn get_rot(&self) -> Vec2 {
         match self.perspective_mode {
-            PerspectiveMode::ThridPersonFront => -self.rot,
+            PerspectiveMode::ThridPersonFront => self.rot,
             _ => self.rot
         }
     }
@@ -99,13 +99,11 @@ impl Camera {
         let mut new_pos = player_aabb.get_center();
         new_pos.y = player_aabb.y0 + 1.7;
 
-        if self.position != new_pos {
-            self.view_changed = true;
-        }
+        self.process_rotation(new_pos, camera_delta, planet);
 
-        self.position = new_pos;
-        self.chunk_pos = math::get_chunk_pos(new_pos);
-        self.chunk_block = math::get_chunk_block(self.chunk_pos, new_pos);
+        self.chunk_pos = math::get_chunk_pos(self.position);
+        self.chunk_block = math::get_chunk_block(self.chunk_pos, self.position);
+
 
         // check if camera is on water
         self.is_underwater = if let Some(chunk) = planet.get_chunk(self.chunk_pos) {
@@ -113,9 +111,6 @@ impl Camera {
 
             *planet.blocks_manager.get_properties_from_block_info(block_info) == planet.blocks_manager.water_block
         } else { false };
-
-
-        self.process_rotation(camera_delta, planet);
 
 
         if !self.view_changed { return }
@@ -154,7 +149,7 @@ impl Camera {
         return true;
     }
 
-    fn process_rotation(&mut self, camera_delta: Vec2, planet: &Planet) {
+    fn process_rotation(&mut self, new_pos: Vec3, camera_delta: Vec2, planet: &Planet) {
         const SENSITIVYTY: f32 = 0.2;
 
         let delta = camera_delta * SENSITIVYTY;
@@ -173,23 +168,26 @@ impl Camera {
             f32::to_radians(self.rot.x).sin() * f32::to_radians(self.rot.y).cos()
         ).normalized();
 
+        if last_rotate != self.rot || self.position != new_pos {
+            self.view_changed = true;
+        }
+
         match self.perspective_mode {
-            PerspectiveMode::FirstPerson => self.target = self.position + self.direction,
+            PerspectiveMode::FirstPerson => {
+                self.target = new_pos + self.direction;
+
+                self.position = new_pos;
+            }
             PerspectiveMode::ThridPersonBack => {
-                self.target = self.position;
+                self.target = new_pos;
 
                 self.position = Self::get_ray_pos(self.target, -self.direction, planet);
             }
-
             PerspectiveMode::ThridPersonFront => {
-                self.target = self.position;
+                self.target = new_pos;
 
                 self.position = Self::get_ray_pos(self.target, self.direction, planet);
             }
-        }
-
-        if last_rotate != self.rot {
-            self.view_changed = true;
         }
     }
 

@@ -64,6 +64,14 @@ impl VertexAttribInfo {
 
         self
     }
+
+    pub fn add_attribute_array_vec4(&mut self, offset: usize, array_len: usize) -> &mut Self {
+        for i in 0..array_len {
+            self.add_attribute(vk::Format::R32G32B32A32_SFLOAT, offset + i * size_of::<Vec4>());
+        }
+
+        self
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -191,7 +199,7 @@ impl Material {
 
     fn create_pipeline(&mut self, global_renderer: &mut GlobalRenderer) {
         self.pipeline_layout = global_renderer.global_pipeline_layout.clone();
-        
+
         const DYNAMIC_STATES: [vk::DynamicState; 2] = [ vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR ];
 
         let vertex_module = self.compile_shader(&mut global_renderer.shaders_compiler, shaderc::ShaderKind::Vertex, &self.vertex_shader_name);
@@ -286,7 +294,7 @@ impl Material {
                 Ok(pipeline) => pipeline[0],
                 Err(err) => {
                     println!("Failed to create graphics pipeline: {}", err.1);
-                    
+
                     vk::Pipeline::null()
                 }
             }

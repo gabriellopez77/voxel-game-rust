@@ -44,7 +44,7 @@ impl ParticlesManager {
     }
 
     pub fn start(&mut self, resources_manager: &ResourceManager, global_renderer: &mut GlobalRenderer) {
-        let (mut mesh, material) = global_renderer.create_mesh_material("particles");
+        let (mut mesh, material) = global_renderer.create_mesh_and_get_material("particles");
         mesh.set(&PARTICLES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
         mesh.create_instance_buffer(size_of::<ParticlesVertices>() * Self::MAX_PARTICLES_COUNT, None, BufferFlags::RAM);
 

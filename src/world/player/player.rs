@@ -1,4 +1,6 @@
 ﻿use crate::game::{GameEvents, PlayerStates};
+use crate::render::{EntitiesCubesVertices, EntitiesRenderer, GlobalRenderer};
+use crate::resources::ResourceManager;
 use crate::ui::ui_manager::ScreensId;
 use crate::utils::SafePtr;
 use crate::world::blocks::BlockProperties;
@@ -6,7 +8,7 @@ use crate::world::particles::{ParticlesManager, ParticlesSpawnArgs};
 use crate::world::world::WorldUpdateArgs;
 use crate::{inputs, math};
 use crate::inputs::Inputs;
-use crate::math::Vec3;
+use crate::math::{Color4b, Matrix4, Vec3};
 use crate::world::{Aabb, Planet};
 use crate::world::player::camera::{Camera, PerspectiveMode};
 use crate::world::player::{FirstPerson, PlayerInventory, SelectionBox};
@@ -33,8 +35,8 @@ pub struct Player {
 
     pub inventory: PlayerInventory,
 
-    pub selection_box: SelectionBox,
-    pub first_person: FirstPerson,
+    selection_box: SelectionBox,
+    first_person: FirstPerson,
 
     aabb: Aabb,
     velocity: Vec3,
@@ -43,6 +45,13 @@ pub struct Player {
     flying_mode: bool,
     on_ground: bool,
     pub state: PlayerStates,
+
+    head: EntitiesCubesVertices,
+    left_leg: EntitiesCubesVertices,
+    right_leg: EntitiesCubesVertices,
+    body: EntitiesCubesVertices,
+    left_arm: EntitiesCubesVertices,
+    right_arm: EntitiesCubesVertices,
 }
 
 impl Player {
@@ -62,6 +71,84 @@ impl Player {
             flying_mode: false,
             on_ground: false,
             state: PlayerStates::Menu,
+
+            left_leg: EntitiesCubesVertices::default(),
+            right_leg: EntitiesCubesVertices::default(),
+            body: EntitiesCubesVertices::default(),
+            left_arm: EntitiesCubesVertices::default(),
+            right_arm: EntitiesCubesVertices::default(),
+            head: EntitiesCubesVertices::default(),
+        }
+    }
+
+    pub fn get_pos(&self) -> Vec3 { self.aabb.get_min() }
+
+    pub fn start(&mut self, resources: &mut ResourceManager, global_renderer: &mut GlobalRenderer) {
+        self.selection_box.start(global_renderer);
+        self.first_person.start(global_renderer, resources);
+
+        self.camera.start();
+
+        //self.head.up_tex_coords = resources.world_texture.get_coords("grass_block_top");
+        //self.head.down_tex_coords = resources.world_texture.get_coords("cobblestone");
+        //self.head.south_tex_coords = resources.world_texture.get_coords("oak_log_side");
+        self.head.north_tex_coords = resources.world_texture.get_coords("ice_block");
+        //self.head.west_tex_coords = resources.world_texture.get_coords("dirt");
+        //self.head.east_tex_coords = resources.world_texture.get_coords("dirt");
+        self.head.texture_idx = GlobalRenderer::WORLD_TEXTURE_IDX as u32;
+
+        {
+            let mut matrix = Matrix4::IDENTITY;
+            matrix.translatev(Vec3::new(-1.9, 6.0, 0.0) / 16.0);
+            matrix.scalev(Vec3::new(4.0, 12.0, 4.0) / 16.0);
+
+            self.left_leg.local_matrix = matrix;
+            self.left_leg.texture_idx = GlobalRenderer::WORLD_TEXTURE_IDX as u32;
+        }
+
+        {
+            let mut matrix = Matrix4::IDENTITY;
+            matrix.translatev(Vec3::new(1.9, 6.0, 0.0) / 16.0);
+            matrix.scalev(Vec3::new(4.0, 12.0, 4.0) / 16.0);
+
+            self.right_leg.local_matrix = matrix;
+            self.right_leg.texture_idx = GlobalRenderer::WORLD_TEXTURE_IDX as u32;
+        }
+
+        {
+            let mut matrix = Matrix4::IDENTITY;
+            matrix.translatev(Vec3::new(0.0, 18.0, 0.0) / 16.0);
+            matrix.scalev(Vec3::new(8.0, 12.0, 4.0) / 16.0);
+
+            self.body.local_matrix = matrix;
+            self.body.texture_idx = GlobalRenderer::WORLD_TEXTURE_IDX as u32;
+        }
+
+        {
+            let mut matrix = Matrix4::IDENTITY;
+            matrix.translatev(Vec3::new(-6.0, 18.0, 0.0) / 16.0);
+            matrix.scalev(Vec3::new(4.0, 12.0, 4.0) / 16.0);
+
+            self.left_arm.local_matrix = matrix;
+            self.left_arm.texture_idx = GlobalRenderer::WORLD_TEXTURE_IDX as u32;
+        }
+
+        {
+            let mut matrix = Matrix4::IDENTITY;
+            matrix.translatev(Vec3::new(6.0, 18.0, 0.0) / 16.0);
+            matrix.scalev(Vec3::new(4.0, 12.0, 4.0) / 16.0);
+
+            self.right_arm.local_matrix = matrix;
+            self.right_arm.texture_idx = GlobalRenderer::WORLD_TEXTURE_IDX as u32;
+        }
+
+        {
+            let mut matrix = Matrix4::IDENTITY;
+            matrix.translatev(Vec3::new(0.0, 28.0, 0.0) / 16.0);
+            matrix.scalev(Vec3::new(8.0, 8.0, 8.0) / 16.0);
+
+            self.head.local_matrix = matrix;
+            self.head.texture_idx = GlobalRenderer::WORLD_TEXTURE_IDX as u32;
         }
     }
 
@@ -69,12 +156,8 @@ impl Player {
         self.aabb.set_position(0.0, 60.0, 0.0);
     }
 
-    pub fn get_pos(&self) -> Vec3 {
-        self.aabb.get_min()
-    }
-
-    pub fn start(&mut self) {
-        self.camera.start();
+    pub fn cleanup(&mut self) {
+        self.selection_box.cleanup();
     }
 
     pub fn update(&mut self, args: &mut WorldUpdateArgs, planet: &mut Planet, particles_manager: &mut ParticlesManager) {
@@ -95,7 +178,7 @@ impl Player {
         });
 
         if args.inputs.key_pressed(inputs::Keys::F5) {
-            match self.camera.get_camera_type() {
+            match self.camera.get_perspective_type() {
                 PerspectiveMode::FirstPerson => self.camera.change_type(PerspectiveMode::ThridPersonBack),
                 PerspectiveMode::ThridPersonBack => self.camera.change_type(PerspectiveMode::ThridPersonFront),
                 PerspectiveMode::ThridPersonFront => self.camera.change_type(PerspectiveMode::FirstPerson),
@@ -151,6 +234,48 @@ impl Player {
         if args.inputs.key_pressed(inputs::Keys::E) {
             args.events_queue.push_back(GameEvents::ChangeScreen(ScreensId::InventoryScreen));
         }
+    }
+
+    pub fn draw(&mut self, renderer: &mut EntitiesRenderer, global_renderer: &mut GlobalRenderer) {
+        self.selection_box.draw(global_renderer);
+
+        if self.camera.get_perspective_type() == PerspectiveMode::FirstPerson {
+            self.first_person.draw(global_renderer);
+
+            return;
+        }
+
+
+        let mut global_pos = self.aabb.get_center();
+        global_pos.y = self.aabb.y0;
+
+        let mut global_matrix = Matrix4::IDENTITY;
+        global_matrix.translatev(global_pos);
+        global_matrix.rotate_xyz(0.0, -self.camera.get_rot().x - 90.0, 0.0);
+
+        let mut head_matrix = Matrix4::IDENTITY;
+        head_matrix.rotate_xyz(self.camera.get_rot().y, 0.0, 0.0);
+
+        let mut left_leg = self.left_leg.clone();
+        let mut right_leg = self.right_leg.clone();
+        let mut body = self.body.clone();
+        let mut left_arm = self.left_arm.clone();
+        let mut right_arm = self.right_arm.clone();
+        let mut head = self.head.clone();
+
+        left_leg.local_matrix = global_matrix * left_leg.local_matrix;
+        right_leg.local_matrix = global_matrix * right_leg.local_matrix;
+        body.local_matrix = global_matrix * body.local_matrix;
+        left_arm.local_matrix = global_matrix * left_arm.local_matrix;
+        right_arm.local_matrix = global_matrix * right_arm.local_matrix;
+        head.local_matrix = global_matrix * head.local_matrix * head_matrix;
+
+        renderer.add_cube(left_leg);
+        renderer.add_cube(right_leg);
+        renderer.add_cube(body);
+        renderer.add_cube(left_arm);
+        renderer.add_cube(right_arm);
+        renderer.add_cube(head);
     }
 
     fn update_ray_casting(&mut self,

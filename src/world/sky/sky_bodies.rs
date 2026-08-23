@@ -125,12 +125,12 @@ impl SkyBodies {
             }
         ];
 
-        let (mut stars_mesh, stars_material) = global_renderer.create_mesh_material("skyBodies");
+        let (mut stars_mesh, stars_material) = global_renderer.create_mesh_and_get_material("skyBodies");
         stars_mesh.set(&CENTER_SPRITES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
         stars_mesh.create_instance_buffer_from_arr(&stars_buffer, BufferFlags::VRAM | BufferFlags::ONCE);
         self.stars_renderer = Some((stars_mesh, stars_material));
 
-        let (mut sun_moon_mesh, sun_moon_material) = global_renderer.create_mesh_material("skyBodies");
+        let (mut sun_moon_mesh, sun_moon_material) = global_renderer.create_mesh_and_get_material("skyBodies");
         sun_moon_mesh.set(&CENTER_SPRITES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
         sun_moon_mesh.create_instance_buffer_from_arr(&sun_moon_buffer, BufferFlags::VRAM | BufferFlags::ONCE);
         self.sun_moon_renderer = Some((sun_moon_mesh, sun_moon_material));

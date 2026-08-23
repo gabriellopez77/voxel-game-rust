@@ -96,7 +96,7 @@ impl Sky {
     pub fn start(&mut self, resources_manager: &ResourceManager, global_renderer: &mut GlobalRenderer) {
         let (vertices, indices) = ResourceManager::gen_sphere(16.0, 16.0);
 
-        let (mut mesh, material) = global_renderer.create_mesh_material("skyDome");
+        let (mut mesh, material) = global_renderer.create_mesh_and_get_material("skyDome");
         mesh.set(&vertices, &indices, BufferFlags::VRAM | BufferFlags::ONCE);
         self.renderer = Some((mesh, material));
 

@@ -6,12 +6,14 @@ pub mod global_renderer;
 pub mod material;
 pub mod multi_mesh;
 pub mod chunks_renderer;
+pub mod entities_renderer;
 
 pub mod mesh;
 pub mod ubo;
 
 pub mod draw_info;
 pub mod core;
+
 pub use {
     texture::Texture,
     ubo::Ubo,
@@ -22,7 +24,8 @@ pub use {
     material::Material,
     multi_mesh::MultiMesh,
     chunks_renderer::ChunksRenderer,
-    
+    entities_renderer::EntitiesRenderer,
+
     mesh::Mesh,
     draw_info::DrawInfo,
 };

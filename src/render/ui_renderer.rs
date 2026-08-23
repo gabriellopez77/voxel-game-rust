@@ -26,12 +26,12 @@ impl UiRenderer {
     }
 
     pub fn start(&mut self, global_renderer: &mut GlobalRenderer) {
-        let (mut mesh, material) = global_renderer.create_mesh_material("ui_sprites");
+        let (mut mesh, material) = global_renderer.create_mesh_and_get_material("ui_sprites");
         mesh.set(&SPRITES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
         mesh.create_instance_buffer(size_of::<SpritesVertices>() * 64, None, BufferFlags::RAM);
         self.sprites_renderer = Some((mesh, material));
 
-        let (mut mesh, material) = global_renderer.create_mesh_material("ui_text");
+        let (mut mesh, material) = global_renderer.create_mesh_and_get_material("ui_text");
         mesh.set(&SPRITES_VERTICES, &SPRITES_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
         mesh.create_instance_buffer(size_of::<TextVertices>() * 64, None, BufferFlags::RAM);
         self.text_renderer = Some((mesh, material));
@@ -39,10 +39,20 @@ impl UiRenderer {
 
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
         let sprites_renderer = self.sprites_renderer.as_mut().unwrap();
-        global_renderer.draw_instanced_with_buffer(&mut sprites_renderer.0, &mut sprites_renderer.1.borrow_mut(), &mut self.sprites_instance_data, BufferResizeMode::Discard);
+        global_renderer.draw_instanced_with_buffer(
+            &mut sprites_renderer.0,
+            &mut sprites_renderer.1.borrow_mut(),
+            &mut self.sprites_instance_data,
+            BufferResizeMode::Discard
+        );
 
         let text_renderer = self.text_renderer.as_mut().unwrap();
-        global_renderer.draw_instanced_with_buffer(&mut text_renderer.0, &mut text_renderer.1.borrow_mut(), &mut self.text_instance_data, BufferResizeMode::Discard);
+        global_renderer.draw_instanced_with_buffer(
+            &mut text_renderer.0,
+            &mut text_renderer.1.borrow_mut(),
+            &mut self.text_instance_data,
+            BufferResizeMode::Discard
+        );
     }
 
     pub fn cleanup(&mut self) {

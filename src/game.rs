@@ -148,7 +148,7 @@ impl Game {
                 resources: &mut self.resources_manager,
             };
 
-            self.world.update(dt, &mut update_args);
+            self.world.update(&mut update_args);
         }
 
         self.ui_manager.clone().borrow_mut().update(dt, self, inputs);

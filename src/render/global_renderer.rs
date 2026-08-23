@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, mem::offset_of, rc::Rc};
 use ash::{vk, vk::Handle};
 
-use crate::{math::Vec3, render::{BlockItemVertices, ChunkVertices, CloudsVertices, DrawInfo, GlobalUboData, Material, Mesh, MultiMesh, ParticlesVertices, SkyBodiesVertices, SpritesVertices, TextVertices, Ubo, core::{raw_buffer::BufferResizeMode}, draw_info::DrawType, material::{MaterialType, VertexAttribInfo}, mesh::BuffersTypes}, resources::{ResourceManager, ShadersCompiler}, utils::SafePtrMut};
+use crate::{math::Vec3, render::{BlockItemVertices, ChunkVertices, CloudsVertices, DrawInfo, EntitiesCubesVertices, GlobalUboData, Material, Mesh, MultiMesh, ParticlesVertices, SkyBodiesVertices, SpritesVertices, TextVertices, Ubo, core::raw_buffer::BufferResizeMode, draw_info::DrawType, material::{MaterialType, VertexAttribInfo}, mesh::BuffersTypes}, resources::{ResourceManager, ShadersCompiler}, utils::SafePtrMut};
 use super::core::{vkutl, VulkanApp, DescriptorSet, PipelineLayout, raw_buffer::BufferFlags};
 
 
@@ -230,6 +230,23 @@ impl GlobalRenderer {
 
             self.default_materials.insert("firstPerson", Rc::new(RefCell::new(material)));
         }
+        {
+            let mut material = self.create_material("entities", MaterialType::Alpha);
+            material.set_blend(true);
+            material.set_cull_mode(vk::CullModeFlags::NONE);
+            material.set_attributes_info(*VertexAttribInfo::default()
+                .add_vertex(size_of::<f32>() * 9, false)
+                .add_attribute(vk::Format::R32G32B32_SFLOAT, 0)
+                .add_attribute(vk::Format::R32G32B32_SFLOAT, size_of::<f32>() * 3)
+                .add_attribute(vk::Format::R32G32B32_SFLOAT, size_of::<f32>() * 6)
+                .add_vertex(size_of::<EntitiesCubesVertices>(), true)
+                .add_attribute_array_vec4(offset_of!(EntitiesCubesVertices, up_tex_coords), 6)
+                .add_attribute(vk::Format::R32G32_UINT, offset_of!(EntitiesCubesVertices, color))
+                .add_attribute_matrix(offset_of!(EntitiesCubesVertices, local_matrix))
+            );
+
+            self.default_materials.insert("entities", Rc::new(RefCell::new(material)));
+        }
     }
 
     pub fn cleanup(&mut self) {
@@ -251,8 +268,8 @@ impl GlobalRenderer {
     //    }
     //}
 
-    pub fn create_mesh_material(&mut self, shader_name: &'static str) -> (Mesh, Rc<RefCell<Material>>) {
-        (self.create_mesh(), self.get_material(shader_name))
+    pub fn create_mesh_and_get_material(&self, name: &'static str) -> (Mesh, Rc<RefCell<Material>>) {
+        (self.create_mesh(), self.get_material(name))
     }
 
     pub fn create_mesh(&self) -> Mesh {
@@ -263,8 +280,8 @@ impl GlobalRenderer {
         MultiMesh::new(self.app.clone(), vertices_size)
     }
 
-    pub fn create_material(&mut self, shader_name: &'static str, material_type: MaterialType) -> Material {
-        Material::new(self.app.clone(), shader_name, material_type)
+    pub fn create_material(&self, name: &'static str, material_type: MaterialType) -> Material {
+        Material::new(self.app.clone(), name, material_type)
     }
 
     pub fn get_material(&self, name: &'static str) -> Rc<RefCell<Material>> {
@@ -361,17 +378,15 @@ impl GlobalRenderer {
         self.render(&self.sky_draw_list);
         self.render(&self.chunks_opaque_draw_list);
         self.render(&self.opaque_draw_list);
-        self.render(&self.chunks_alpha_draw_list);
         self.render(&self.alpha_draw_list);
         self.render(&self.particle_draw_list);
+        self.render(&self.chunks_alpha_draw_list);
         self.render(&self.first_person_draw_list);
         self.render(&self.ui_draw_list);
         //println!("{}", now.elapsed().as_micros());
     }
 
     fn render(&self, draw_list: &Vec<DrawInfo>) {
-        if draw_list.is_empty() { return }
-
         let mut current_pipeline = vk::Pipeline::null();
         let mut current_pipeline_layout = vk::PipelineLayout::null();
         let mut current_descriptor_sets = [vk::DescriptorSet::null(); vkutl::MAX_DESCRIPTORS_BINDING_COUNT];

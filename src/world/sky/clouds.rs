@@ -43,7 +43,7 @@ impl Clouds {
     }
 
     pub fn start(&mut self, resources: &ResourceManager, global_renderer: &mut GlobalRenderer) {
-        let (mut mesh, material) = global_renderer.create_mesh_material("clouds");
+        let (mut mesh, material) = global_renderer.create_mesh_and_get_material("clouds");
         mesh.set(&CLOUDS_VERTICES, &CUBE_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
         mesh.create_instance_buffer(size_of::<CloudsVertices>() * 64, None, BufferFlags::VRAM | BufferFlags::RARE_UPDATE);
         self.renderer = Some((mesh, material));

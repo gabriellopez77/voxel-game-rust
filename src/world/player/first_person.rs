@@ -205,8 +205,8 @@ impl FirstPerson {
 
 
         // walking animation
-        if walking {
-            let velo_len = (Vec2::new(player_vel.x, player_vel.z).length().abs() * 0.4).min(4.0);
+        let velo_len = (Vec2::new(player_vel.x, player_vel.z).length().abs() * 0.4).min(4.0);
+        if walking && velo_len > 0.0 {
             self.bobbing_anim.play();
             self.bobbing_anim.speed = velo_len;
         }
