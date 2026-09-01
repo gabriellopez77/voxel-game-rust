@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::fmt::Write;
-
+use crate::game::GameFlags;
 use crate::math::{self, Color3b, Color4b, KeyFrame};
 use crate::render::UiRenderer;
 use crate::ui::tools::{Slice, Sprite, Text, UiElement};
@@ -75,7 +75,7 @@ impl ScreenBase for DebugScreen {
     }
 
     fn update(&mut self, args: &mut ScreenUpdateArgs) {
-        self.in_world = args.game.is_in_world();
+        self.in_world = args.game.get_flags().contains(GameFlags::IN_WORLD);
 
         if self.in_world {
             self.player_block_pos_text.set_text_delayed(args.dt, 0.1, |text| {

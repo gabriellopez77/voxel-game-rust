@@ -4,11 +4,11 @@ use crate::resources::ResourceManager;
 use crate::ui::ui_manager::ScreensId;
 use crate::utils::SafePtr;
 use crate::world::blocks::BlockProperties;
-use crate::world::particles::{ParticlesManager, ParticlesSpawnArgs};
+use crate::world::particles::ParticlesManager;
 use crate::world::world::WorldUpdateArgs;
 use crate::{inputs, math};
 use crate::inputs::Inputs;
-use crate::math::{Color4b, Matrix4, Vec3};
+use crate::math::{Matrix4, Vec3};
 use crate::world::{Aabb, Planet};
 use crate::world::player::camera::{Camera, PerspectiveMode};
 use crate::world::player::{FirstPerson, PlayerInventory, SelectionBox};
@@ -99,7 +99,7 @@ impl Player {
 
         {
             let mut matrix = Matrix4::IDENTITY;
-            matrix.translatev(Vec3::new(-1.9, 6.0, 0.0) / 16.0);
+            matrix.translatev(Vec3::new(-3.9, 0.0, -2.0) / 16.0);
             matrix.scalev(Vec3::new(4.0, 12.0, 4.0) / 16.0);
 
             self.left_leg.local_matrix = matrix;
@@ -108,7 +108,7 @@ impl Player {
 
         {
             let mut matrix = Matrix4::IDENTITY;
-            matrix.translatev(Vec3::new(1.9, 6.0, 0.0) / 16.0);
+            matrix.translatev(Vec3::new(0.1, 0.0, -2.0) / 16.0);
             matrix.scalev(Vec3::new(4.0, 12.0, 4.0) / 16.0);
 
             self.right_leg.local_matrix = matrix;
@@ -117,7 +117,7 @@ impl Player {
 
         {
             let mut matrix = Matrix4::IDENTITY;
-            matrix.translatev(Vec3::new(0.0, 18.0, 0.0) / 16.0);
+            matrix.translatev(Vec3::new(-4.0, 12.0, -2.0) / 16.0);
             matrix.scalev(Vec3::new(8.0, 12.0, 4.0) / 16.0);
 
             self.body.local_matrix = matrix;
@@ -126,7 +126,7 @@ impl Player {
 
         {
             let mut matrix = Matrix4::IDENTITY;
-            matrix.translatev(Vec3::new(-6.0, 18.0, 0.0) / 16.0);
+            matrix.translatev(Vec3::new(-8.0, 12.0, -2.0) / 16.0);
             matrix.scalev(Vec3::new(4.0, 12.0, 4.0) / 16.0);
 
             self.left_arm.local_matrix = matrix;
@@ -135,7 +135,7 @@ impl Player {
 
         {
             let mut matrix = Matrix4::IDENTITY;
-            matrix.translatev(Vec3::new(6.0, 18.0, 0.0) / 16.0);
+            matrix.translatev(Vec3::new(4.0, 12.0, -2.0) / 16.0);
             matrix.scalev(Vec3::new(4.0, 12.0, 4.0) / 16.0);
 
             self.right_arm.local_matrix = matrix;
@@ -144,7 +144,7 @@ impl Player {
 
         {
             let mut matrix = Matrix4::IDENTITY;
-            matrix.translatev(Vec3::new(0.0, 28.0, 0.0) / 16.0);
+            matrix.translatev(Vec3::new(-4.0, 24.0, -4.0) / 16.0);
             matrix.scalev(Vec3::new(8.0, 8.0, 8.0) / 16.0);
 
             self.head.local_matrix = matrix;
@@ -203,20 +203,21 @@ impl Player {
                 let slot = self.inventory.get_hand_slot();
 
                 if args.inputs.mouse_pressed(inputs::MouseButton::Right) && let Some(item) = slot.get_item() && item.is_block() {
-                    let keep_same_block = result.block_properties.can_replace && (item.id != result.block_properties.base_properties.id);
+                    let keep_same_block = result.block_properties.can_replace && item.id != result.block_properties.base_properties.id;
                     let place_block = if keep_same_block { result.block_pos } else { result.block_pos + result.hit_normal };
 
                     let chunk_pos = math::get_chunk_pos(place_block);
                     let chunk_block = math::get_chunk_block(chunk_pos, place_block);
 
-                    if let Some(chunk) = planet.get_chunk(chunk_pos) {
-                        let block_properties = chunk.borrow().chunk_data.read().unwrap().get_block_properties(chunk_block);
+                    if let Some(chunk) = planet.chunks_manager.get_chunk(chunk_pos) {
+                        let ch = chunk.read().unwrap();
+
+                        let block_properties = ch.data.read().unwrap().get_block_properties(chunk_block);
 
                         if block_properties.can_replace {
                             action = true;
 
-                            let block_functions = planet.blocks_manager.get_from_item_base(item);
-                            chunk.borrow_mut().chunk_data.write().unwrap().set_block(chunk_block, block_functions.get_id_state());
+                            planet.place_block(&ch, chunk_block, item.get_id_state());
                         }
                     }
                 }
@@ -254,7 +255,9 @@ impl Player {
         global_matrix.rotate_xyz(0.0, -self.camera.get_rot().x - 90.0, 0.0);
 
         let mut head_matrix = Matrix4::IDENTITY;
+        head_matrix.translate(0.0, 24.0 / 16.0, 0.0);
         head_matrix.rotate_xyz(self.camera.get_rot().y, 0.0, 0.0);
+        head_matrix.translate(0.0, -24.0 / 16.0, 0.0);
 
         let mut left_leg = self.left_leg.clone();
         let mut right_leg = self.right_leg.clone();
@@ -268,7 +271,7 @@ impl Player {
         body.local_matrix = global_matrix * body.local_matrix;
         left_arm.local_matrix = global_matrix * left_arm.local_matrix;
         right_arm.local_matrix = global_matrix * right_arm.local_matrix;
-        head.local_matrix = global_matrix * head.local_matrix * head_matrix;
+        head.local_matrix = global_matrix * head_matrix * head.local_matrix;
 
         renderer.add_cube(left_leg);
         renderer.add_cube(right_leg);
@@ -296,10 +299,7 @@ impl Player {
                 if let Some(hit) = aabb.ray_intersect(ray_pos, ray_dir) {
                     // break block
                     if inputs.mouse_pressed(inputs::MouseButton::Left) && self.state == PlayerStates::Active {
-                        let block_properties = it.chunk.borrow().chunk_data.read().unwrap().get_block_properties(it.chunk_block);
-                        particles_manager.spawn(ParticlesSpawnArgs::BlockDestroy(&block_properties, it.global_block));
-
-                        it.chunk.borrow().chunk_data.write().unwrap().set_block(it.chunk_block, it.blocks_manager.air);
+                        planet.destroy_block(&it.chunk.read().unwrap(), it.chunk_block, particles_manager);
                     }
 
                     result = Some(RaycastingResult {

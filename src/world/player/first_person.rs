@@ -228,8 +228,8 @@ impl FirstPerson {
         }
 
         // idle animation
-        self.idle_translate.x += args.time.sin() * args.dt * 0.5;
-        self.idle_translate.z += args.time.cos() * args.dt * 0.5;
+        //self.idle_translate.x = args.time.sin() * args.dt * 10.0;
+        self.idle_translate.z = args.time.cos() * args.dt * 50.0;
     }
 
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {

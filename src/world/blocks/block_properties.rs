@@ -18,7 +18,7 @@ pub enum BlockTypes {
 pub trait BlockFunctions {
     fn get_properties(&self, state: u8) -> &BlockProperties;
 
-    fn get_base(&self) -> Arc<ItemBaseProperties> { self.get_properties(0).base_properties.clone() }
+    fn get_base(&self) -> &ItemBaseProperties { &self.get_properties(0).base_properties }
 
     fn get_id_state(&self) -> BlockIdState {
         let base = self.get_base();
@@ -31,6 +31,10 @@ pub trait BlockFunctions {
 pub struct BlockIdState {
     pub id: u16,
     pub state: u8,
+}
+
+impl BlockIdState {
+    pub const AIR: Self = Self { id: 0, state: 0 };
 }
 
 pub struct BlockProperties {
@@ -82,6 +86,10 @@ impl BlockProperties {
             )),
         }
     }
+
+    //pub fn get_id_state(&self) -> BlockIdState {
+    //    return BlockIdState { id: self.base_properties.id, state: self.base_properties.state };
+    //}
 
     pub fn copy(&self,
         internal_name: &'static str,

@@ -1,20 +1,23 @@
-use crate::{math::{self, Vec3i}, utils::SafePtr, world::{Chunk, blocks::{BlockIdState, BlockProperties, BlocksManager}}};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use crate::{math::Vec3i, utils::SafePtr, world::{Chunk, blocks::{BlockIdState, BlockProperties, BlocksManager}, light_engine::{self, LightType}}};
 
 
 #[derive(Clone, Copy)]
 pub struct ChunkBlockInfo {
     pub id: u16,
-    pub state: u8
 }
 
-#[derive(Clone)]
 pub struct ChunkData {
     blocks_id: [u16; Chunk::CHUNK_DATA_SIZE],
-    blocks_state: [u8; Chunk::CHUNK_DATA_SIZE],
+    light_levels: [u8; Chunk::CHUNK_DATA_SIZE],
+    //blocks_state: [u8; Chunk::CHUNK_DATA_SIZE],
 
     pub position: Vec3i,
 
-    pub regen_mesh: bool,
+    pub regen_mesh: AtomicBool,
+    pub contains_emissive_blocks: bool,
+    pub light_gen_stage: bool,
 
     blocks_manager: SafePtr<BlocksManager>,
 }
@@ -23,60 +26,109 @@ unsafe impl Send for ChunkData {}
 unsafe impl Sync for ChunkData {}
 
 impl ChunkData {
+    pub fn get_index(x: i32, y: i32, z: i32) -> usize {
+        (z *  Chunk::CHUNK_SIZE.y * Chunk::CHUNK_SIZE.x + (y * Chunk::CHUNK_SIZE.x) + x) as usize
+    }
+
     pub fn new(position: Vec3i, blocks_manager: SafePtr<BlocksManager>) -> Self {
         Self {
             blocks_id: [0; Chunk::CHUNK_DATA_SIZE],
-            blocks_state: [0; Chunk::CHUNK_DATA_SIZE],
+            //blocks_state: [0; Chunk::CHUNK_DATA_SIZE],
+            light_levels: [0; Chunk::CHUNK_DATA_SIZE],
 
             position: position,
 
-            regen_mesh: false,
+            regen_mesh: AtomicBool::new(false),
+            contains_emissive_blocks: false,
+            light_gen_stage: true,
 
             blocks_manager,
         }
     }
 
     pub fn clear(&mut self, new_position: Vec3i) {
+        self.blocks_id.fill(0);
+        self.light_levels.fill(0);
+        //self.blocks_state.fill(0);
+
         self.position = new_position;
 
-        self.regen_mesh = false;
-        self.blocks_id.fill(0);
-        self.blocks_state.fill(0);
+        self.regen_mesh = AtomicBool::new(false);
+        self.contains_emissive_blocks = false;
+        self.light_gen_stage = true;
+    }
+
+    // change the block in chunk_block by the id_state and return the old block
+    pub fn change_block(&mut self, chunk_block: Vec3i, id_state: BlockIdState) -> SafePtr<BlockProperties> {
+        let old = self.get_block_properties(chunk_block);
+        self.set_block(chunk_block, id_state);
+
+        old
+    }
+
+    pub fn need_regen_mesh(&self) -> bool {
+        self.regen_mesh.load(Ordering::Relaxed) && !self.light_gen_stage
+        //self.regen_mesh
     }
 
     pub fn get_block_properties(&self, chunk_block: Vec3i) -> SafePtr<BlockProperties> {
         self.blocks_manager.get_properties_from_block_info(self.get_block_info(chunk_block))
     }
 
-    pub fn get_block_propertiesi(&self, x: i32, y: i32, z: i32) -> SafePtr<BlockProperties> {
-        self.blocks_manager.get_properties_from_block_info(self.get_block_info(Vec3i::new(x, y, z)))
-    }
-
-
     pub fn get_block_info(&self, chunk_block: Vec3i) -> ChunkBlockInfo {
-        self.get_block_infoi(chunk_block.x, chunk_block.y, chunk_block.z)
-    }
-
-    pub fn get_block_infoi(&self, x: i32, y: i32, z: i32) -> ChunkBlockInfo {
-        let index = math::get_index(x, y, z);
+        let index = Self::get_index(chunk_block.x, chunk_block.y, chunk_block.z);
 
         return ChunkBlockInfo {
             id: self.blocks_id[index],
-            state: self.blocks_state[index]
+            //id: unsafe { *self.blocks_id.get_unchecked(index) },
+            //state: self.blocks_state[index]
         };
     }
 
-    pub fn set_block(&mut self, chunk_block: Vec3i, id_state: BlockIdState) {
-        self.set_block_index(math::get_index(chunk_block.x, chunk_block.y, chunk_block.z), id_state);
+    pub fn get_light(&self, chunk_block: Vec3i, light_type: LightType) -> u8 {
+        let index = Self::get_index(chunk_block.x, chunk_block.y, chunk_block.z);
+
+        let mut light = self.light_levels[index];
+        //let mut light = unsafe { *self.light_levels.get_unchecked(index) };
+
+        if light_type == LightType::Sky {
+            light &= light_engine::SKY_MASK;
+        }
+        else if light_type == LightType::Block {
+            light >>= 4;
+        }
+
+        return light;
     }
 
-    pub fn set_block_index(&mut self, index: usize, id_state: BlockIdState) {
-        let current_id = &mut self.blocks_id[index];
-        let current_state = &mut self.blocks_state[index];
+    pub fn set_block(&mut self, chunk_block: Vec3i, id_state: BlockIdState) {
+        let index = Self::get_index(chunk_block.x, chunk_block.y, chunk_block.z);
 
-        self.regen_mesh |= *current_id != id_state.id || *current_state != id_state.state;
+        let current_id = &mut self.blocks_id[index];
+        //let current_state = &mut self.blocks_state[index];
+
+        //self.regen_mesh |= *current_id != id_state.id || *current_state != id_state.state;
+        self.regen_mesh.fetch_or(*current_id != id_state.id, Ordering::Relaxed);
 
         *current_id = id_state.id;
-        *current_state = id_state.state;
+        //*current_state = id_state.state;
+    }
+
+    pub fn set_light(&mut self, chunk_block: Vec3i, value: u8, light_type: LightType) {
+        let index = Self::get_index(chunk_block.x, chunk_block.y, chunk_block.z);
+
+        let current_value = &mut self.light_levels[index];
+        //let current_value = unsafe { self.light_levels.get_unchecked_mut(index) };
+
+        let final_value = if light_type == LightType::Block {
+            (*current_value & light_engine::SKY_MASK) | (value << 4)
+        }
+        else {
+            (*current_value & light_engine::BLOCK_MASK) | value
+        };
+
+        self.regen_mesh.fetch_or(*current_value != final_value, Ordering::Relaxed);
+
+        *current_value = final_value;
     }
 }

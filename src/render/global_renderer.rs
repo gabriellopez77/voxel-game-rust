@@ -96,6 +96,7 @@ impl GlobalRenderer {
                 .add_attribute(vk::Format::R32G32B32_SFLOAT, offset_of!(ChunkVertices, normal))
                 .add_attribute(vk::Format::R32G32_SFLOAT, offset_of!(ChunkVertices, uv))
                 .add_attribute(vk::Format::R8_UINT, offset_of!(ChunkVertices, flags))
+                .add_attribute(vk::Format::R8_UINT, offset_of!(ChunkVertices, light))
             );
 
             self.default_materials.insert("chunks", Rc::new(RefCell::new(material)));
@@ -110,6 +111,7 @@ impl GlobalRenderer {
                 .add_attribute(vk::Format::R32G32B32_SFLOAT, offset_of!(ChunkVertices, normal))
                 .add_attribute(vk::Format::R32G32_SFLOAT, offset_of!(ChunkVertices, uv))
                 .add_attribute(vk::Format::R8_UINT, offset_of!(ChunkVertices, flags))
+                .add_attribute(vk::Format::R8_UINT, offset_of!(ChunkVertices, light))
             );
 
             self.default_materials.insert("chunksAlpha", Rc::new(RefCell::new(material)));

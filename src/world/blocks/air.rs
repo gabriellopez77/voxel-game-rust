@@ -4,12 +4,12 @@ use super::block_properties::*;
 
 
 pub struct Air {
-    properties: Vec<BlockProperties>
+    properties: BlockProperties
 }
 
 impl BlockFunctions for Air {
     fn get_properties(&self, state: u8) -> &BlockProperties {
-        &self.properties[state as usize]
+        &self.properties
     }
 }
 
@@ -24,7 +24,7 @@ impl ItemCreation for Air {
         properties.selection_box = None;
 
         Self {
-            properties: vec![properties],
+            properties: properties,
         }
     }
 }

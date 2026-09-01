@@ -57,10 +57,8 @@ impl Inputs {
         }
     }
 
-    pub fn reset_camera_delta(&mut self, value: bool) {
-        if value {
-            self.last_mouse_pos_camera = self.mouse_pos_camera;
-        }
+    pub fn reset_camera_delta(&mut self) {
+        self.last_mouse_pos_camera = self.mouse_pos_camera;
     }
 
     pub fn get_camera_delta(&self) -> Vec2 { self.mouse_pos_camera - self.last_mouse_pos_camera }

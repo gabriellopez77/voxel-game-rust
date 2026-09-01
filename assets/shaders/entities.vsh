@@ -19,7 +19,7 @@ layout(location = 4) out float FogFactor;
 
 void main()
 {
-   	vec4 viewSpace = globalUbo.camView * aLocalMatrix * vec4(aVertex - 0.5, 1.f);
+   	vec4 viewSpace = globalUbo.camView * aLocalMatrix * vec4(aVertex, 1.f);
     gl_Position = globalUbo.camProj * viewSpace;
 
     vec4 faceTexCoords = aFaceTexCoords[uint(aPacked1.z)];

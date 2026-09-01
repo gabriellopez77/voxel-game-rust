@@ -22,6 +22,7 @@ impl MultiMeshInfo {
     }
 }
 
+// used for to avoids unnecessary heap allocation when have only 1 profile
 #[derive(Clone)]
 struct ProfileInfo {
     indirect_data: Vec<vk::DrawIndexedIndirectCommand>,
@@ -63,7 +64,7 @@ pub struct MultiMesh {
     indices_buffer: RawBuffer,
 
     profiles: Profiles,
-} 
+}
 
 impl MultiMesh {
     pub fn new(app: SafePtrMut<VulkanApp>, vertices_size: usize) -> Self {
@@ -78,11 +79,14 @@ impl MultiMesh {
             vertices_buffer: RawBuffer::new(),
             indices_buffer: RawBuffer::new(),
 
-            profiles: Profiles::Single(ProfileInfo{ indirect_data: Vec::new(), buffer: RawBuffer::new(), draw_count: 0 }),
+            profiles: Profiles::Single(ProfileInfo { indirect_data: Vec::new(), buffer: RawBuffer::new(), draw_count: 0 }),
         }
     }
 
-    pub fn get_buffers(&self, frame_index: usize, profile_idx: usize) -> [vk::Buffer; vkutl::MAX_BUFFERS_REQUIRED_TO_DRAW_COUNT] {
+    pub fn get_buffers(&self,
+        frame_index: usize,
+        profile_idx: usize
+    ) -> [vk::Buffer; vkutl::MAX_BUFFERS_REQUIRED_TO_DRAW_COUNT] {
         return [
             self.vertices_buffer.get_buffer(frame_index),
             self.profiles.get(profile_idx).buffer.get_buffer(frame_index),
@@ -120,9 +124,7 @@ impl MultiMesh {
         self.indices_buffer.destroy(&mut self.app);
 
         match &mut self.profiles {
-            Profiles::Single(profile) => {
-                profile.buffer.destroy(&mut self.app);
-            }
+            Profiles::Single(profile) => profile.buffer.destroy(&mut self.app),
             Profiles::Multi(profiles) => {
                 for pf in profiles {
                     pf.buffer.destroy(&mut self.app);
@@ -150,6 +152,7 @@ impl MultiMesh {
 
                 self.profiles = Profiles::Multi(profiles);
 
+                // return 1 because the new profile is in 1 index on vec
                 return 1;
             }
             Profiles::Multi(profiles) => {
@@ -175,7 +178,10 @@ impl MultiMesh {
             Some(range) => range,
             None => {
                 self.vertices_arena.grow(vertices_size as u32);
-                self.vertices_buffer.resize(&mut self.app, self.vertices_arena.get_capacity() as usize, BufferResizeMode::Preserve);
+                self.vertices_buffer.resize(&mut self.app,
+                    self.vertices_arena.get_capacity() as usize,
+                    BufferResizeMode::Preserve
+                );
 
                 self.vertices_arena.find_range(vertices_size as u32).unwrap()
             }
@@ -184,7 +190,10 @@ impl MultiMesh {
             Some(range) => range,
             None => {
                 self.indices_arena.grow(indices_size as u32);
-                self.indices_buffer.resize(&mut self.app, self.indices_arena.get_capacity() as usize, BufferResizeMode::Preserve);
+                self.indices_buffer.resize(&mut self.app,
+                    self.indices_arena.get_capacity() as usize,
+                    BufferResizeMode::Preserve
+                );
 
                 self.indices_arena.find_range(indices_size as u32).unwrap()
             }
@@ -223,7 +232,7 @@ impl MultiMesh {
         let indirect_command = vk::DrawIndexedIndirectCommand {
            index_count: mesh_info.index_count,
            instance_count: 1,
-           first_index: mesh_info.indices_range.start / 4,
+           first_index: mesh_info.indices_range.start / size_of::<u32>() as u32,
            vertex_offset: (mesh_info.vertices_range.start / self.vertices_size) as i32,
            first_instance: 0,
         };
@@ -233,10 +242,10 @@ impl MultiMesh {
 
     pub fn update_profile(&mut self, profile_idx: usize) {
         let profile = &mut self.profiles.get_mut(profile_idx);
-
-        if profile.indirect_data.is_empty() { return }
-
         profile.draw_count = profile.indirect_data.len() as u32;
+
+        if profile.draw_count == 0 { return }
+
         profile.buffer.update_and_resize(&mut self.app,
             profile.indirect_data.len() * size_of::<vk::DrawIndexedIndirectCommand>(),
             0,

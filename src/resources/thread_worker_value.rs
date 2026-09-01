@@ -1,7 +1,7 @@
 use std::{sync::{Arc, Condvar, Mutex, atomic::{AtomicBool, Ordering}}, thread::JoinHandle};
 
 
-pub struct Worker<T: Send + 'static> {
+pub struct ThreadWorkerValue<T: Send + 'static> {
     finalized_tasks: Arc<Mutex<Vec<T>>>,
     pending_tasks: Arc<Mutex<Vec<Box<dyn FnOnce() -> T + Send + 'static>>>>,
 
@@ -15,7 +15,7 @@ pub struct Worker<T: Send + 'static> {
     join_handler: Option<JoinHandle<()>>,
 }
 
-impl<T: Send + 'static> Worker<T> {
+impl<T: Send + 'static> ThreadWorkerValue<T> {
     pub fn new() -> Self {
         Self {
             finalized_tasks: Arc::new(Mutex::new(Vec::new())),

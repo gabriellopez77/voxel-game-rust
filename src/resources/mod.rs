@@ -4,9 +4,10 @@ pub mod tex_coords;
 pub mod text_font_info;
 pub mod generic_model;
 pub mod shaders_compiler;
-pub mod worker;
+pub mod thread_worker_value;
 pub mod buffer_arena;
 pub mod animation_frame;
+pub mod thread_worker;
 
 pub use {
     resources_manager::ResourceManager,
@@ -14,7 +15,8 @@ pub use {
     text_font_info::*,
     generic_model::GenericModel,
     shaders_compiler::ShadersCompiler,
-    worker::Worker,
+    thread_worker_value::ThreadWorkerValue,
     buffer_arena::BufferArena,
-    animation_frame::AnimationFrame
+    animation_frame::AnimationFrame,
+    thread_worker::ThreadWorker,
 };

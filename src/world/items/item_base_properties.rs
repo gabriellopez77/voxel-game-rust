@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::{resources::{GenericModel, ResourceManager, TexCoords}, world::player::PlayerInventory};
+use crate::{resources::{GenericModel, ResourceManager, TexCoords}, world::{blocks::BlockIdState, player::PlayerInventory}};
 
 
 pub struct ItemCreationArgs<'a> {
@@ -65,6 +65,10 @@ impl ItemBaseProperties {
 
             model,
         }
+    }
+
+    pub fn get_id_state(&self) -> BlockIdState {
+        return BlockIdState { id: self.id, state: self.state };
     }
 
     pub fn copy(&self,

@@ -243,6 +243,7 @@ pub struct ChunkVertices {
     pub vertices: Vec3,
     pub normal: Vec3,
     pub uv: Vec2,
+    pub light: u8,
 
     /// 00000011 = ao level
     /// 00000100 = shade flag

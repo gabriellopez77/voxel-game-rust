@@ -1,7 +1,6 @@
-﻿use crate::render::chunks_renderer::ChunksRendererType;
+﻿use crate::render::chunks_renderer::{ChunkMeshResult, ChunksRendererType};
 use crate::render::multi_mesh::MultiMeshInfo;
 use crate::render::ChunksRenderer;
-use crate::world::chunk::ChunkMeshResult;
 
 
 
@@ -23,9 +22,9 @@ impl ChunkMesh {
         }
     }
 
-    pub fn erase(&mut self, renderer: &mut ChunksRenderer) {
-        renderer.destroy_mesh(&mut self.default_mesh);
-        renderer.destroy_mesh(&mut self.water_mesh);
+    pub fn dispose(&mut self, renderer: &mut ChunksRenderer) {
+        renderer.dispose_mesh(&mut self.default_mesh);
+        renderer.dispose_mesh(&mut self.water_mesh);
     }
 
     pub fn draw(&mut self, _: f32, renderer: &mut ChunksRenderer) {
@@ -45,7 +44,7 @@ impl ChunkMesh {
 
         renderer.update_mesh(&mut self.default_mesh, mesh_result, ChunksRendererType::Opaque);
         renderer.update_mesh(&mut self.water_mesh, mesh_result, ChunksRendererType::Alpha);
-    
+
         //println!("{}", now.elapsed().as_micros());
     }
 }

@@ -73,18 +73,18 @@ impl BlocksManager {
     }
 
 
-    pub fn get_properties_from_id(&self, id: u16, state: u8) -> SafePtr<BlockProperties> {
-        SafePtr::new(self.blocks[id as usize].get_properties(state))
-    }
-
     pub fn get_properties_from_block_info(&self, block_info: ChunkBlockInfo) -> SafePtr<BlockProperties> {
-         SafePtr::new(self.blocks[block_info.id as usize].get_properties(block_info.state))
+        self.get_properties(block_info.id, 0)
     }
 
     pub fn get_properties_from_item_base(&self, item_base: &Arc<ItemBaseProperties>) -> SafePtr<BlockProperties> {
-        SafePtr::new(self.blocks[item_base.id as usize].get_properties(item_base.state))
+        self.get_properties(item_base.id, item_base.state)
     }
 
+    pub fn get_properties(&self, id: u16, state: u8) -> SafePtr<BlockProperties> {
+        SafePtr::new(self.blocks[id as usize].get_properties(state))
+        //unsafe { SafePtr::new(self.blocks.get_unchecked(id as usize).get_properties(state)) }
+    }
 
 
     fn add<T>(internal_name: &'static str, name: &'static str, blocks: &mut Vec<Box<dyn BlockFunctions>>,

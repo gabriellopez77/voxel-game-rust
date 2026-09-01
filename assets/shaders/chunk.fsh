@@ -13,8 +13,9 @@ layout(location = 1) in vec2 TexCoords;
 
 layout(location = 2) flat in int Shade;
 layout(location = 3) in float AoLevel;
+layout(location = 4) flat in vec2 LightLevels;
 
-layout(location = 4) in float FogFactor;
+layout(location = 5) in float FogFactor;
 
 
 layout(location = 0) out vec4 FragColor;
@@ -29,7 +30,10 @@ void main()
     // face shading
     const float shadeFace = Shade == 1 ? calculateShading(Normal) : 1.0f;
 
-    FragColor = vec4(tex.rgb * (shadeFace * AoLevel), tex.a);
+    const vec3 lightColors = calculateLightLevels(LightLevels);
 
-    applyFog(FragColor.xyz, FogFactor);
+    FragColor = vec4(tex.rgb * lightColors * (shadeFace * AoLevel), tex.a);
+
+
+    applyFog(FragColor.rgb, FogFactor);
 }

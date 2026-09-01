@@ -23,10 +23,14 @@ pub struct Sky {
     pub fog_color: Color3b,
     pub sky_color: Color3b,
     pub clouds_color: Color3b,
+    pub light_color: Color3b,
+    pub darkness_color: Color3b,
+    pub ambient_color: Color3b,
 
     sky_color_gradient: KeyFrame<Color3b>,
     fog_color_gradient: KeyFrame<Color3b>,
     clouds_color_gradient: KeyFrame<Color3b>,
+    ambient_color_gradient: KeyFrame<Color3b>,
 
     pub time: f32,
 
@@ -59,6 +63,9 @@ impl Sky {
             fog_color: Color3b::ZERO,
             sky_color: Color3b::ZERO,
             clouds_color: Color3b::ZERO,
+            light_color: Color3b::ZERO,
+            darkness_color: Color3b::ZERO,
+            ambient_color: Color3b::ZERO,
 
             sky_color_gradient: KeyFrame::new(|factor, current, next| {
                 let r = current.r as f32 + (next.r as f32 - current.r as f32) * factor;
@@ -84,9 +91,17 @@ impl Sky {
                 return Color3b::new(r as u8, g as u8, b as u8);
             }),
 
-            time: Self::TIME_MORNING,
+            ambient_color_gradient: KeyFrame::new(|factor, current, next| {
+                let r = current.r as f32 + (next.r as f32 - current.r as f32) * factor;
+                let g = current.g as f32 + (next.g as f32 - current.g as f32) * factor;
+                let b = current.b as f32 + (next.b as f32 - current.b as f32) * factor;
 
-            update_delay: 0.0,
+                return Color3b::new(r as u8, g as u8, b as u8);
+            }),
+
+            time: Self::MINUTES_SCALE * 4.0 + 00.0,
+
+            update_delay: Self::UPDATE_DELAY + 0.1,
 
             underwater_fog_distance: 0.2,
             underwater_fog_density: 0.7,
@@ -113,15 +128,15 @@ impl Sky {
         ]);
 
         self.fog_color_gradient.set_frames(vec![
-            (00.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0x010E22) ),
-            (04.0 * Self::MINUTES_SCALE + 30.0, Color3b::from_hex(0x010E22) ),
-            (06.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0xD9CCC3) ),
-            (07.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0x80CCFF) ),
-            (17.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0x80CCFF) ),
-            (17.0 * Self::MINUTES_SCALE + 50.0, Color3b::from_hex(0xFF9849) ),
-            (18.0 * Self::MINUTES_SCALE + 40.0, Color3b::from_hex(0x415066) ),
-            (19.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0x010E22) ),
-            (24.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0x010E22) ),
+            (00.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0x010E22)),
+            (04.0 * Self::MINUTES_SCALE + 30.0, Color3b::from_hex(0x010E22)),
+            (06.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0xD9CCC3)),
+            (07.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0x80CCFF)),
+            (17.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0x80CCFF)),
+            (17.0 * Self::MINUTES_SCALE + 50.0, Color3b::from_hex(0xFF9849)),
+            (18.0 * Self::MINUTES_SCALE + 40.0, Color3b::from_hex(0x415066)),
+            (19.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0x010E22)),
+            (24.0 * Self::MINUTES_SCALE + 00.0, Color3b::from_hex(0x010E22)),
         ]);
 
         self.clouds_color_gradient.set_frames(vec![
@@ -135,12 +150,25 @@ impl Sky {
             (24.0 * Sky::MINUTES_SCALE + 00.0, Color3b::from_hex(0x0E0F18)),
         ]);
 
+        self.ambient_color_gradient.set_frames(vec![
+            (00.0 * Sky::MINUTES_SCALE + 00.0, Color3b::from_hex(0x2A2A47)),
+            (05.0 * Sky::MINUTES_SCALE + 00.0, Color3b::from_hex(0x2A2A47)),
+            (07.0 * Sky::MINUTES_SCALE + 00.0, Color3b::from_hex(0xFFFFFF)),
+            (17.0 * Sky::MINUTES_SCALE + 30.0, Color3b::from_hex(0xFFFFFF)),
+            (18.0 * Sky::MINUTES_SCALE + 40.0, Color3b::from_hex(0x2A2A47)),
+            (24.0 * Sky::MINUTES_SCALE + 00.0, Color3b::from_hex(0x2A2A47)),
+        ]);
+
         self.sky_bodies.start(resources_manager, global_renderer);
         self.clouds.start(resources_manager, global_renderer);
 
         self.set_sky_color(self.sky_color_gradient.get(0.0));
         self.set_fog_color(self.fog_color_gradient.get(0.0));
         self.set_clouds_color(self.clouds_color_gradient.get(0.0));
+
+        self.light_color = Color3b::new(255, 255, 255);
+        self.darkness_color = Color3b::new(24, 24, 24);
+        self.ambient_color = Color3b::new(255, 0, 0);
     }
 
     pub fn cleanup(&mut self) {
@@ -158,13 +186,14 @@ impl Sky {
         if self.time > Self::CYCLE_TIME { self.time = 0.0 }
 
         if self.update_delay > Self::UPDATE_DELAY {
+            self.set_clouds_color(self.clouds_color_gradient.get(self.time));
+            self.ambient_color = self.ambient_color_gradient.get(self.time);
 
             self.sky_bodies.update(self.time);
 
             self.update_delay = 0.0;
         }
 
-        self.set_clouds_color(self.clouds_color_gradient.get(self.time));
 
         if camera.is_underwater {
             self.set_sky_color(self.underwater_fog_color);

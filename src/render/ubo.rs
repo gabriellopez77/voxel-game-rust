@@ -4,7 +4,7 @@ use super::core::{VulkanApp, raw_buffer::BufferFlags, RawBuffer};
 use crate::utils::NullSafePtrMut;
 
 
-pub struct Ubo<T: Copy + Clone + Default> {
+pub struct Ubo<T: Default> {
     pub data: T,
 
     pub buffer: RawBuffer,
@@ -12,7 +12,7 @@ pub struct Ubo<T: Copy + Clone + Default> {
     app: NullSafePtrMut<VulkanApp>
 }
 
-impl<T: Copy + Clone + Default> Ubo<T> {
+impl<T: Default> Ubo<T> {
     pub fn new() -> Self {
         Self {
             data: T::default(),

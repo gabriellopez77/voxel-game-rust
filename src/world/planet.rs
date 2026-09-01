@@ -1,202 +1,98 @@
-﻿use std::sync::{Mutex, RwLock};
-use std::{cell::RefCell, collections::HashMap, sync::Arc};
+﻿use std::sync::RwLock;
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use crate::math::{Vec3, Vec3i, self};
 
-use crate::render::{ChunkVertices, ChunksRenderer};
-use crate::resources::Worker;
-use crate::utils::{NullSafePtr, ObjectPool, SafePtr};
-use crate::world::Aabb;
-use crate::world::blocks::{BlockProperties, BlocksManager};
-use crate::world::chunk::{ChunkData, ChunkGetter, ChunkMeshResult, NeighborChunks};
-use crate::world::world_gen::WorldGen;
+use crate::render::ChunksRenderer;
+use crate::utils::{NullSafePtr, SafePtr};
+use crate::world::particles::{ParticlesManager, ParticlesSpawnArgs};
+use crate::world::{Aabb, ChunksManager, light_engine};
+use crate::world::blocks::{BlockIdState, BlockProperties, BlocksManager};
+use crate::world::chunk::{ChunkGetter, NeighborsChunks};
 use crate::world::{Chunk, player::Camera};
 
 
 pub struct BlockIteraterInfo {
     pub global_block: Vec3,
     pub chunk_block: Vec3i,
-    pub chunk: Arc<RefCell<Chunk>>,
+    pub chunk: Arc<RwLock<Chunk>>,
     pub block_properties: SafePtr<BlockProperties>,
-    pub blocks_manager: SafePtr<BlocksManager>,
 }
 
 pub struct Planet {
-    chunks: HashMap<Vec3i, Option<Arc<RefCell<Chunk>>>>,
-    world_gen: Arc<Mutex<WorldGen>>,
-
-    pub blocks_manager: NullSafePtr<BlocksManager>,
+    pub chunks_manager: ChunksManager,
 
     pub render_distance: i32,
 
-    pub pendings_chunks_count: i32,
-
-    last_player_chunk: Vec3i,
-    change_chunk_logic: bool,
-    need_ordering_chunks: bool,
-
-    remove_chunks_list: Vec<Arc<RefCell<Chunk>>>,
-    ordered_chunks: Vec<Arc<RefCell<Chunk>>>,
-    visible_chunks: Vec<Arc<RefCell<Chunk>>>,
-
-    pub chunk_mesh_vertices_pool: ObjectPool<Vec<ChunkVertices>>,
-    pub chunk_mesh_indices_pool: ObjectPool<Vec<u32>>,
-    pub chunk_data_pool: ObjectPool<Arc<RwLock<ChunkData>>>,
-
     blocks_aabb_list: Vec<Aabb>,
 
-    chunks_mesh_worker: Worker<Box<RefCell<ChunkMeshResult>>>,
-    chunks_gen_worker: Worker<Box<RefCell<Chunk>>>,
+    pub blocks_manager: NullSafePtr<BlocksManager>,
 }
 
 impl Planet {
     pub fn new() -> Self {
         Self {
-            chunks: HashMap::new(),
-            world_gen: Arc::new(Mutex::new(WorldGen::new())),
-
             blocks_manager: NullSafePtr::null(),
 
-            render_distance: 4,
+            chunks_manager: ChunksManager::new(),
 
-            pendings_chunks_count: 0,
-
-            last_player_chunk: Vec3i::ZERO,
-            change_chunk_logic: true,
-            need_ordering_chunks: false,
-
-            remove_chunks_list: Vec::new(),
-            ordered_chunks: Vec::new(),
-            visible_chunks: Vec::new(),
-
-            chunk_mesh_vertices_pool: ObjectPool::new(),
-            chunk_mesh_indices_pool: ObjectPool::new(),
-            chunk_data_pool: ObjectPool::new(),
+            render_distance: 10,
 
             blocks_aabb_list: Vec::new(),
-
-            chunks_mesh_worker: Worker::new(),
-            chunks_gen_worker: Worker::new(),
         }
     }
 
     pub fn start(&mut self, blocks_manager: &BlocksManager) {
         self.blocks_manager = NullSafePtr::new(blocks_manager);
 
-        self.chunks_mesh_worker.start();
-        self.chunks_gen_worker.start();
-
-        self.world_gen.lock().unwrap().start(blocks_manager);
+        self.chunks_manager.start(blocks_manager);
+        self.chunks_manager.set_render_distance(self.render_distance);
     }
 
     pub fn stop(&mut self) {
-        self.chunks_mesh_worker.stop();
-        self.chunks_gen_worker.stop();
+        self.chunks_manager.stop();
     }
 
     pub fn cleanup(&mut self, chunks_renderer: &mut ChunksRenderer) {
-        for (_, chunk) in &mut self.chunks {
-            if let Some(chunk) = chunk {
-                chunk.borrow_mut().erase(chunks_renderer);
-            }
-        }
-
-        self.chunks.clear();
-
-        self.chunk_mesh_indices_pool.clear();
-        self.chunk_mesh_vertices_pool.clear();
-        self.chunk_data_pool.clear();
-        self.ordered_chunks.clear();
-        self.remove_chunks_list.clear();
-        self.visible_chunks.clear();
-
-        self.chunks_mesh_worker.clear();
-        self.chunks_gen_worker.clear();
+        self.chunks_manager.cleanup(chunks_renderer);
     }
 
     pub fn update(&mut self, player_pos: Vec3) {
-        let player_chunk = math::get_chunk_pos(player_pos);
+        let player_chunk_pos = math::get_chunk_pos(player_pos);
 
-        //if self.last_player_chunk != player_chunk || self.change_chunk_logic {
-        if self.change_chunk_logic {
-            self.change_chunk_logic(player_chunk);
-        }
-
-        // sort chunks
-        if self.need_ordering_chunks {
-            self.need_ordering_chunks = false;
-
-            self.ordered_chunks.sort_by(|ch1, ch2| {
-                let ch1_distance = math::get_chunk_distance(ch1.borrow().position, player_chunk);
-                let ch2_distance = math::get_chunk_distance(ch2.borrow().position, player_chunk);
-
-                return ch1_distance.cmp(&ch2_distance);
-            });
-        }
-
-        self.process_chunks_gen();
+        self.chunks_manager.update(player_chunk_pos);
     }
 
     pub fn draw(&mut self, dt: f32, camera: &Camera, chunks_renderer: &mut ChunksRenderer) {
-        self.visible_chunks.clear();
+        self.chunks_manager.dispose_chunks_renderers(chunks_renderer);
 
-        // destroy very distant chunks
-        for ch in &self.remove_chunks_list {
-            let mut ch_borrow = ch.borrow_mut();
-
-            ch_borrow.erase(chunks_renderer);
-            self.chunk_data_pool.restore(ch_borrow.chunk_data.clone());
-            self.chunks.remove(&ch_borrow.position);
-        }
-
-        self.remove_chunks_list.clear();
-
-
-        self.process_chunks_mesh(chunks_renderer);
-
-        for i in 0..self.ordered_chunks.len() {
-            let chunk_arc = self.ordered_chunks[i].clone();
-            let mut ch = chunk_arc.borrow_mut();
-
-            if camera.view_changed {
-                ch.inside_frustum = camera.chunk_inside_frustum(ch.visual_position);
+        while let Some(mesh_result) = chunks_renderer.get_generated_mesh() {
+            if let Some(ch) = self.chunks_manager.get_chunk(mesh_result.chunk_pos) {
+                ch.write().unwrap().renderer.update_mesh(&mesh_result, chunks_renderer);
             }
 
-            if !ch.inside_frustum {
-                continue;
-            }
-
-            self.visible_chunks.push(chunk_arc.clone());
-
-
-            //ch.chunk_data.write().unwrap().regen_mesh = true;
-
-
-            if ch.chunk_data.read().unwrap().regen_mesh {
-                ch.chunk_data.write().unwrap().regen_mesh = false;
-
-                // SAFETY: blocks_manager reference is valid for all game time
-                let blocks_manager_ptr = self.blocks_manager.clone();
-
-                let mesh_result = Box::new(RefCell::new(ChunkMeshResult::new(self, &ch)));
-
-                // create chunk mesh async
-                self.chunks_mesh_worker.add_task(move || {
-                    let blocks_manager = blocks_manager_ptr.clone();
-
-                    Chunk::gen_mesh(&mut mesh_result.borrow_mut(), &*blocks_manager);
-                    mesh_result.borrow_mut().gen_indices();
-
-                    return mesh_result;
-                });
-            }
+            chunks_renderer.restore_mesh_result(mesh_result);
         }
 
+        self.chunks_manager.draw_chunks(dt, camera,chunks_renderer);
+    }
 
-        for ch in &self.visible_chunks {
-            ch.borrow_mut().draw(dt, chunks_renderer);
-        }
+    pub fn place_block(&self, chunk: &Chunk, chunk_block: Vec3i, id_state: BlockIdState) {
+        let old_block = chunk.data.write().unwrap().change_block(chunk_block, id_state);
 
+        self.change_block_logic(chunk, chunk_block, &old_block, &self.blocks_manager.get_properties(id_state.id, 0));
+    }
+
+    pub fn destroy_block(&self, chunk: &Chunk, chunk_block: Vec3i, particles_manager: &mut ParticlesManager) {
+        let old_block = chunk.data.write().unwrap().change_block(chunk_block, BlockIdState::AIR);
+
+        self.change_block_logic(chunk, chunk_block, &old_block, &self.blocks_manager.get_properties(0, 0));
+
+        particles_manager.spawn(ParticlesSpawnArgs::BlockDestroy(
+            &old_block,
+            (chunk.position * Chunk::CHUNK_SIZE + chunk_block).as_vec3()
+        ));
     }
 
     pub fn get_blocks_hitboxes(&mut self, aabb: &Aabb) -> &Vec<Aabb> {
@@ -213,7 +109,13 @@ impl Planet {
 
     pub fn iterate_over_blocks_cube(&mut self,
         aabb: &Aabb,
-        mut func: impl FnMut(&mut bool, &mut Planet, SafePtr<BlocksManager>, i32, i32, i32, SafePtr<BlockProperties>)
+        mut func: impl FnMut(
+            &mut bool,
+            &mut Planet,
+            SafePtr<BlocksManager>,
+            i32, i32, i32,
+            SafePtr<BlockProperties>
+        )
     ) {
         let x0 = aabb.x0.floor() as i32;
         let y0 = aabb.y0.floor() as i32;
@@ -231,11 +133,12 @@ impl Planet {
             let global_coords = Vec3i::new(x, y, z).as_vec3();
             let chunk_pos = math::get_chunk_pos(global_coords);
 
-            if let Some(ch) = chunk_getter.change(chunk_pos, self) {
+            chunk_getter.change(chunk_pos, &self.chunks_manager);
+
+            if let Some(ref ch) = chunk_getter.chunk {
                 let chunk_block = math::get_chunk_block(chunk_pos, global_coords);
 
-                let block_info = ch.borrow().chunk_data.read().unwrap().get_block_info(chunk_block);
-                let block_properties = self.blocks_manager.get_properties_from_block_info(block_info);
+                let block_properties = ch.read().unwrap().data.read().unwrap().get_block_properties(chunk_block);
 
                 let mut stop = false;
                 func(&mut stop, self, blocks_manager.clone(), x, y, z, block_properties.clone());
@@ -255,7 +158,6 @@ impl Planet {
         mut func: impl FnMut(&mut bool, &BlockIteraterInfo)
     ) {
         let mut chunk_getter = ChunkGetter::new();
-        let blocks_manager = SafePtr::from_ptr(self.blocks_manager.get_raw());
 
         // 1. Initialize current voxel coordinate
         let mut block_pos = Vec3::new(
@@ -298,18 +200,16 @@ impl Planet {
         loop {
             let chunk_pos = math::get_chunk_pos(block_pos);
 
-            if let Some(chunk) = chunk_getter.change(chunk_pos, self) {
+            if let Some(chunk) = chunk_getter.change(chunk_pos, &self.chunks_manager) {
                 let chunk_block = math::get_chunk_block(chunk_pos, block_pos);
 
-                let block_info = chunk.borrow().chunk_data.write().unwrap().get_block_info(chunk_block);
-                let block_properties = self.blocks_manager.get_properties_from_block_info(block_info);
+                let block_properties = chunk.read().unwrap().data.read().unwrap().get_block_properties(chunk_block);
 
                 let iterater_info = BlockIteraterInfo {
                     global_block: block_pos,
                     chunk_block,
                     chunk: chunk.clone(),
                     block_properties,
-                    blocks_manager: blocks_manager.clone(),
                 };
 
                 let mut stop = false;
@@ -348,121 +248,34 @@ impl Planet {
     pub fn load_chunks(&mut self, player_pos: Vec3) {
         let chunk_pos = math::get_chunk_pos(player_pos);
 
-        self.change_chunk_logic(chunk_pos);
+        self.chunks_manager.load_chunks(chunk_pos);
     }
 
-    pub fn get_chunk(&self, pos: Vec3i) -> Option<Arc<RefCell<Chunk>>> {
-        if let Some(chunk) = self.chunks.get(&pos) {
-            return chunk.clone();
+    fn change_block_logic(&self,
+        chunk: &Chunk,
+        chunk_block: Vec3i,
+        old_block: &BlockProperties,
+        new_block: &BlockProperties
+    ) {
+        light_engine::update_light(self.chunks_manager.chunks.clone(), chunk.data.clone(), chunk_block, old_block, new_block);
+
+        let neighbors = NeighborsChunks::new(&self.chunks_manager, chunk.position, false);
+
+        // update around chunks to avoids visual glitchs
+        if let Some(south) = neighbors.south && chunk_block.z == Chunk::CHUNK_SIZE_MINUS_ONE.z {
+            south.read().unwrap().data.read().unwrap().regen_mesh.store(true, Ordering::Relaxed);
         }
 
-        return None;
-    }
-
-    pub fn get_chunk_int(&self, x: i32, y: i32, z: i32) -> Option<Arc<RefCell<Chunk>>> {
-        self.get_chunk(Vec3i::new(x, y, z))
-    }
-
-    pub fn process_chunks_gen(&mut self) {
-        self.chunks_gen_worker.process_tasks();
-
-        while let Some(chunk_result) = self.chunks_gen_worker.get_finalized_task() {
-            let chunk_pos = chunk_result.borrow().position;
-            let chunk_arc: Arc<RefCell<Chunk>> = Arc::from(chunk_result);
-
-            self.need_ordering_chunks = true;
-            self.ordered_chunks.push(chunk_arc.clone());
-            self.pendings_chunks_count -= 1;
-
-            *self.chunks.get_mut(&chunk_pos).unwrap() = Some(chunk_arc);
-
-            // fix visual glitch
-            let neighbor_chunks = NeighborChunks::new(self, chunk_pos, false);
-            self.regen_neighbor_chunks(&neighbor_chunks);
-        }
-    }
-
-    fn process_chunks_mesh(&mut self, chunks_renderer: &mut ChunksRenderer) {
-        self.chunks_mesh_worker.process_tasks();
-
-        while let Some(mesh_result) = self.chunks_mesh_worker.get_finalized_task() {
-            let mesh_result = mesh_result.into_inner();
-
-            if let Some(ch) = self.get_chunk(mesh_result.chunk_pos) {
-                ch.borrow_mut().renderer.update_mesh(&mesh_result, chunks_renderer);
-            }
-
-            mesh_result.restore(self);
-        }
-    }
-
-    fn change_chunk_logic(&mut self, player_chunk_pos: Vec3i) {
-        self.ordered_chunks.clear();
-
-        self.last_player_chunk = player_chunk_pos;
-        self.change_chunk_logic = false;
-        self.need_ordering_chunks = true;
-
-        // remove chunks so far
-        for (pos, ch) in &self.chunks {
-            if let Some(ch) = ch {
-                let distance = math::get_chunk_distance(player_chunk_pos, *pos);
-
-                if distance > self.render_distance {
-                    self.remove_chunks_list.push(ch.clone());
-                    continue;
-                }
-
-                self.ordered_chunks.push(ch.clone());
-            }
+        if let Some(north) = neighbors.north && chunk_block.z == 0 {
+            north.read().unwrap().data.read().unwrap().regen_mesh.store(true, Ordering::Relaxed);
         }
 
-
-        let start = player_chunk_pos - self.render_distance;
-        let end = player_chunk_pos + self.render_distance;
-
-        // create new chunks
-        for x in start.x..=end.x {
-        for z in start.z..=end.z {
-            let new_chunk_pos = Vec3i::new(x, 0, z);
-
-            let distance = math::get_chunk_distance(new_chunk_pos, player_chunk_pos);
-
-            if distance > self.render_distance || self.chunks.contains_key(&new_chunk_pos) {
-                continue
-            }
-
-            // SAFETY: blocks_manager reference is valid for all game time
-            let blocks_manager_ptr = self.blocks_manager.clone();
-
-            let world_gen = self.world_gen.clone();
-            let new_chunk_data = self.chunk_data_pool.get();
-
-
-            // create chunk async
-            self.chunks_gen_worker.add_task(move || {
-                // resets chunk data to avoid corrupted values
-                if let Some(ref chunk_data) = new_chunk_data {
-                    chunk_data.write().unwrap().clear(new_chunk_pos);
-                }
-
-                let new_chunk = Chunk::new(new_chunk_pos, new_chunk_data, SafePtr::from_ptr(blocks_manager_ptr.get_raw()));
-                let new_chunk = Box::new(RefCell::new(new_chunk));
-                new_chunk.borrow_mut().start(&mut world_gen.lock().unwrap(), &*blocks_manager_ptr);
-
-                return new_chunk;
-            });
-
-            self.pendings_chunks_count += 1;
-            self.chunks.insert(new_chunk_pos, None);
+        if let Some(west) = neighbors.west && chunk_block.x == 0 {
+            west.read().unwrap().data.read().unwrap().regen_mesh.store(true, Ordering::Relaxed);
         }
-        }
-    }
 
-    fn regen_neighbor_chunks(&self, neighbors: &NeighborChunks) {
-        if let Some(ref north) = neighbors.north { north.borrow_mut().chunk_data.write().unwrap().regen_mesh = true }
-        if let Some(ref south) = neighbors.south { south.borrow_mut().chunk_data.write().unwrap().regen_mesh = true }
-        if let Some(ref west) = neighbors.west { west.borrow_mut().chunk_data.write().unwrap().regen_mesh = true }
-        if let Some(ref east) = neighbors.east { east.borrow_mut().chunk_data.write().unwrap().regen_mesh = true }
+        if let Some(east) = neighbors.east && chunk_block.x == Chunk::CHUNK_SIZE_MINUS_ONE.x {
+            east.read().unwrap().data.read().unwrap().regen_mesh.store(true, Ordering::Relaxed);
+        }
     }
 }

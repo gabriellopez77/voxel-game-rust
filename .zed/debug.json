@@ -1,0 +1,37 @@
+// Project-local debug tasks
+//
+// For more documentation on how to configure debug tasks,
+// see: https://zed.dev/docs/debugger
+[
+  {
+    "adapter": "CodeLLDB",
+    "label": "cargo run -p voxel_game",
+    "build": {
+      "label": "cargo run -p voxel_game",
+      "command": "cargo",
+      "args": [
+        "build",
+        "--package",
+        "voxel_game"
+      ],
+      "env": {
+        "RUSTC_TOOLCHAIN": "C:\\Users\\Mark\\.rustup\\toolchains\\stable-x86_64-pc-windows-gnu"
+      },
+      "cwd": "C:\\Users\\Mark\\Desktop\\rust\\voxel game",
+      "use_new_terminal": false,
+      "allow_concurrent_runs": false,
+      "reveal": "always",
+      "reveal_target": "dock",
+      "hide": "never",
+      "tags": [],
+      "shell": "system",
+      "show_summary": false,
+      "show_command": false,
+      "save": "none",
+      "hooks": []
+    },
+    "sourceLanguages": [
+      "rust"
+    ]
+  }
+]

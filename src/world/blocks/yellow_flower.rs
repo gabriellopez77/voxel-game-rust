@@ -23,6 +23,7 @@ impl ItemCreation for YellowFlower {
         properties.light_filter = 0;
         properties.collision_box = None;
         properties.set_selection_box(5, 0, 5, 6, 10, 6);
+        properties.light_emission = 15;
 
         Self {
             properties: vec![properties],

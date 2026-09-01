@@ -1,10 +1,15 @@
-﻿use std::sync::{Arc, RwLock};
+﻿use std::sync::atomic::Ordering;
+use std::sync::{Arc, RwLock};
 use crate::math::{self, Vec3, Vec3i};
+use crate::render::chunks_renderer::ChunkMeshResult;
 use crate::render::{BlockItemVertices, ChunkMesh, ChunkVertices, ChunksRenderer};
 use crate::utils::SafePtr;
+use crate::world::ChunksManager;
 use crate::world::blocks::{BlockProperties, BlockTypes, BlocksManager};
-use crate::world::chunk::neighbors_data::NeighborsData;
-use crate::world::chunk::{ChunkData, ChunkMeshResult};
+use crate::world::chunk::neighbors_chunks_data::NeighborsChunksData;
+use crate::world::chunk::ChunkData;
+use crate::world::light_engine::LightType;
+use crate::world::player::Camera;
 use crate::world::world_gen::WorldGen;
 
 
@@ -29,7 +34,7 @@ pub struct Chunk {
     pub position: Vec3i,
     pub visual_position: Vec3,
 
-    pub chunk_data: Arc<RwLock<ChunkData>>,
+    pub data: Arc<RwLock<ChunkData>>,
 
     pub renderer: ChunkMesh,
     pub inside_frustum: bool,
@@ -49,7 +54,7 @@ impl Chunk {
             position,
             visual_position: visual_position.as_vec3(),
 
-            chunk_data: if chunk_data.is_none() { Arc::new(RwLock::new(ChunkData::new(position, blocks_manager))) } else { chunk_data.unwrap() },
+            data: if let Some(data) = chunk_data { data } else { Arc::new(RwLock::new(ChunkData::new(position, blocks_manager))) },
 
             renderer: ChunkMesh::new(),
             inside_frustum: false,
@@ -57,15 +62,26 @@ impl Chunk {
     }
 
     pub fn start(&mut self, world_gen: &mut WorldGen, blocks_manager: &BlocksManager) {
-        world_gen.gen_data(self.position, &mut self.chunk_data.write().unwrap(), blocks_manager);
+        world_gen.gen_data(self.position, &mut self.data.write().unwrap(), blocks_manager);
     }
 
-    pub fn draw(&mut self, dt: f32, renderer: &mut ChunksRenderer) {
+    pub fn draw(&mut self, dt: f32, chunks_manager: &ChunksManager, camera: &Camera, renderer: &mut ChunksRenderer) {
+        if camera.view_changed {
+            self.inside_frustum = camera.chunk_inside_frustum(self.visual_position);
+        }
+
+        if !self.inside_frustum {
+            return;
+        }
+
+
+        if self.data.read().unwrap().need_regen_mesh() {
+            self.data.read().unwrap().regen_mesh.store(false, Ordering::Relaxed);
+
+            renderer.gen_mesh(chunks_manager, self.data.clone(), self.position);
+        }
+
         self.renderer.draw(dt, renderer);
-    }
-
-    pub fn erase(&mut self, renderer: &mut ChunksRenderer) {
-        self.renderer.erase(renderer);
     }
 
     pub fn gen_mesh(mesh_result: &mut ChunkMeshResult, blocks_manager: &BlocksManager) {
@@ -77,7 +93,7 @@ impl Chunk {
         for x in 0..Chunk::CHUNK_SIZE.x {
         for y in 0..Chunk::CHUNK_SIZE.y {
         for z in 0..Chunk::CHUNK_SIZE.z {
-            let block_info = chunk_data.get_block_infoi(x, y, z);
+            let block_info = chunk_data.get_block_info(Vec3i::new(x, y, z));
 
             // air does not have model
             if block_info.id == 0 { continue }
@@ -96,7 +112,7 @@ impl Chunk {
 
             // up
             if y < Chunk::CHUNK_SIZE_MINUS_ONE.y {
-                let around = chunk_data.get_block_propertiesi(x, y + 1, z);
+                let around = chunk_data.get_block_properties(Vec3i::new(x, y + 1, z));
                 draw = Self::draw_face(&block_properties, &around, Directions::Up);
             }
             else if y == Chunk::CHUNK_SIZE_MINUS_ONE.y { draw = true }
@@ -107,7 +123,7 @@ impl Chunk {
 
             // down
             if y > 0 {
-                let around = chunk_data.get_block_propertiesi(x, y - 1, z);
+                let around = chunk_data.get_block_properties(Vec3i::new(x, y - 1, z));
                 draw = Self::draw_face(&block_properties, &around, Directions::Down);
             }
 
@@ -117,11 +133,11 @@ impl Chunk {
 
             // south
             if z < Chunk::CHUNK_SIZE_MINUS_ONE.z {
-                let around = chunk_data.get_block_propertiesi(x, y, z + 1);
+                let around = chunk_data.get_block_properties(Vec3i::new(x, y, z + 1));
                 draw = Self::draw_face(&block_properties, &around, Directions::South);
             }
             else if let Some(ref south) = neighbors_data.south {
-                let around = south.read().unwrap().get_block_propertiesi(x, y, 0);
+                let around = south.read().unwrap().get_block_properties(Vec3i::new(x, y, 0));
                 draw = Self::draw_face(&block_properties, &around, Directions::South);
             }
 
@@ -131,11 +147,11 @@ impl Chunk {
 
             // north
             if z > 0 {
-                let around = chunk_data.get_block_propertiesi(x, y, z - 1);
+                let around = chunk_data.get_block_properties(Vec3i::new(x, y, z - 1));
                 draw = Self::draw_face(&block_properties, &around, Directions::North);
             }
             else if let Some(ref north) = neighbors_data.north {
-                let around = north.read().unwrap().get_block_propertiesi(x, y, Self::CHUNK_SIZE_MINUS_ONE.z);
+                let around = north.read().unwrap().get_block_properties(Vec3i::new(x, y, Self::CHUNK_SIZE_MINUS_ONE.z));
                 draw = Self::draw_face(&block_properties, &around, Directions::North);
             }
 
@@ -145,11 +161,11 @@ impl Chunk {
 
             // east
             if x < Chunk::CHUNK_SIZE_MINUS_ONE.x {
-                let around = chunk_data.get_block_propertiesi(x + 1, y, z);
+                let around = chunk_data.get_block_properties(Vec3i::new(x + 1, y, z));
                 draw = Self::draw_face(&block_properties, &around, Directions::East);
             }
             else if let Some(ref east) = neighbors_data.east {
-                let around = east.read().unwrap().get_block_propertiesi(0, y, z);
+                let around = east.read().unwrap().get_block_properties(Vec3i::new(0, y, z));
                 draw = Self::draw_face(&block_properties, &around, Directions::East);
             }
 
@@ -159,11 +175,11 @@ impl Chunk {
 
             // west
             if x > 0 {
-                let around = chunk_data.get_block_propertiesi(x - 1, y, z);
+                let around = chunk_data.get_block_properties(Vec3i::new(x - 1, y, z));
                 draw = Self::draw_face(&block_properties, &around, Directions::West);
             }
             else if let Some(ref west) = neighbors_data.west {
-                let around = west.read().unwrap().get_block_propertiesi(Self::CHUNK_SIZE_MINUS_ONE.x, y, z);
+                let around = west.read().unwrap().get_block_properties(Vec3i::new(Self::CHUNK_SIZE_MINUS_ONE.x, y, z));
                 draw = Self::draw_face(&block_properties, &around, Directions::West);
             }
 
@@ -175,7 +191,7 @@ impl Chunk {
 
     fn add_face(
         chunk_data: &ChunkData,
-        neighbors: &NeighborsData,
+        neighbors_data: &NeighborsChunksData,
         vertices: &mut Vec<ChunkVertices>,
         mesh_vertices: &Vec<BlockItemVertices>,
         chunk_block: Vec3,
@@ -194,13 +210,15 @@ impl Chunk {
 			let mut ao_level3: u8 = 3;
 			let mut ao_level4: u8 = 3;
 
-			if ambient_occlusion && dir != Directions::Nothing {
-			    let chunk_block = chunk_block.as_vec3i();
+			let chunk_blocki = chunk_block.as_vec3i();
 
-                ao_level1 = Self::get_ao_level(chunk_data, neighbors, chunk_block, vert1.vertices, dir, 1);
-                ao_level2 = Self::get_ao_level(chunk_data, neighbors, chunk_block, vert2.vertices, dir, 2);
-                ao_level3 = Self::get_ao_level(chunk_data, neighbors, chunk_block, vert3.vertices, dir, 3);
-                ao_level4 = Self::get_ao_level(chunk_data, neighbors, chunk_block, vert4.vertices, dir, 4);
+			let light_level = Self::get_light_level(chunk_data, neighbors_data, chunk_blocki, vert1.vertices, dir);
+
+			if ambient_occlusion && dir != Directions::Nothing {
+                ao_level1 = Self::get_ao_level(chunk_data, neighbors_data, chunk_blocki, vert1.vertices, dir, 1);
+                ao_level2 = Self::get_ao_level(chunk_data, neighbors_data, chunk_blocki, vert2.vertices, dir, 2);
+                ao_level3 = Self::get_ao_level(chunk_data, neighbors_data, chunk_blocki, vert3.vertices, dir, 3);
+                ao_level4 = Self::get_ao_level(chunk_data, neighbors_data, chunk_blocki, vert4.vertices, dir, 4);
 			}
 
             let flag1 = ao_level1 | ((vert1.shade as u8) << 2);
@@ -208,10 +226,10 @@ impl Chunk {
             let flag3 = ao_level3 | ((vert3.shade as u8) << 2);
             let flag4 = ao_level4 | ((vert4.shade as u8) << 2);
 
-            vertices.push(ChunkVertices { vertices: vert1.vertices + chunk_block + chunk_pos, normal: vert1.normal, uv: vert1.uv, flags: flag1 });
-            vertices.push(ChunkVertices { vertices: vert2.vertices + chunk_block + chunk_pos, normal: vert2.normal, uv: vert2.uv, flags: flag2 });
-            vertices.push(ChunkVertices { vertices: vert3.vertices + chunk_block + chunk_pos, normal: vert3.normal, uv: vert3.uv, flags: flag3 });
-            vertices.push(ChunkVertices { vertices: vert4.vertices + chunk_block + chunk_pos, normal: vert4.normal, uv: vert4.uv, flags: flag4 });
+            vertices.push(ChunkVertices { vertices: vert1.vertices + chunk_block + chunk_pos, normal: vert1.normal, uv: vert1.uv, light: light_level, flags: flag1 });
+            vertices.push(ChunkVertices { vertices: vert2.vertices + chunk_block + chunk_pos, normal: vert2.normal, uv: vert2.uv, light: light_level, flags: flag2 });
+            vertices.push(ChunkVertices { vertices: vert3.vertices + chunk_block + chunk_pos, normal: vert3.normal, uv: vert3.uv, light: light_level, flags: flag3 });
+            vertices.push(ChunkVertices { vertices: vert4.vertices + chunk_block + chunk_pos, normal: vert4.normal, uv: vert4.uv, light: light_level, flags: flag4 });
         }
     }
 
@@ -248,9 +266,74 @@ impl Chunk {
 	    return false;
     }
 
+    fn get_light_level(
+        chunk_data: &ChunkData,
+        neighbors_data: &NeighborsChunksData,
+        ch_block: Vec3i,
+        face_pos: Vec3,
+        dir: Directions,
+    ) -> u8 {
+        let get_light = |dx: f32, dy: f32, dz: f32| -> u8 {
+            let ndx = (if dx < 0.0 { dx.ceil() } else { dx.floor() }).clamp(-1.0, 1.0) as i32;
+            let ndy = (if dy < 0.0 { dy.ceil() } else { dy.floor() }).clamp(-1.0, 1.0) as i32;
+            let ndz = (if dz < 0.0 { dz.ceil() } else { dz.floor() }).clamp(-1.0, 1.0) as i32;
+
+            let chunk_pos = chunk_data.position;
+
+            let global_block = (chunk_pos * Self::CHUNK_SIZE) + ch_block + Vec3i::new(ndx, ndy, ndz);
+
+      		if global_block.y > Self::CHUNK_SIZE_MINUS_ONE.y || global_block.y < 0 {
+			    return 0;
+            }
+
+            let other_chunk_pos = math::get_chunk_pos(global_block.as_vec3());
+		    let other_chunk_block = math::get_chunk_block(other_chunk_pos, global_block.as_vec3());
+
+            enum Tee<'a> {
+                Same(&'a ChunkData),
+                Other(Option<&'a Arc<RwLock<ChunkData>>>)
+            }
+
+		    let mut ch_data = Tee::Same(chunk_data);
+
+		    if other_chunk_pos != chunk_pos {
+			    if other_chunk_pos == Vec3i::new(chunk_pos.x, 0, chunk_pos.z - 1) {
+				    ch_data = Tee::Other(neighbors_data.north.as_ref());
+				}
+			    else if other_chunk_pos == Vec3i::new(chunk_pos.x, 0, chunk_pos.z + 1) {
+				    ch_data = Tee::Other(neighbors_data.south.as_ref());
+				}
+			    else if other_chunk_pos == Vec3i::new(chunk_pos.x - 1, 0, chunk_pos.z) {
+				    ch_data = Tee::Other(neighbors_data.west.as_ref());
+				}
+			    else if other_chunk_pos == Vec3i::new(chunk_pos.x + 1, 0, chunk_pos.z) {
+				    ch_data = Tee::Other(neighbors_data.east.as_ref());
+				}
+		    }
+
+            return match ch_data {
+                Tee::Same(c) => c.get_light(other_chunk_block, LightType::Both),
+                Tee::Other(o) if let Some(c) = o => c.read().unwrap().get_light(other_chunk_block, LightType::Both),
+                _ => 0
+            }
+        };
+
+        let level: u8;
+
+        if dir == Directions::Up {         level = get_light(0.0, face_pos.y, 0.0) } // up
+        else if dir == Directions::Down {  level = get_light(0.0, -1.0 + face_pos.y, 0.0) } // down
+        else if dir == Directions::South { level = get_light(0.0, 0.0, face_pos.z) } // south
+        else if dir == Directions::North { level = get_light(0.0, 0.0, -1.0 + face_pos.z) } // north
+        else if dir == Directions::West {  level = get_light(-1.0 + face_pos.x, 0.0, 0.0) } // west
+        else if dir == Directions::East {  level = get_light(face_pos.x, 0.0, 0.0) } // east
+		else { level = chunk_data.get_light(ch_block, LightType::Both) }
+
+		return level;
+    }
+
     fn get_ao_level(
         chunk_data: &ChunkData,
-        neighbors_data: &NeighborsData,
+        neighbors_data: &NeighborsChunksData,
         ch_block: Vec3i,
         face_pos: Vec3,
         dir: Directions,
@@ -307,14 +390,14 @@ impl Chunk {
             }
 
 
-            match ch {
+            return match ch {
                 Tee::Same(c) => {
-                    return !c.get_block_properties(other_chunk_block).is_transparent as u8;
+                    !c.get_block_properties(other_chunk_block).is_transparent as u8
                 }
                 Tee::Other(o) if let Some(c) = o => {
-                    return !c.read().unwrap().get_block_properties(other_chunk_block).is_transparent as u8;
+                    !c.read().unwrap().get_block_properties(other_chunk_block).is_transparent as u8
                 }
-                _ => return 0
+                _ => 0
             }
         };
 

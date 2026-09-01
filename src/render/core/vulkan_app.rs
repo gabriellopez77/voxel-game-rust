@@ -290,13 +290,13 @@ impl VulkanApp {
                 //println!("1");
             }
             // the old range is completely within the new range, old update is unnecessary
-            else if new_range.start <= old_range.start && new_range.end() >= old_range.end() {
+            else if old_range.start >= new_range.start && old_range.end() <= new_range.end() {
                 update_info.need_update[self.frame_index] = false;
                 //println!("2");
             }
             // the new range starts before old range.end(),
             // then we change the old range len to ends before new_range.start
-            else if new_range.start >= old_range.start && new_range.end() >= old_range.end() {
+            else if new_range.start > old_range.start && new_range.end() >= old_range.end() {
                 update_info.dst_range.len = new_range.start - old_range.start;
                 //println!("3");
             }
@@ -708,10 +708,15 @@ impl VulkanApp {
 
     fn create_logical_device(&mut self) {
         // features
+
+        let mut features13 = vk::PhysicalDeviceVulkan13Features::default()
+            .synchronization2(true);
+
         let mut features12 = vk::PhysicalDeviceVulkan12Features::default()
             .descriptor_binding_partially_bound(true)
             .runtime_descriptor_array(true)
             .shader_sampled_image_array_non_uniform_indexing(true);
+        features12.p_next = &mut features13 as *mut _ as _;
 
         let features = vk::PhysicalDeviceFeatures::default()
             .wide_lines(true)
@@ -743,7 +748,7 @@ impl VulkanApp {
         create_info.queue_create_info_count = queue_create_infos.len() as u32;
         create_info.pp_enabled_extension_names = vkutl::REQUIRED_DEVICE_EXTENSIONS.as_ptr();
         create_info.enabled_extension_count = vkutl::REQUIRED_DEVICE_EXTENSIONS.len() as u32;
-        create_info.p_next = (&mut features12) as *mut _ as _;
+        create_info.p_next = &mut features12 as *mut _ as _;
         create_info.p_enabled_features = &features;
 
         self.ash_device = unsafe {
@@ -776,8 +781,7 @@ impl VulkanApp {
                 ).unwrap_or(&if vkutl::V_SYNC { vk::PresentModeKHR::FIFO } else { vk::PresentModeKHR::IMMEDIATE });
 
 
-        self.swapchain_info.extent =
-            if support_details.capabilities.current_extent.width != u32::MAX {
+        self.swapchain_info.extent = if support_details.capabilities.current_extent.width != u32::MAX {
                 support_details.capabilities.current_extent
             }
             else {
@@ -1193,12 +1197,13 @@ impl VulkanApp {
         // updates buffers
         for i in (0..self.updates_list.len()).rev() {
             if !self.updates_list[i].need_update[self.frame_index] { continue }
-            if self.updates_list[i].dst_range.len == 0 { continue }
 
             self.updates_list[i].need_update[self.frame_index] = false;
             self.updates_list[i].used[self.frame_index] = true;
 
             let info = &self.updates_list[i];
+
+            if info.dst_range.len == 0 { continue }
 
             if info.flags.contains(BufferFlags::VRAM) {
                 self.copy_stagin_buffer_async(
@@ -1221,53 +1226,99 @@ impl VulkanApp {
 
 
 
-        let graphics_command_buffer = [ self.graphics_command_buffers[self.frame_index] ];
-        let transfer_command_buffer = [ self.transfer_command_buffers[self.frame_index] ];
-
-        unsafe {
-            self.ash_device.cmd_end_render_pass(graphics_command_buffer[0]);
-
-            self.ash_device.end_command_buffer(graphics_command_buffer[0]).expect("Failed to record graphics command buffer!");
-            self.ash_device.end_command_buffer(transfer_command_buffer[0]).expect("Failed to record transfer command buffer!");
-        };
+        let graphics_cmd = self.graphics_command_buffers[self.frame_index];
+        let transfer_cmd = self.transfer_command_buffers[self.frame_index];
 
         let graphics_signal_semaphore = [ self.submit_semaphores[self.image_index] ];
-        let transfer_signal_semaphore = [ self.transfer_semaphores[self.frame_index] ];
-        let graphics_wait_semaphores = [ self.acquire_semaphores[self.frame_index], transfer_signal_semaphore[0] ];
 
-        const WAIT_STAGES: [vk::PipelineStageFlags; 2] = [ vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT, vk::PipelineStageFlags::TRANSFER ];
-
-        let transfer_submit_info = vk::SubmitInfo::default()
-            .command_buffers(&transfer_command_buffer)
-            .signal_semaphores(&transfer_signal_semaphore);
-
-        let graphics_submit_info = vk::SubmitInfo::default()
-            .wait_dst_stage_mask(&WAIT_STAGES)
-            .wait_semaphores(&graphics_wait_semaphores)
-            .command_buffers(&graphics_command_buffer)
-            .signal_semaphores(&graphics_signal_semaphore);
-
-
-        let swapchain = [ self.swapchain ];
-        let image_index = [ self.image_index as u32 ];
-
-        let present_info = vk::PresentInfoKHR::default()
-            .wait_semaphores(&graphics_signal_semaphore)
-            .swapchains(&swapchain)
-            .image_indices(&image_index);
 
         unsafe {
-            self.ash_device.queue_submit(self.transfer_queue, &[transfer_submit_info], vk::Fence::null())
-                .expect("Failed to submit transfer command buffer!");
+            self.ash_device.cmd_end_render_pass(graphics_cmd);
 
-            self.ash_device.queue_submit(self.graphics_queue, &[graphics_submit_info], self.frame_fence[self.frame_index])
-                .expect("Failed to submit draw command buffer!");
+            self.ash_device.end_command_buffer(graphics_cmd).expect("Failed to record graphics command buffer!");
+            self.ash_device.end_command_buffer(transfer_cmd).expect("Failed to record transfer command buffer!");
+
+            //let now = std::time::Instant::now();
+            self.submit_queue(transfer_cmd,
+                self.transfer_queue,
+                &[],
+                &[],
+                &[vk::PipelineStageFlags2::TRANSFER],
+                &[self.transfer_semaphores[self.frame_index]],
+                vk::Fence::null()
+            );
+
+            self.submit_queue(graphics_cmd,
+                self.graphics_queue,
+                &[vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT, vk::PipelineStageFlags2::TRANSFER],
+                &[self.acquire_semaphores[self.frame_index], self.transfer_semaphores[self.frame_index]],
+                &[vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT],
+                &graphics_signal_semaphore,
+                self.frame_fence[self.frame_index]
+            );
+
+
+            let swapchain = [ self.swapchain ];
+            let image_index = [ self.image_index as u32 ];
+
+            let present_info = vk::PresentInfoKHR::default()
+                .wait_semaphores(&graphics_signal_semaphore)
+                .swapchains(&swapchain)
+                .image_indices(&image_index);
+
 
             self.ash_swapchain.queue_present(self.present_queue, &present_info).expect("failed to present image");
+
+            //println!("{}", now.elapsed().as_micros());
         }
 
         // advance to the next frame
         self.frame_index = (self.frame_index + 1) % vkutl::FRAMES_COUNT;
         self.frame_count += 1;
+    }
+
+    fn submit_queue(&self,
+        cmd: vk::CommandBuffer,
+        queue: vk::Queue,
+        wait_stages: &[vk::PipelineStageFlags2],
+        wait_semaphores: &[vk::Semaphore],
+        signal_stages: &[vk::PipelineStageFlags2],
+        signal_semaphores: &[vk::Semaphore],
+        fence: vk::Fence,
+    ) {
+        const MAX_SEMAPHORES_COUNT: usize = 2;
+
+        debug_assert!(wait_stages.len() == wait_semaphores.len() && signal_stages.len() == signal_semaphores.len(), "invalid arguments!");
+        debug_assert!(wait_semaphores.len() <= MAX_SEMAPHORES_COUNT, "invalid wait semaphores count!");
+        debug_assert!(signal_semaphores.len() <= MAX_SEMAPHORES_COUNT, "invalid signal semaphores count!");
+
+        let mut wait_semaphores_infos = [vk::SemaphoreSubmitInfo::default(); MAX_SEMAPHORES_COUNT];
+        let mut signal_semaphores_infos = [vk::SemaphoreSubmitInfo::default(); MAX_SEMAPHORES_COUNT];
+
+        for i in 0..wait_semaphores.len() {
+            wait_semaphores_infos[i] = vk::SemaphoreSubmitInfo::default()
+                .semaphore(wait_semaphores[i])
+                .stage_mask(wait_stages[i])
+        }
+
+        for i in 0..signal_semaphores.len() {
+            signal_semaphores_infos[i] = vk::SemaphoreSubmitInfo::default()
+                .semaphore(signal_semaphores[i])
+                .stage_mask(signal_stages[i])
+        }
+
+        let command_buffer_submit_info = [
+            vk::CommandBufferSubmitInfo::default()
+                .command_buffer(cmd)
+        ];
+
+        let submit_info = vk::SubmitInfo2::default()
+            .command_buffer_infos(&command_buffer_submit_info)
+            .wait_semaphore_infos(&wait_semaphores_infos[0..wait_semaphores.len()])
+            .signal_semaphore_infos(&signal_semaphores_infos[0..signal_semaphores.len()]);
+
+        unsafe {
+            self.ash_device.queue_submit2(queue, &[submit_info], fence).expect("Failed to submit command buffer!");
+        }
     }
 }

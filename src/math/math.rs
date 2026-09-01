@@ -18,10 +18,6 @@ pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
 }
 
-pub fn get_index(x: i32, y: i32, z: i32) -> usize  {
-    (z *  Chunk::CHUNK_SIZE.y * Chunk::CHUNK_SIZE.x + (y * Chunk::CHUNK_SIZE.x) + x) as usize
-}
-
 pub fn get_chunk_pos(global_coords: Vec3) -> Vec3i {
      Vec3i {
         x: (global_coords.x / Chunk::CHUNK_SIZEF.x).floor() as i32,

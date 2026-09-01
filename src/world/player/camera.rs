@@ -106,10 +106,8 @@ impl Camera {
 
 
         // check if camera is on water
-        self.is_underwater = if let Some(chunk) = planet.get_chunk(self.chunk_pos) {
-            let block_info = chunk.borrow().chunk_data.read().unwrap().get_block_info(self.chunk_block);
-
-            *planet.blocks_manager.get_properties_from_block_info(block_info) == planet.blocks_manager.water_block
+        self.is_underwater = if let Some(chunk) = planet.chunks_manager.get_chunk(self.chunk_pos) {
+            *chunk.read().unwrap().data.read().unwrap().get_block_properties(self.chunk_block) == planet.blocks_manager.water_block
         } else { false };
 
 
@@ -231,7 +229,7 @@ impl Camera {
     }
 
     fn get_ray_pos(ray_origin: Vec3, ray_dir: Vec3, planet: &Planet) -> Vec3 {
-        const DISTANCE: f32 = 2.5;
+        const DISTANCE: f32 = 4.5;
 
         let mut pos = Option::<Vec3>::None;
 

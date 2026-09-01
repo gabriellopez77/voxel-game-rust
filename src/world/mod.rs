@@ -8,6 +8,8 @@ pub mod sky;
 pub mod world;
 pub mod aabb;
 pub mod particles;
+pub mod light_engine;
+pub mod chunks_manager;
 
 pub use {
     chunk::Chunk,
@@ -15,4 +17,5 @@ pub use {
     player::player::Player,
     world::World,
     aabb::Aabb,
+    chunks_manager::ChunksManager,
 };
