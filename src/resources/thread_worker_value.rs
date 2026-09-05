@@ -1,7 +1,7 @@
-use std::{sync::{Arc, Condvar, Mutex, atomic::{AtomicBool, Ordering}}, thread::JoinHandle};
+use std::{array, sync::{Arc, Condvar, Mutex, atomic::{AtomicBool, Ordering}}, thread::JoinHandle};
 
 
-pub struct ThreadWorkerValue<T: Send + 'static> {
+pub struct ThreadWorkerValue<T: Send + 'static, const COUNT: usize> {
     finalized_tasks: Arc<Mutex<Vec<T>>>,
     pending_tasks: Arc<Mutex<Vec<Box<dyn FnOnce() -> T + Send + 'static>>>>,
 
@@ -12,10 +12,10 @@ pub struct ThreadWorkerValue<T: Send + 'static> {
     stop_flag: Arc<AtomicBool>,
     clear_flag: Arc<AtomicBool>,
 
-    join_handler: Option<JoinHandle<()>>,
+    join_handler: Option<[JoinHandle<()>; COUNT]>,
 }
 
-impl<T: Send + 'static> ThreadWorkerValue<T> {
+impl<T: Send + 'static, const COUNT: usize> ThreadWorkerValue<T, COUNT> {
     pub fn new() -> Self {
         Self {
             finalized_tasks: Arc::new(Mutex::new(Vec::new())),
@@ -36,7 +36,10 @@ impl<T: Send + 'static> ThreadWorkerValue<T> {
         self.stop_flag.store(true, Ordering::Relaxed);
 
         self.notify();
-        self.join_handler.take().unwrap().join().expect("Error to join worker thread!");
+
+        for join in self.join_handler.take().unwrap() {
+            join.join().expect("Error to join worker thread!");
+        }
     }
 
     pub fn clear(&mut self) {
@@ -82,68 +85,75 @@ impl<T: Send + 'static> ThreadWorkerValue<T> {
             *lock.lock().unwrap() = true;
         }
 
-        cvar.notify_one();
+        cvar.notify_all();
     }
 
-    fn thread_loop(&mut self) -> JoinHandle<()> {
-        let pair = self.pair.clone();
-        let working_flag = self.working_flag.clone();
-        let stop_flag = self.stop_flag.clone();
-        let clear_flag = self.clear_flag.clone();
-        let pending_tasks = self.pending_tasks.clone();
-        let finalized_tasks = self.finalized_tasks.clone();
+    fn thread_loop(&mut self) -> [JoinHandle<()>; COUNT] {
+        // SAFETY: init on loop below
+        let mut joins: [Option<JoinHandle<()>>; COUNT] = array::from_fn(|_| None);
 
-        return std::thread::spawn(move || {
-            let mut process_list = Vec::new();
+        for i in 0..COUNT {
+            let pair = self.pair.clone();
+            let working_flag = self.working_flag.clone();
+            let stop_flag = self.stop_flag.clone();
+            let clear_flag = self.clear_flag.clone();
+            let pending_tasks = self.pending_tasks.clone();
+            let finalized_tasks = self.finalized_tasks.clone();
 
-            'main_loop: loop {
-                let (lock, cvar) = &*pair;
-                let mut mutex = lock.lock().unwrap();
+            joins[i] = Some(std::thread::spawn(move || {
+                let mut process_list = Vec::new();
 
-                while !*mutex {
-                    mutex = cvar.wait(mutex).unwrap();
-                }
+                'main_loop: loop {
+                    let (lock, cvar) = &*pair;
+                    let mut mutex = lock.lock().unwrap();
 
-                if clear_flag.load(Ordering::Relaxed) {
-                    process_list.clear();
-                    pending_tasks.lock().unwrap().clear();
-                    finalized_tasks.lock().unwrap().clear();
-                    clear_flag.store(false, Ordering::Relaxed);
-                    *mutex = false;
-                    working_flag.store(false, Ordering::Relaxed);
-                }
-
-                if stop_flag.load(Ordering::Relaxed) {
-                    break;
-                }
-
-
-
-                {
-                    let pt = &mut *pending_tasks.lock().unwrap();
-
-                    while let Some(task) = pt.pop() {
-                        process_list.push(task);
-                    }
-                }
-
-                while let Some(task) = process_list.pop() {
-                    if stop_flag.load(Ordering::Relaxed) {
-                        break 'main_loop;
+                    while !*mutex {
+                        mutex = cvar.wait(mutex).unwrap();
                     }
 
                     if clear_flag.load(Ordering::Relaxed) {
-                        continue 'main_loop;
+                        process_list.clear();
+                        pending_tasks.lock().unwrap().clear();
+                        finalized_tasks.lock().unwrap().clear();
+                        clear_flag.store(false, Ordering::Relaxed);
+                        *mutex = false;
+                        working_flag.store(false, Ordering::Relaxed);
                     }
 
-                    let result = task();
+                    if stop_flag.load(Ordering::Relaxed) {
+                        break;
+                    }
 
-                    finalized_tasks.lock().unwrap().push(result);
+
+
+                    {
+                        let pt = &mut *pending_tasks.lock().unwrap();
+
+                        while let Some(task) = pt.pop() {
+                            process_list.push(task);
+                        }
+                    }
+
+                    while let Some(task) = process_list.pop() {
+                        if stop_flag.load(Ordering::Relaxed) {
+                            break 'main_loop;
+                        }
+
+                        if clear_flag.load(Ordering::Relaxed) {
+                            continue 'main_loop;
+                        }
+
+                        let result = task();
+
+                        finalized_tasks.lock().unwrap().push(result);
+                    }
+
+                    *mutex = false;
+                    working_flag.store(false, Ordering::Relaxed);
                 }
+            }));
+        }
 
-                *mutex = false;
-                working_flag.store(false, Ordering::Relaxed);
-            }
-        });
+        return joins.map(|handler| handler.unwrap());
     }
 }

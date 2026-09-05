@@ -103,7 +103,7 @@ impl FirstPerson {
         action: bool,
         walking: bool,
         player_vel: Vec3,
-        camera_delta: Option<Vec2>,
+        camera_delta: Vec2,
     ) {
         self.swap_down_anim_result = AnimationKeyFrameValue::default();
         self.swap_up_anim_result = AnimationKeyFrameValue::default();
@@ -148,14 +148,6 @@ impl FirstPerson {
         }
 
 
-        //self.interact_hand_anim.start(1.0, vec![
-        //    (0.0, Some(Vec3::ZERO), None, Some(Vec3::ZERO)),
-        //    (0.5, Some(self.pos), None, Some(self.rot)),
-        //    (0.75, Some(Vec3::new(-0.1, -0.1, 0.0)), None, None),
-        //    (1.0, Some(Vec3::ZERO), None, Some(Vec3::ZERO)),
-        //]);
-
-
         let interact_anim = if self.is_hand_model {
             &mut self.interact_hand_anim
         }
@@ -188,9 +180,9 @@ impl FirstPerson {
 
 
         // camera translate
-        if let Some(camera_delta) = camera_delta && camera_delta != Vec2::ZERO {
-            self.camera_translate.x += (camera_delta.y * 0.01).clamp(-0.25, 0.25);
-            self.camera_translate.y += (camera_delta.x * 0.01).clamp(-0.25, 0.25);
+        if camera_delta != Vec2::ZERO {
+            self.camera_translate.x -= (camera_delta.y * 0.05).clamp(-0.25, 0.25);
+            self.camera_translate.y += (camera_delta.x * 0.05).clamp(-0.25, 0.25);
 
             self.camera_translate.x = self.camera_translate.x.clamp(-5.0, 5.0);
             self.camera_translate.y = self.camera_translate.y.clamp(-5.0, 5.0);
@@ -228,7 +220,6 @@ impl FirstPerson {
         }
 
         // idle animation
-        //self.idle_translate.x = args.time.sin() * args.dt * 10.0;
         self.idle_translate.z = args.time.cos() * args.dt * 50.0;
     }
 

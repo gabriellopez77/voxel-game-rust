@@ -14,8 +14,8 @@ use crate::world::player::camera::{Camera, PerspectiveMode};
 use crate::world::player::{FirstPerson, PlayerInventory, SelectionBox};
 
 
-const GRAVITY: f32 = 35.0;
-const JUMP_FORCE: f32 = 10.0;
+const GRAVITY: f32 = 32.0;
+const JUMP_FORCE: f32 = 8.8;
 const FLY_Y_SPEED: f32 = 120.0;
 const FLY_X_SPEED: f32 = 320.0;
 const SPEED: f32 = 50.0;
@@ -83,6 +83,12 @@ impl Player {
 
     pub fn get_pos(&self) -> Vec3 { self.aabb.get_min() }
 
+    pub fn get_head_pos(&self) -> Vec3 {
+        let mut new_pos = self.aabb.get_center();
+        new_pos.y = self.aabb.y0 + 1.7;
+
+        new_pos
+    }
     pub fn start(&mut self, resources: &mut ResourceManager, global_renderer: &mut GlobalRenderer) {
         self.selection_box.start(global_renderer);
         self.first_person.start(global_renderer, resources);
@@ -177,14 +183,8 @@ impl Player {
             }
         });
 
-        if args.inputs.key_pressed(inputs::Keys::F5) {
-            match self.camera.get_perspective_type() {
-                PerspectiveMode::FirstPerson => self.camera.change_type(PerspectiveMode::ThridPersonBack),
-                PerspectiveMode::ThridPersonBack => self.camera.change_type(PerspectiveMode::ThridPersonFront),
-                PerspectiveMode::ThridPersonFront => self.camera.change_type(PerspectiveMode::FirstPerson),
-            }
-        }
 
+        let last_camera_rot = self.camera.get_rot();
         self.camera.update(&self.aabb, planet, args.inputs.get_camera_delta());
 
 
@@ -195,6 +195,14 @@ impl Player {
         let mut action = false;
 
         if self.state == PlayerStates::Active {
+            if args.inputs.key_pressed(inputs::Keys::F5) {
+                match self.camera.get_perspective_type() {
+                    PerspectiveMode::FirstPerson => self.camera.change_type(PerspectiveMode::ThridPersonBack),
+                    PerspectiveMode::ThridPersonBack => self.camera.change_type(PerspectiveMode::ThridPersonFront),
+                    PerspectiveMode::ThridPersonFront => self.camera.change_type(PerspectiveMode::FirstPerson),
+                }
+            }
+
             action = args.inputs.mouse_pressed(inputs::MouseButton::Left);
 
             self.inventory.process_hotbar_scroll(args.inputs.get_mouse_scroll());
@@ -229,7 +237,7 @@ impl Player {
             action,
             walking,
             self.velocity,
-            if self.state == PlayerStates::Active { Some(args.inputs.get_camera_delta()) } else { None }
+            self.camera.get_rot() - last_camera_rot
         );
 
         if args.inputs.key_pressed(inputs::Keys::E) {
@@ -289,7 +297,7 @@ impl Player {
         let mut result = None;
 
         const RAY_LENGHT: f32 = 4.5;
-        let ray_pos = self.camera.get_pos();
+        let ray_pos = self.get_head_pos();
         let ray_dir = self.camera.get_dir();
 
         planet.iterate_over_blocks_raycast(ray_pos, ray_dir, RAY_LENGHT, |stop, it| {

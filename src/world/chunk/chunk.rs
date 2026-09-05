@@ -1,7 +1,8 @@
-﻿use std::sync::atomic::Ordering;
+﻿use std::collections::HashMap;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, RwLock};
 use crate::math::{self, Vec3, Vec3i};
-use crate::render::chunks_renderer::ChunkMeshResult;
+use crate::render::chunks_renderer::{self, ChunkMeshResult};
 use crate::render::{BlockItemVertices, ChunkMesh, ChunkVertices, ChunksRenderer};
 use crate::utils::SafePtr;
 use crate::world::ChunksManager;
@@ -44,8 +45,11 @@ impl Chunk {
     pub const CHUNK_SIZE: Vec3i = Vec3i { x: 16, y: 128, z: 16 };
     pub const CHUNK_SIZE_MINUS_ONE: Vec3i = Vec3i { x: 15, y: 127, z: 15 };
     pub const CHUNK_SIZEF: Vec3 = Vec3 { x: 16.0, y: 128.0, z: 16.0 };
+    pub const SUB_CHUNK_SIZE: Vec3i = Vec3i { x: 16, y: 16, z: 16 };
     pub const CHUNK_DATA_SIZE: usize = (Self::CHUNK_SIZE.x * Self::CHUNK_SIZE.y * Self::CHUNK_SIZE.z) as usize;
-    pub const REGION_SIZE: i32 = 16;
+    pub const SUB_CHUNK_DATA_SIZE: usize = (Self::SUB_CHUNK_SIZE.x * Self::SUB_CHUNK_SIZE.y * Self::SUB_CHUNK_SIZE.z) as usize;
+    pub const SUB_CHUNK_COUNT: usize = (Self::CHUNK_SIZE.y / Self::SUB_CHUNK_SIZE.y) as usize;
+    pub const REGION_SIZE: usize = 16;
 
     pub fn new(position: Vec3i, chunk_data: Option<Arc<RwLock<ChunkData>>>, blocks_manager: SafePtr<BlocksManager>) -> Self {
         let visual_position = position * Self::CHUNK_SIZE;
@@ -65,7 +69,12 @@ impl Chunk {
         world_gen.gen_data(self.position, &mut self.data.write().unwrap(), blocks_manager);
     }
 
-    pub fn draw(&mut self, dt: f32, chunks_manager: &ChunksManager, camera: &Camera, renderer: &mut ChunksRenderer) {
+    pub fn draw(&mut self,
+        chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<RwLock<Chunk>>>>>>,
+        camera: &Camera,
+        renderer: &mut ChunksRenderer,
+        dt: f32,
+    ) {
         if camera.view_changed {
             self.inside_frustum = camera.chunk_inside_frustum(self.visual_position);
         }
@@ -74,11 +83,14 @@ impl Chunk {
             return;
         }
 
+        //if let Some(mesh_result) = renderer.get_generated_mesh(self.position) {
+        //    self.renderer.update_mesh(&mesh_result, renderer);
+        //}
 
-        if self.data.read().unwrap().need_regen_mesh() {
-            self.data.read().unwrap().regen_mesh.store(false, Ordering::Relaxed);
+        if let Ok(data) = self.data.try_read() && data.need_regen_mesh() {
+            data.regen_mesh.store(false, Ordering::Relaxed);
 
-            renderer.gen_mesh(chunks_manager, self.data.clone(), self.position);
+            renderer.gen_mesh(chunks_map, self.data.clone(), self.position);
         }
 
         self.renderer.draw(dt, renderer);

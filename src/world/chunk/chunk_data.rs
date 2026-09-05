@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use crate::{math::Vec3i, utils::SafePtr, world::{Chunk, blocks::{BlockIdState, BlockProperties, BlocksManager}, light_engine::{self, LightType}}};
+use crate::{math::Vec3i, utils::SafePtr, world::{Chunk, blocks::{BlockIdState, BlockProperties, BlocksManager}, light_engine::{self, LightSectionLevel, LightType}}};
 
 
 #[derive(Clone, Copy)]
@@ -9,15 +9,17 @@ pub struct ChunkBlockInfo {
 }
 
 pub struct ChunkData {
-    blocks_id: [u16; Chunk::CHUNK_DATA_SIZE],
-    light_levels: [u8; Chunk::CHUNK_DATA_SIZE],
+    pub blocks_id: [u16; Chunk::CHUNK_DATA_SIZE],
+    pub light_levels: [u8; Chunk::CHUNK_DATA_SIZE],
     //blocks_state: [u8; Chunk::CHUNK_DATA_SIZE],
+
+    pub light_sections: [LightSectionLevel; Chunk::SUB_CHUNK_COUNT as usize],
 
     pub position: Vec3i,
 
     pub regen_mesh: AtomicBool,
     pub contains_emissive_blocks: bool,
-    pub light_gen_stage: bool,
+    pub light_gen_stage: AtomicBool,
 
     blocks_manager: SafePtr<BlocksManager>,
 }
@@ -26,8 +28,9 @@ unsafe impl Send for ChunkData {}
 unsafe impl Sync for ChunkData {}
 
 impl ChunkData {
+    /// uses the order: y, x, z
     pub fn get_index(x: i32, y: i32, z: i32) -> usize {
-        (z *  Chunk::CHUNK_SIZE.y * Chunk::CHUNK_SIZE.x + (y * Chunk::CHUNK_SIZE.x) + x) as usize
+        ((y * Chunk::CHUNK_SIZE.x * Chunk::CHUNK_SIZE.z) + (x * Chunk::CHUNK_SIZE.z) + z) as usize
     }
 
     pub fn new(position: Vec3i, blocks_manager: SafePtr<BlocksManager>) -> Self {
@@ -36,11 +39,13 @@ impl ChunkData {
             //blocks_state: [0; Chunk::CHUNK_DATA_SIZE],
             light_levels: [0; Chunk::CHUNK_DATA_SIZE],
 
-            position: position,
+            light_sections: [LightSectionLevel::Two; Chunk::SUB_CHUNK_COUNT],
+
+            position,
 
             regen_mesh: AtomicBool::new(false),
             contains_emissive_blocks: false,
-            light_gen_stage: true,
+            light_gen_stage: AtomicBool::new(true),
 
             blocks_manager,
         }
@@ -51,11 +56,13 @@ impl ChunkData {
         self.light_levels.fill(0);
         //self.blocks_state.fill(0);
 
+        self.light_sections.fill(LightSectionLevel::Two);
+
         self.position = new_position;
 
         self.regen_mesh = AtomicBool::new(false);
         self.contains_emissive_blocks = false;
-        self.light_gen_stage = true;
+        self.light_gen_stage = AtomicBool::new(true);
     }
 
     // change the block in chunk_block by the id_state and return the old block
@@ -67,7 +74,7 @@ impl ChunkData {
     }
 
     pub fn need_regen_mesh(&self) -> bool {
-        self.regen_mesh.load(Ordering::Relaxed) && !self.light_gen_stage
+        self.regen_mesh.load(Ordering::Relaxed) && !self.light_gen_stage.load(Ordering::Relaxed)
         //self.regen_mesh
     }
 

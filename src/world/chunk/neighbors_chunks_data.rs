@@ -68,7 +68,11 @@ impl NeighborsChunksData {
         }
     }
 
-    pub fn change_from_map(&mut self, chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<RwLock<Chunk>>>>>>, pos: Vec3i, corners: bool) {
+    pub fn change_from_map(&mut self,
+        chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<RwLock<Chunk>>>>>>,
+        pos: Vec3i,
+        corners: bool
+    ) {
         if self.chunk_pos != pos || self.first_time {
             self.first_time = false;
 

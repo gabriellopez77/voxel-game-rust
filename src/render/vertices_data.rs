@@ -298,3 +298,11 @@ pub struct EntitiesCubesVertices {
 
     pub local_matrix: Matrix4,
 }
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct OutlineCubeVertices {
+    pub position: Vec3,
+    pub size: Vec3,
+    pub color: Color4b,
+}

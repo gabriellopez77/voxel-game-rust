@@ -398,34 +398,32 @@ impl GlobalRenderer {
         let command_buffer = vulkan_app.get_graphics_cmd();
 
 
-        for draw_info in draw_list {
-            if current_pipeline != draw_info.pipeline {
-                current_pipeline = draw_info.pipeline;
+        unsafe {
+            for draw_info in draw_list {
+                if current_pipeline != draw_info.pipeline {
+                    current_pipeline = draw_info.pipeline;
 
-                unsafe {
                     vulkan_app.ash_device.cmd_bind_pipeline(command_buffer,
                         vk::PipelineBindPoint::GRAPHICS,
                         current_pipeline
                     );
                 }
-            }
 
-            if current_pipeline_layout != draw_info.pipeline_layout {
-                current_pipeline_layout = draw_info.pipeline_layout;
+                if current_pipeline_layout != draw_info.pipeline_layout {
+                    current_pipeline_layout = draw_info.pipeline_layout;
 
-                let mut first_set = usize::MAX;
+                    let mut first_set = usize::MAX;
 
-                for i in 0..draw_info.descriptors_count as usize {
-                    if draw_info.descriptors_sets[i] != current_descriptor_sets[i] {
-                        current_descriptor_sets[i] = draw_info.descriptors_sets[i];
+                    for i in 0..draw_info.descriptors_count as usize {
+                        if draw_info.descriptors_sets[i] != current_descriptor_sets[i] {
+                            current_descriptor_sets[i] = draw_info.descriptors_sets[i];
 
-                        if first_set == usize::MAX {
-                            first_set = i;
+                            if first_set == usize::MAX {
+                                first_set = i;
+                            }
                         }
                     }
-                }
 
-                unsafe {
                     vulkan_app.ash_device.cmd_bind_descriptor_sets(command_buffer,
                         vk::PipelineBindPoint::GRAPHICS,
                         current_pipeline_layout,
@@ -434,12 +432,10 @@ impl GlobalRenderer {
                         &[]
                     );
                 }
-            }
 
-            if draw_info.push_constant_idx != -1 {
-                let (push_size, push_data) = &self.push_constant_list[draw_info.push_constant_idx as usize];
+                if draw_info.push_constant_idx != -1 {
+                    let (push_size, push_data) = &self.push_constant_list[draw_info.push_constant_idx as usize];
 
-                unsafe {
                     vulkan_app.ash_device.cmd_push_constants(command_buffer,
                         current_pipeline_layout,
                         vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
@@ -447,51 +443,47 @@ impl GlobalRenderer {
                         &push_data[0..*push_size as usize]
                     );
                 }
-            }
 
 
-            let offsets = [0u64; vkutl::MAX_VERTEX_BINDING_COUNT];
+                let offsets = [0u64; vkutl::MAX_VERTEX_BINDING_COUNT];
 
-            unsafe {
+
                 vulkan_app.ash_device.cmd_bind_index_buffer(command_buffer,
                     draw_info.index_buffer,
                     0,
                     vk::IndexType::UINT32
                 );
 
+                if let DrawType::Default(index_count, instance_count) = draw_info.draw_type {
+                    let count = if draw_info.buffers[BuffersTypes::Custom as usize].is_null() { 1 } else { 2 };
 
-                match draw_info.draw_type {
-                    DrawType::Default(index_count, instance_count) => {
-                        let count = if draw_info.buffers[BuffersTypes::Custom as usize].is_null() { 1 } else { 2 };
+                    vulkan_app.ash_device.cmd_bind_vertex_buffers(command_buffer,
+                        0,
+                        &draw_info.buffers[0..count],
+                        &offsets[0..count],
+                    );
 
-                        vulkan_app.ash_device.cmd_bind_vertex_buffers(command_buffer,
-                            0,
-                            &draw_info.buffers[0..count],
-                            &offsets[0..count],
-                        );
-
-                        vulkan_app.ash_device.cmd_draw_indexed(command_buffer,
-                            index_count,
-                            instance_count,
-                            0, 0, 0
-                        );
-                    }
-                    DrawType::Indirect(draw_count) => {
-                        vulkan_app.ash_device.cmd_bind_vertex_buffers(command_buffer,
-                            0,
-                            &draw_info.buffers[0..1],
-                            &offsets[0..1],
-                        );
-
-                        vulkan_app.ash_device.cmd_draw_indexed_indirect(command_buffer,
-                            draw_info.buffers[BuffersTypes::Custom as usize],
-                            0,
-                            draw_count,
-                            size_of::<vk::DrawIndexedIndirectCommand>() as u32
-                        );
-                    }
+                    vulkan_app.ash_device.cmd_draw_indexed(command_buffer,
+                        index_count,
+                        instance_count,
+                        0, 0, 0
+                    );
                 }
+                else if let DrawType::Indirect(draw_count) = draw_info.draw_type {
+                    vulkan_app.ash_device.cmd_bind_vertex_buffers(command_buffer,
+                        0,
+                        &draw_info.buffers[0..1],
+                        &offsets[0..1],
+                    );
 
+                    vulkan_app.ash_device.cmd_draw_indexed_indirect(command_buffer,
+                        draw_info.buffers[BuffersTypes::Custom as usize],
+                        0,
+                        draw_count,
+                        size_of::<vk::DrawIndexedIndirectCommand>() as u32
+                    );
+
+                }
             }
         }
     }
@@ -510,9 +502,7 @@ impl GlobalRenderer {
         }
 
         let (pipeline, pipeline_layout, descriptors_sets, descriptors_sets_count) =
-            if let Some(info) = material.get_draw_info(self, self.frame_index) {
-                info
-            } else { return false };
+            if let Some(info) = material.get_draw_info(self, self.frame_index) { info } else { return false };
 
         let draw_info = DrawInfo {
             pipeline: pipeline,

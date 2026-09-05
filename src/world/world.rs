@@ -68,7 +68,7 @@ impl World {
             return;
         }
 
-        if args.game_flags.contains(GameFlags::PAUSED) || self.player.state == PlayerStates::Menu {
+        if self.player.state == PlayerStates::Menu {
             args.inputs.reset_camera_delta();
         }
 
@@ -86,7 +86,7 @@ impl World {
     }
 
     pub fn draw(&mut self, dt: f32, global_renderer: &mut GlobalRenderer) {
-        self.chunks_renderer.process_mesh_worker();
+        self.chunks_renderer.process_mesh_gen();
 
         self.sky.draw(global_renderer);
 

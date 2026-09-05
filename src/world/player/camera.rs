@@ -76,12 +76,7 @@ impl Camera {
     pub fn get_perspective_type(&self) -> PerspectiveMode { self.perspective_mode }
     pub fn get_pos(&self) -> Vec3 { self.position }
     pub fn get_dir(&self) -> Vec3 { self.direction }
-    pub fn get_rot(&self) -> Vec2 {
-        match self.perspective_mode {
-            PerspectiveMode::ThridPersonFront => self.rot,
-            _ => self.rot
-        }
-    }
+    pub fn get_rot(&self) -> Vec2 { self.rot }
 
     pub fn get_forward(&self) -> Vec3 {
         let yaw_rad = self.rot.x.to_radians();

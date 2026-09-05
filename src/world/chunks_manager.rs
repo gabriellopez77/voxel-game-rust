@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, sync::{Arc, Mutex, atomic::Ordering}};
+use std::{collections::HashMap, sync::{Arc, Mutex, atomic::Ordering}};
 use std::sync::RwLock;
 use crate::{math::{self, Vec3i}, resources::{ThreadWorker, ThreadWorkerValue}, world::{Chunk, chunk::NeighborsChunksData, player::Camera}};
 use crate::render::ChunksRenderer;
@@ -25,8 +25,8 @@ pub struct ChunksManager {
     update_change_chunk_logic: bool,
     need_ordering_chunks: bool,
 
-    pub chunks_gen_worker: ThreadWorkerValue<Box<RwLock<Chunk>>>,
-    pub chunks_background_worker: ThreadWorker,
+    pub chunks_gen_worker: ThreadWorkerValue<Box<RwLock<Chunk>>, 1>,
+    pub chunks_background_worker: ThreadWorker<1>,
 
     pub chunk_data_pool: ObjectPool<Arc<RwLock<ChunkData>>>,
 }
@@ -109,7 +109,7 @@ impl ChunksManager {
 
     pub fn draw_chunks(&self, dt: f32, camera: &Camera, chunks_renderer: &mut ChunksRenderer) {
         for ch in &self.ordered_chunks {
-            ch.write().unwrap().draw(dt, self, camera, chunks_renderer);
+            ch.write().unwrap().draw(self.chunks.clone(), camera, chunks_renderer, dt);
         }
     }
 
@@ -137,7 +137,11 @@ impl ChunksManager {
 
     pub fn dispose_chunks_renderers(&mut self, chunks_renderer: &mut ChunksRenderer) {
         for ch in &self.dispose_chunks_renderers_list {
-            ch.write().unwrap().renderer.dispose(chunks_renderer);
+            let mut chu = ch.write().unwrap();
+
+            chu.renderer.dispose(chunks_renderer);
+
+            //chunks_renderer.dispose_generated_mesh(chu.position);
         }
 
         self.dispose_chunks_renderers_list.clear();
@@ -158,8 +162,10 @@ impl ChunksManager {
         self.update_change_chunk_logic = false;
         self.need_ordering_chunks = true;
 
+        let mut chunks = self.chunks.write().unwrap();
+
         // add distant chunks to remove list
-        for (pos, ch) in &*self.chunks.read().unwrap() {
+        for (pos, ch) in &*chunks {
             if let Some(ch) = ch {
                 let distance = math::get_chunk_distance(player_chunk_pos, *pos);
 
@@ -175,7 +181,7 @@ impl ChunksManager {
         // remove chunk from chunks and add to dispose_chunks_render_list
         for ch in &self.remove_chunks_list {
             let ch_borrow = ch.read().unwrap();
-            self.chunks.write().unwrap().remove(&ch_borrow.position);
+            chunks.remove(&ch_borrow.position);
             self.chunk_data_pool.restore(ch_borrow.data.clone());
 
             self.dispose_chunks_renderers_list.push(ch.clone());
@@ -194,7 +200,7 @@ impl ChunksManager {
 
             let distance = math::get_chunk_distance(new_chunk_pos, player_chunk_pos);
 
-            if distance > self.render_distance || self.chunks.read().unwrap().contains_key(&new_chunk_pos) {
+            if distance > self.render_distance || chunks.contains_key(&new_chunk_pos) {
                 continue
             }
 
@@ -216,14 +222,14 @@ impl ChunksManager {
                 new_chunk.start(&mut world_gen.lock().unwrap(), &blocks_manager);
 
                 //let now = std::time::Instant::now();
-                light_engine::init_chunk_light(new_chunk.data.clone());
+                light_engine::compute_light_value(new_chunk.data.clone());
                 //println!("{}", now.elapsed().as_micros());
 
                 return Box::new(RwLock::new(new_chunk));
             });
 
             self.pendings_chunks_count += 1;
-            self.chunks.write().unwrap().insert(new_chunk_pos, None);
+            chunks.insert(new_chunk_pos, None);
         }
         }
     }
@@ -245,17 +251,10 @@ impl ChunksManager {
 
             *self.chunks.write().unwrap().get_mut(&chunk_pos).unwrap() = Some(chunk_arc.clone());
 
-            //let now = std::time::Instant::now();
-            //light_engine::update_light_in_border_neighbors(self.chunks.clone(), chunk_arc.read().unwrap().data.clone(), neighbors_data);
-            //println!("{}", now.elapsed().as_micros());
-
-
-            // self is valid for all game life
-            //let chunks_manager_ptr = SafePtr::new(self);
-
+            //chunk_arc.read().unwrap().data.read().unwrap().light_gen_stage.store(false, Ordering::Relaxed);
             let chunk_data = chunk_arc.read().unwrap().data.clone();
-
             let chunks_map = self.chunks.clone();
+
             self.chunks_background_worker.add_task(move || {
                 light_engine::update_light_in_border_neighbors(chunks_map, chunk_data, neighbors_data);
             });

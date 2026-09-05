@@ -247,8 +247,8 @@ impl Game {
                 }
                 GameEvents::EnterToWorld => {
                     self.flags.turn_on(GameFlags::IN_WORLD);
-                    self.flags.turn_off(GameFlags::PAUSED);
                     self.flags.turn_on(GameFlags::PLAYABLE);
+                    self.flags.turn_off(GameFlags::PAUSED);
                     self.state = GameStates::None;
                     
                     self.ui_manager.clone().borrow_mut().enter_world(self);

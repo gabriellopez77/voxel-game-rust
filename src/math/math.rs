@@ -44,8 +44,8 @@ pub fn get_global_block(global_coords: Vec3) -> Vec3i {
 
 pub fn get_chunk_region(chunk_pos: Vec3i) -> Vec2i {
     Vec2i {
-        x: (chunk_pos.x / Chunk::REGION_SIZE),
-        y: (chunk_pos.z / Chunk::REGION_SIZE)
+        x: (chunk_pos.x / Chunk::REGION_SIZE as i32),
+        y: (chunk_pos.z / Chunk::REGION_SIZE as i32)
     }
 }
 

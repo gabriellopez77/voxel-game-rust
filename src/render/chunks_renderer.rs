@@ -1,6 +1,6 @@
-use std::{array, cell::RefCell, rc::Rc, sync::{Arc, RwLock}};
+use std::{array, cell::RefCell, collections::HashMap, rc::Rc, sync::{Arc, RwLock}};
 
-use crate::{math::Vec3i, render::{ChunkVertices, GlobalRenderer, Material, MultiMesh, core::raw_buffer::BufferFlags, multi_mesh::MultiMeshInfo}, resources::{ResourceManager, ThreadWorkerValue}, utils::NullSafePtr, world::{Chunk, ChunksManager, blocks::BlocksManager, chunk::{ChunkData, NeighborsChunksData}}};
+use crate::{math::Vec3i, render::{ChunkVertices, GlobalRenderer, Material, MultiMesh, core::raw_buffer::BufferFlags, multi_mesh::MultiMeshInfo}, resources::{ResourceManager, ThreadWorkerValue}, utils::NullSafePtr, world::{Chunk, blocks::BlocksManager, chunk::{ChunkData, NeighborsChunksData}}};
 use crate::utils::ObjectPool;
 
 
@@ -41,7 +41,9 @@ pub struct ChunksRenderer {
 
     materials: Option<[Rc<RefCell<Material>>; ChunksRendererType::RENDERS_COUNT]>,
 
-    mesh_gen_worker: ThreadWorkerValue<ChunkMeshResult>,
+    generated_mesh: HashMap<Vec3i, ChunkMeshResult>,
+
+    mesh_gen_worker: ThreadWorkerValue<ChunkMeshResult, 1>,
 
     chunk_mesh_vertices_pool: ObjectPool<Vec<ChunkVertices>>,
     chunk_mesh_indices_pool: ObjectPool<Vec<u32>>,
@@ -55,6 +57,8 @@ impl ChunksRenderer {
             multi_mesh: None,
 
             materials: None,
+
+            generated_mesh: HashMap::new(),
 
             mesh_gen_worker: ThreadWorkerValue::new(),
 
@@ -123,8 +127,16 @@ impl ChunksRenderer {
         self.mesh_gen_worker.stop();
     }
 
-    pub fn process_mesh_worker(&mut self) {
+    pub fn process_mesh_gen(&mut self) {
         self.mesh_gen_worker.process_tasks();
+
+        //while let Some(mesh_result) = self.mesh_gen_worker.get_finalized_task() {
+        //    if let Some(old_mesh) = self.generated_mesh.remove(&mesh_result.chunk_pos) {
+        //        self.restore_mesh_result(old_mesh);
+        //    }
+
+        //    self.generated_mesh.insert(mesh_result.chunk_pos, mesh_result);
+        //}
     }
 
     pub fn clean_worker(&mut self) {
@@ -135,22 +147,39 @@ impl ChunksRenderer {
         self.mesh_gen_worker.get_finalized_task()
     }
 
-    pub fn gen_mesh(&mut self, chunks_manager: &ChunksManager, chunk_data: Arc<RwLock<ChunkData>>, chunk_pos: Vec3i) {
+    //pub fn get_generated_mesh(&mut self, chunk_pos: Vec3i) -> Option<ChunkMeshResult> {
+    //    self.generated_mesh.remove(&chunk_pos)
+    //}
+
+    pub fn dispose_generated_mesh(&mut self, chunk_pos: Vec3i) {
+        if let Some(mesh_result) = self.generated_mesh.remove(&chunk_pos) {
+            self.restore_mesh_result(mesh_result);
+        }
+    }
+
+    pub fn gen_mesh(&mut self,
+        chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<RwLock<Chunk>>>>>>,
+        chunk_data: Arc<RwLock<ChunkData>>,
+        chunk_pos: Vec3i
+    ) {
         // SAFETY: blocks_manager reference is valid for all game time
         let blocks_manager = self.blocks_manager.clone();
 
-        let mut mesh_result = ChunkMeshResult {
-            neighbors_data: NeighborsChunksData::new(chunks_manager, chunk_pos, true),
-            chunk_data,
-
-            vertices: array::from_fn(|_| self.chunk_mesh_vertices_pool.get_or(|| Vec::new())),
-            indices: array::from_fn(|_| self.chunk_mesh_indices_pool.get_or(|| Vec::new())),
-
-            chunk_pos,
-        };
+        let vertices = array::from_fn(|_| self.chunk_mesh_vertices_pool.get_or(|| Vec::new()));
+        let indices = array::from_fn(|_| self.chunk_mesh_indices_pool.get_or(|| Vec::new()));
 
         // create chunk mesh async
         self.mesh_gen_worker.add_task(move || {
+            let mut mesh_result = ChunkMeshResult {
+                neighbors_data: NeighborsChunksData::new_from_map(chunks_map, chunk_pos, true),
+                chunk_data,
+
+                vertices,
+                indices,
+
+                chunk_pos,
+            };
+
             Chunk::gen_mesh(&mut mesh_result, &blocks_manager);
             mesh_result.gen_indices();
 
