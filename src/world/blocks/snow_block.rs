@@ -2,12 +2,12 @@ use crate::{world::{blocks::{BlockFunctions, BlockProperties}, items::{ItemCreat
 
 
 pub struct SnowBlock {
-    properties: Vec<BlockProperties>
+    properties: BlockProperties
 }
 
 impl BlockFunctions for SnowBlock {
     fn get_properties(&self, state: u8) -> &BlockProperties {
-        &self.properties[state as usize]
+        &self.properties
     }
 }
 
@@ -23,7 +23,7 @@ impl ItemCreation for SnowBlock {
         properties.light_filter = 15;
 
         Self {
-            properties: vec![properties],
+            properties: properties,
         }
     }
 }

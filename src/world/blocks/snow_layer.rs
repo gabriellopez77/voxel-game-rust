@@ -2,12 +2,12 @@ use crate::world::{blocks::{BlockFunctions, BlockProperties, BlockTypes}, items:
 
 
 pub struct SnowLayer {
-    properties: Vec<BlockProperties>
+    properties: BlockProperties
 }
 
 impl BlockFunctions for SnowLayer {
     fn get_properties(&self, state: u8) -> &BlockProperties {
-        &self.properties[state as usize]
+        &self.properties
     }
 }
 
@@ -26,7 +26,7 @@ impl ItemCreation for SnowLayer {
         properties.set_selection_box(0, 0, 0, 16, 2, 16);
 
         Self {
-            properties: vec![properties],
+            properties: properties,
         }
     }
 }

@@ -107,11 +107,16 @@ pub fn update_light_in_border_neighbors(
     chunk_data: Arc<RwLock<ChunkData>>,
     neighbors_chunks_data: NeighborsChunksData
 ) {
-    let update_light_in_border = |chunk_data: Arc<RwLock<ChunkData>>, light_type: LightType| {
+    let update_light_in_border = |chunk_data: Arc<RwLock<ChunkData>>, light_type: LightType, face: Directions| {
         let mut add_queue = get_queue();
         let chunk_pos: Vec3i;
 
         let mut add_light_border_in_queue = |data: &ChunkData, chunk_block: Vec3i| {
+            //let sub_chunk = (chunk_block.y as f32 / Chunk::SUB_CHUNK_SIZE.y as f32).floor() as usize;
+            //if data.light_sections[sub_chunk] == LightSectionLevel::Two {
+            //    return;
+            //}
+
             let light_value = data.get_light(chunk_block, light_type);
 
             if light_value == MIN_LEVEL { return }
@@ -130,19 +135,36 @@ pub fn update_light_in_border_neighbors(
                 return;
             }
 
+            if face == Directions::Nothing {
+                for y in 0..Chunk::CHUNK_SIZE.y {
+                    for x in 0..Chunk::CHUNK_SIZE.x {
+                        add_light_border_in_queue(&data, Vec3i::new(x, y, 0));
+                        add_light_border_in_queue(&data, Vec3i::new(x, y, Chunk::CHUNK_SIZE_MINUS_ONE.z));
+                    }
 
-            for x in 0..Chunk::CHUNK_SIZE.x {
-            for y in 0..Chunk::CHUNK_SIZE.y {
-                add_light_border_in_queue(&data, Vec3i::new(x, y, 0));
-                add_light_border_in_queue(&data, Vec3i::new(x, y, Chunk::CHUNK_SIZE_MINUS_ONE.z));
+                    for z in 0..Chunk::CHUNK_SIZE.z {
+                        add_light_border_in_queue(&data, Vec3i::new(0, y, z));
+                        add_light_border_in_queue(&data, Vec3i::new(Chunk::CHUNK_SIZE_MINUS_ONE.x, y, z));
+                    }
+                }
             }
-            }
-
-            for y in 0..Chunk::CHUNK_SIZE.y {
-            for z in 0..Chunk::CHUNK_SIZE.z {
-                add_light_border_in_queue(&data, Vec3i::new(0, y, z));
-                add_light_border_in_queue(&data, Vec3i::new(Chunk::CHUNK_SIZE_MINUS_ONE.x, y, z));
-            }
+            else {
+                for i in 0..Chunk::CHUNK_SIZE.x {
+                    for y in 0..Chunk::CHUNK_SIZE.y {
+                        if face == Directions::North {
+                            add_light_border_in_queue(&data, Vec3i::new(i, y, 0));
+                        }
+                        else if face == Directions::South {
+                            add_light_border_in_queue(&data, Vec3i::new(i, y, Chunk::CHUNK_SIZE_MINUS_ONE.z));
+                        }
+                        else if face == Directions::West {
+                            add_light_border_in_queue(&data, Vec3i::new(0, y, i));
+                        }
+                        else if face == Directions::East {
+                            add_light_border_in_queue(&data, Vec3i::new(Chunk::CHUNK_SIZE_MINUS_ONE.x, y, i));
+                        }
+                    }
+                }
             }
         }
 
@@ -152,31 +174,31 @@ pub fn update_light_in_border_neighbors(
         restore_queue(add_queue);
     };
 
-    update_light_in_border(chunk_data.clone(), LightType::Block);
-    update_light_in_border(chunk_data.clone(), LightType::Sky);
+    update_light_in_border(chunk_data.clone(), LightType::Block, Directions::Nothing);
+    update_light_in_border(chunk_data.clone(), LightType::Sky, Directions::Nothing);
 
     if let Some(north) = neighbors_chunks_data.north {
         north.read().unwrap().light_gen_stage.store(true, Ordering::Relaxed);
-        update_light_in_border(north.clone(), LightType::Block);
-        update_light_in_border(north.clone(), LightType::Sky);
+        update_light_in_border(north.clone(), LightType::Block, Directions::South);
+        update_light_in_border(north.clone(), LightType::Sky, Directions::South);
         north.read().unwrap().light_gen_stage.store(false, Ordering::Relaxed)
     }
     if let Some(south) = neighbors_chunks_data.south {
         south.read().unwrap().light_gen_stage.store(true, Ordering::Relaxed);
-        update_light_in_border(south.clone(), LightType::Block);
-        update_light_in_border(south.clone(), LightType::Sky);
+        update_light_in_border(south.clone(), LightType::Block, Directions::North);
+        update_light_in_border(south.clone(), LightType::Sky, Directions::North);
         south.read().unwrap().light_gen_stage.store(false, Ordering::Relaxed)
     }
     if let Some(west) = neighbors_chunks_data.west {
         west.read().unwrap().light_gen_stage.store(true, Ordering::Relaxed);
-        update_light_in_border(west.clone(), LightType::Block);
-        update_light_in_border(west.clone(), LightType::Sky);
+        update_light_in_border(west.clone(), LightType::Block, Directions::East);
+        update_light_in_border(west.clone(), LightType::Sky, Directions::East);
         west.read().unwrap().light_gen_stage.store(false, Ordering::Relaxed)
     }
     if let Some(east) = neighbors_chunks_data.east {
         east.read().unwrap().light_gen_stage.store(true, Ordering::Relaxed);
-        update_light_in_border(east.clone(), LightType::Block);
-        update_light_in_border(east.clone(), LightType::Sky);
+        update_light_in_border(east.clone(), LightType::Block, Directions::West);
+        update_light_in_border(east.clone(), LightType::Sky, Directions::West);
         east.read().unwrap().light_gen_stage.store(false, Ordering::Relaxed)
     }
 

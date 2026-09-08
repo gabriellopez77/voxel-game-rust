@@ -2,7 +2,7 @@
     "parent": "blocks/parents/cube",
     "isCompleteBlock": false,
     "textures": {
-        "particle": "blocks/glass",
-        "$all": "blocks/glass"
+        "particle": "blocks/glass_block",
+        "$all": "blocks/glass_block"
     }
 }

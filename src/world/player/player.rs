@@ -1,9 +1,11 @@
 ﻿use crate::game::{GameEvents, PlayerStates};
+use crate::inputs::Keys::P;
 use crate::render::{EntitiesCubesVertices, EntitiesRenderer, GlobalRenderer};
 use crate::resources::ResourceManager;
 use crate::ui::ui_manager::ScreensId;
 use crate::utils::SafePtr;
 use crate::world::blocks::BlockProperties;
+use crate::world::light_engine::{self, LightType};
 use crate::world::particles::ParticlesManager;
 use crate::world::world::WorldUpdateArgs;
 use crate::{inputs, math};
@@ -11,7 +13,7 @@ use crate::inputs::Inputs;
 use crate::math::{Matrix4, Vec3};
 use crate::world::{Aabb, Planet};
 use crate::world::player::camera::{Camera, PerspectiveMode};
-use crate::world::player::{FirstPerson, PlayerInventory, SelectionBox};
+use crate::world::player::{FirstPerson, PlayerInventory, BlockSelection};
 
 
 const GRAVITY: f32 = 32.0;
@@ -35,11 +37,12 @@ pub struct Player {
 
     pub inventory: PlayerInventory,
 
-    selection_box: SelectionBox,
-    first_person: FirstPerson,
+    selection_box: BlockSelection,
+    pub first_person: FirstPerson,
 
     aabb: Aabb,
     velocity: Vec3,
+    light_levels: u8,
 
     in_water: bool,
     flying_mode: bool,
@@ -61,11 +64,12 @@ impl Player {
 
             inventory: PlayerInventory::new(),
 
-            selection_box: SelectionBox::new(),
+            selection_box: BlockSelection::new(),
             first_person: FirstPerson::new(),
 
             aabb: Aabb::new(0.0, 0.0, 0.0, 0.6, 1.8, 0.6).clone_move(0.0, 60.0, 0.0),
             velocity: Vec3::ZERO,
+            light_levels: 0,
 
             in_water: false,
             flying_mode: false,
@@ -163,7 +167,7 @@ impl Player {
     }
 
     pub fn cleanup(&mut self) {
-        self.selection_box.cleanup();
+
     }
 
     pub fn update(&mut self, args: &mut WorldUpdateArgs, planet: &mut Planet, particles_manager: &mut ParticlesManager) {
@@ -232,12 +236,23 @@ impl Player {
             }
         }
 
+        let chunk_pos = math::get_chunk_pos(self.aabb.get_min());
+        if let Some(chunk) = planet.chunks_manager.get_chunk(chunk_pos) {
+            let chunk_block = math::get_chunk_block(chunk_pos, self.aabb.get_min());
+
+            self.light_levels = chunk.read().unwrap().data.read().unwrap().get_light(chunk_block, LightType::Both);
+        }
+        else {
+            self.light_levels = light_engine::MAX_LEVEL << 4;
+        }
+
         self.first_person.update(args,
             self.inventory.get_hand_slot(),
             action,
             walking,
             self.velocity,
-            self.camera.get_rot() - last_camera_rot
+            self.camera.get_rot() - last_camera_rot,
+            self.light_levels
         );
 
         if args.inputs.key_pressed(inputs::Keys::E) {
@@ -280,6 +295,13 @@ impl Player {
         left_arm.local_matrix = global_matrix * left_arm.local_matrix;
         right_arm.local_matrix = global_matrix * right_arm.local_matrix;
         head.local_matrix = global_matrix * head_matrix * head.local_matrix;
+
+        left_leg.light_levels = self.light_levels;
+        right_leg.light_levels = self.light_levels;
+        body.light_levels = self.light_levels;
+        left_arm.light_levels = self.light_levels;
+        right_arm.light_levels = self.light_levels;
+        head.light_levels = self.light_levels;
 
         renderer.add_cube(left_leg);
         renderer.add_cube(right_leg);
@@ -402,13 +424,26 @@ impl Player {
         self.aabb.move_at(0.0, ya, 0.0);
 
         for cube in cubes { xa = cube.clip_x_collide(&self.aabb, xa) }
-        self.aabb.move_at(xa, 0.0, 0.0);
-
         for cube in cubes { za = cube.clip_z_collide(&self.aabb, za) }
-        self.aabb.move_at(0.0, 0.0, za);
+
+        if xa.abs() > za.abs() {
+            for cube in cubes { xa = cube.clip_x_collide(&self.aabb, xa) }
+            self.aabb.move_at(xa, 0.0, 0.0);
+
+            for cube in cubes { za = cube.clip_z_collide(&self.aabb, za) }
+            self.aabb.move_at(0.0, 0.0, za);
+        }
+        else {
+            for cube in cubes { za = cube.clip_z_collide(&self.aabb, za) }
+            self.aabb.move_at(0.0, 0.0, za);
+
+            for cube in cubes { xa = cube.clip_x_collide(&self.aabb, xa) }
+            self.aabb.move_at(xa, 0.0, 0.0);
+        }
 
 
-        let og = self.on_ground || (ya_org != ya && ya_org < 0.0);
+
+        let og = ya_org != ya && ya_org < 0.0;
 
         let foot_size = 0.5;
 

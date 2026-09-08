@@ -12,7 +12,7 @@ use crate::math::Vec3;
 use crate::render::core::raw_buffer::BufferFlags;
 use crate::render::{BlockItemVertices, Mesh};
 use crate::render::{Texture, core::VulkanApp};
-use crate::resources::{GenericModel, FontInfo};
+use crate::resources::{ItemBlockModel, FontInfo};
 use crate::ui::ButtonsStyles;
 use crate::utils::{NullSafePtrMut, SafePtrMut};
 
@@ -30,7 +30,7 @@ pub struct ResourceManager {
     pub sky_bodies_texture: Texture,
 
     fonts: HashMap<&'static str, Rc<FontInfo>>,
-    models: HashMap<String, Rc<GenericModel>>,
+    models: HashMap<String, Rc<ItemBlockModel>>,
     models_mesh: HashMap<String, Rc<RefCell<Mesh>>>,
 
     pub ui_buttons_styles: ButtonsStyles,
@@ -102,10 +102,6 @@ impl ResourceManager {
     }
 
     pub fn cleanup(&mut self, app: &mut VulkanApp) {
-        for (_, mesh) in &self.models_mesh {
-            mesh.borrow_mut().destroy();
-        }
-
         self.world_texture.destroy(app);
         self.ui_sprites_texture.destroy(app);
         self.ui_fonts_texture.destroy(app);
@@ -120,7 +116,7 @@ impl ResourceManager {
         panic!("Resource not found: {}", name);
     }
 
-    pub fn get_model(&self, name: &str) -> Rc<GenericModel> {
+    pub fn get_model(&self, name: &str) -> Rc<ItemBlockModel> {
         if let Some(model) = self.models.get(name) {
             return model.clone();
         }
@@ -133,7 +129,7 @@ impl ResourceManager {
         image::open(format!(r"{}\{relative_path}", self.textures_path)).expect("Failed to load texture")
     }
 
-    pub fn get_or_load_model_mesh(&mut self, name: &str, model: &GenericModel) -> Rc<RefCell<Mesh>> {
+    pub fn get_or_load_model_mesh(&mut self, name: &str, model: &ItemBlockModel) -> Rc<RefCell<Mesh>> {
         if let Some(mesh) = self.models_mesh.get(name) {
             return mesh.clone();
         }
@@ -168,27 +164,27 @@ impl ResourceManager {
         let block_paths = Self::get_files_in_directory(&format!(r"{}\blocks", self.models_path), "json");
         let items_paths = Self::get_files_in_directory(&format!(r"{}\items", self.models_path), "json");
         let hand_path = format!(r"{}\misc\hand.json", self.models_path);
-        
+
         // load error model
-        let error_model = Rc::new(GenericModel::read_error_model(&self.world_texture));
+        let error_model = Rc::new(ItemBlockModel::read_error_model(&self.world_texture));
         self.models.insert("error_404".to_string(), error_model.clone());
 
-        let hand_model = match GenericModel::new(&self.models_path, &hand_path, &self.world_texture) {
+        let hand_model = match ItemBlockModel::new(&self.models_path, &hand_path, &self.world_texture) {
             Ok(model) => Rc::new(model),
             Err(err) => {
                 println!("{err}");
                 error_model.clone()
             }
         };
-        
+
         self.models.insert("playerHand".to_string(), hand_model);
 
-        
+
         let mut load = |paths: &Vec<PathBuf>| {
             for path in paths {
                 let name = path.file_stem().unwrap().to_str().unwrap().to_string();
 
-                let model = match GenericModel::new(&self.models_path, &path.to_str().unwrap(), &self.world_texture) {
+                let model = match ItemBlockModel::new(&self.models_path, &path.to_str().unwrap(), &self.world_texture) {
                     Ok(model) => Rc::new(model),
                     Err(err) => {
                         println!("{err}");
@@ -267,7 +263,7 @@ impl ResourceManager {
     pub fn gen_indices(vertices_len: usize, vec: &mut Vec<u32>) {
         let indices_count = vertices_len / 4;
         let required_capacity = indices_count * 6;
-        
+
         if vec.capacity() < required_capacity {
             vec.reserve(required_capacity);
         }

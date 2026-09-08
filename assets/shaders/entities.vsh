@@ -9,13 +9,15 @@ layout(location = 1) in vec3 aNormal;
 layout(location = 2) in vec3 aPacked1; // tex coords[x, y], face id[z]
 layout(location = 3) in vec4 aFaceTexCoords[6];
 layout(location = 9) in uvec2 aPacked2; // overlay color[x], texture idx[y]
-layout(location = 10) in mat4 aLocalMatrix;
+layout(location = 10) in uint aLightLevels;
+layout(location = 11) in mat4 aLocalMatrix;
 
 layout(location = 0) out vec3 Normal;
 layout(location = 1) out vec2 TexCoords;
 layout(location = 2) out uint TextureIdx;
 layout(location = 3) out vec4 OverlayColor;
 layout(location = 4) out float FogFactor;
+layout(location = 5) out vec2 LightLevels;
 
 void main()
 {
@@ -36,4 +38,5 @@ void main()
     TextureIdx = uint(aPacked2.y);
     OverlayColor = color / 255.0;
     FogFactor = calculateFog(viewSpace.xyz);
+    LightLevels = extractLightLevels(aLightLevels);
 }

@@ -18,6 +18,8 @@ pub mod yellow_flower;
 pub mod dead_bush;
 pub mod sandstone;
 pub mod smooth_stone_slab;
+pub mod torch;
+pub mod glass_block;
 
 pub use {
     blocks_manager::BlocksManager,
@@ -40,4 +42,6 @@ pub use {
     dead_bush::*,
     sandstone::*,
     smooth_stone_slab::*,
+    torch::*,
+    glass_block::*,
 };

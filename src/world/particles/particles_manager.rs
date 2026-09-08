@@ -132,11 +132,6 @@ impl ParticlesManager {
         }
     }
 
-    pub fn cleanup(&mut self) {
-        let renderer = self.renderer.as_mut().unwrap();
-        renderer.0.destroy();
-    }
-
     pub fn reset(&mut self) {
         self.particles_info.clear();
     }

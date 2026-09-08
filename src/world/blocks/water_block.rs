@@ -2,12 +2,12 @@ use crate::{render::chunks_renderer::ChunksRendererType, world::{blocks::{BlockF
 
 
 pub struct WaterBlock {
-    properties: Vec<BlockProperties>
+    properties: BlockProperties
 }
 
 impl BlockFunctions for WaterBlock {
     fn get_properties(&self, state: u8) -> &BlockProperties {
-        &self.properties[state as usize]
+        &self.properties
     }
 }
 
@@ -27,7 +27,7 @@ impl ItemCreation for WaterBlock {
         properties.selection_box = None;
 
         Self {
-            properties: vec![properties],
+            properties: properties,
         }
     }
 }

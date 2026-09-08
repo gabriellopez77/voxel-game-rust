@@ -56,11 +56,6 @@ impl Clouds {
         self.image_data = image.into_rgba8().into_raw();
     }
 
-    pub fn cleanup(&mut self) {
-        let renderer = self.renderer.as_mut().unwrap();
-        renderer.0.destroy();
-    }
-
     pub fn update(&mut self, player_pos: Vec3, render_distance: i32) {
         let last_clouds_chunk = self.clouds_chunk;
         self.clouds_chunk = Self::get_clouds_chunk(player_pos);

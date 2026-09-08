@@ -16,7 +16,7 @@ pub enum BuffersTypes {
 
 pub struct Mesh {
     app: SafePtrMut<VulkanApp>,
-    
+
     raw_buffers: [RawBuffer; vkutl::MAX_BUFFERS_REQUIRED_TO_DRAW_COUNT],
 
     triangles_count: u32,
@@ -24,20 +24,22 @@ pub struct Mesh {
 
 unsafe impl Send for Mesh {}
 
+impl Drop for Mesh {
+    fn drop(&mut self) {
+        for buffer in &mut self.raw_buffers {
+            buffer.destroy(&mut self.app);
+        }
+    }
+}
+
 impl Mesh {
     pub fn new(app: SafePtrMut<VulkanApp>) -> Self {
         Self {
             app,
-            
+
             raw_buffers: array::from_fn(|_| RawBuffer::new()),
 
             triangles_count: 0,
-        }
-    }
-
-    pub fn destroy(&mut self) {
-        for buffer in &mut self.raw_buffers {
-            buffer.destroy(&mut self.app);
         }
     }
 
@@ -61,7 +63,7 @@ impl Mesh {
             flags,
             BufferResizeMode::Discard
         );
-        
+
         self.update_or_realloc(
             BuffersTypes::Vertex,
             vertices.len() * size_of::<T>(),
@@ -115,7 +117,7 @@ impl Mesh {
             usage = vk::BufferUsageFlags::INDEX_BUFFER;
             self.triangles_count = (size / 4) as u32
         }
-        
+
         // ONCE buffers can not be updated, then we destroy and create it again
         if size > buffer.size || buffer.flags.contains(BufferFlags::ONCE) {
             buffer.destroy(&mut self.app);

@@ -1,16 +1,19 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{math::{Matrix4, Vec2, Vec3, math}, render::{GlobalRenderer, Material, Mesh}, resources::{AnimationFrame, GenericModel, ResourceManager, animation_frame::{AnimationKeyFrameValue, AnimationRunMode, AnimationStatus}}, world::{player::ItemStack, world::WorldUpdateArgs}};
+use crate::{math::{Matrix4, Vec2, Vec3, math}, render::{GlobalRenderer, Material, Mesh}, resources::{AnimationFrame, ItemBlockModel, ResourceManager, animation_frame::{AnimationKeyFrameValue, AnimationRunMode, AnimationStatus}}, world::{player::ItemStack, world::WorldUpdateArgs}};
 
 
 pub struct FirstPerson {
-    model_info: Option<(Rc<GenericModel>, Rc<RefCell<Mesh>>)>,
+    light_levels: u8,
+
+    item_model_info: Option<(Rc<ItemBlockModel>, Rc<RefCell<Mesh>>)>,
+    hand_model_info: Option<(Rc<ItemBlockModel>, Rc<RefCell<Mesh>>)>,
+
     material: Option<Rc<RefCell<Material>>>,
 
     swap_down_anim: AnimationFrame,
     swap_up_anim: AnimationFrame,
 
-    interact_hand_anim: AnimationFrame,
     interact_anim: AnimationFrame,
     need_play_interact_anim: bool,
 
@@ -26,19 +29,23 @@ pub struct FirstPerson {
     idle_translate: Vec3,
 
     last_item_id: u16,
-    is_hand_model: bool,
+
+    //pub test_pos: Vec3,
 }
 
 impl FirstPerson {
     pub fn new() -> Self {
         Self {
-            model_info: None,
+            light_levels: 0,
+
+            item_model_info: None,
+            hand_model_info: None,
+
             material: None,
 
             swap_down_anim: AnimationFrame::new(AnimationRunMode::Once),
             swap_up_anim: AnimationFrame::new(AnimationRunMode::Once),
 
-            interact_hand_anim: AnimationFrame::new(AnimationRunMode::Once),
             interact_anim: AnimationFrame::new(AnimationRunMode::Once),
             need_play_interact_anim: false,
 
@@ -54,7 +61,8 @@ impl FirstPerson {
             idle_translate: Vec3::ZERO,
 
             last_item_id: 0,
-            is_hand_model: true,
+
+            //test_pos: Vec3::new(0.325, 0.6, 0.05),
         }
     }
 
@@ -62,26 +70,18 @@ impl FirstPerson {
         self.material = Some(global_renderer.get_material("firstPerson"));
 
         self.swap_down_anim.start(1.0, vec![
-            (0.0, Some(Vec3::ZERO), None, None),
-            (0.2, Some(Vec3::new(0.0, -0.5, 0.0)), None, None),
+            (0.0, None, None, Some(Vec3::ZERO)),
+            (0.2, None, None, Some(Vec3::new(-90.0, 0.0, 0.0))),
         ]);
         self.swap_up_anim.start(1.0, vec![
-            (0.0, Some(Vec3::new(0.0, -0.5, 0.0)), None, None),
-            (0.2, Some(Vec3::ZERO), None, None),
+            (0.0, None, None, Some(Vec3::new(-90.0, 0.0, 0.0))),
+            (0.2, None, None, Some(Vec3::ZERO)),
         ]);
-
 
         self.interact_anim.start(4.0, vec![
             (0.0, Some(Vec3::ZERO), None, Some(Vec3::ZERO)),
-            (0.5, Some(Vec3::new(-0.5, 0.175, -0.1)), None, Some(Vec3::new(-80.0, 0.0, 45.0))),
-            (1.0, Some(Vec3::new(-0.25, -0.2, -0.05)), None, None),
-            (1.5, Some(Vec3::ZERO), None, Some(Vec3::ZERO)),
-        ]);
-
-        self.interact_hand_anim.start(4.0, vec![
-            (0.0, Some(Vec3::ZERO), None, Some(Vec3::ZERO)),
-            (0.5, Some(Vec3::new(-0.17, 0.1, 0.0)), None, Some(Vec3::new(0.0, 70.0, 0.0))),
-            (1.0, Some(Vec3::new(-0.17, -0.2, 0.0)), None, None),
+            (0.5, Some(Vec3::new(-0.14, 0.075, 0.0)), None, Some(Vec3::new(20.0, 55.0, 0.0))),
+            (1.0, Some(Vec3::new(-0.14, -0.2, 0.0)), None, None),
             (1.5, Some(Vec3::ZERO), None, Some(Vec3::ZERO)),
         ]);
 
@@ -94,7 +94,7 @@ impl FirstPerson {
         ]);
 
         let hand_model = resources.get_model("playerHand");
-        self.model_info = Some((hand_model.clone(), resources.get_or_load_model_mesh("playerHand", &hand_model)));
+        self.hand_model_info = Some((hand_model.clone(), resources.get_or_load_model_mesh("playerHand", &hand_model)));
     }
 
     pub fn update(&mut self,
@@ -104,24 +104,18 @@ impl FirstPerson {
         walking: bool,
         player_vel: Vec3,
         camera_delta: Vec2,
+        light_levels: u8,
     ) {
+        self.light_levels = light_levels;
+
         self.swap_down_anim_result = AnimationKeyFrameValue::default();
         self.swap_up_anim_result = AnimationKeyFrameValue::default();
         self.interact_anim_result = AnimationKeyFrameValue::default();
 
-        let model: Rc<GenericModel>;
-        let item_id: u16;
-        let model_name: &'static str;
+        let mut item_id: u16 = 0;
 
         if let Some(item) = hand_item.get_item() {
-            model = item.model.clone();
-            model_name = item.internal_name;
             item_id = item.id;
-        }
-        else {
-            model = args.resources.get_model("playerHand");
-            model_name = "playerHand";
-            item_id = 0;
         }
 
         if self.last_item_id != item_id {
@@ -132,8 +126,14 @@ impl FirstPerson {
 
         if let Some((result, status)) = self.swap_down_anim.update(args.dt) {
             if status == AnimationStatus::Finished {
-                self.model_info = Some((model.clone(), args.resources.get_or_load_model_mesh(model_name, &model)));
-                self.is_hand_model = item_id == 0;
+                if let Some(item) = hand_item.get_item() {
+                    let item_model = item.model.clone();
+                    self.item_model_info = Some((item_model.clone(), args.resources.get_or_load_model_mesh(item.internal_name, &item_model)));
+                }
+                else {
+                    self.item_model_info = None;
+                }
+
                 self.swap_up_anim.play();
             }
             else {
@@ -148,26 +148,22 @@ impl FirstPerson {
         }
 
 
-        let interact_anim = if self.is_hand_model {
-            &mut self.interact_hand_anim
-        }
-        else { &mut self.interact_anim };
 
         if action {
-            if interact_anim.is_running() {
+            if self.interact_anim.is_running() {
                 self.need_play_interact_anim = true;
 
-                interact_anim.speed = 8.0;
+                self.interact_anim.speed = 8.0;
             }
 
-            interact_anim.play();
+            self.interact_anim.play();
         }
 
-        if let Some((result, status)) = interact_anim.update(args.dt) {
+        if let Some((result, status)) = self.interact_anim.update(args.dt) {
             if status == AnimationStatus::Finished {
                 if self.need_play_interact_anim {
-                    interact_anim.play();
-                    interact_anim.speed = 4.0;
+                    self.interact_anim.play();
+                    self.interact_anim.speed = 4.0;
                 }
 
                 self.need_play_interact_anim = false;
@@ -224,30 +220,58 @@ impl FirstPerson {
     }
 
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
-        if let Some((model, mesh)) = &self.model_info {
-            let mut model_matrix = Matrix4::IDENTITY;
-            model_matrix.rotatev_xyz(self.camera_translate);
+        let light_levels = self.light_levels as u32;
 
-            model_matrix.rotatev_xyz(self.idle_translate);
+        if let Some((hand_model, mesh)) = &self.hand_model_info {
+            let mut hand_mat = Matrix4::IDENTITY;
+            hand_mat.rotatev_xyz(self.camera_translate);
 
-            model_matrix.translatev(model.first_person_display_pos);
-            model_matrix.translatev(self.swap_down_anim_result.position);
-            model_matrix.translatev(self.swap_up_anim_result.position);
-            model_matrix.translatev(self.interact_anim_result.position);
-            model_matrix.translatev(self.bobbing_translate);
+            //hand_mat.rotatev_xyz(self.idle_translate);
 
-            model_matrix.translatev(model.first_person_display_scale * 0.5);
-            model_matrix.rotatev_xyz(self.interact_anim_result.rotation);
-            model_matrix.translatev(model.first_person_display_scale * -0.5);
+            hand_mat.translatev(hand_model.first_person_display_pos);
+            hand_mat.translatev(self.swap_down_anim_result.position);
+            hand_mat.translatev(self.swap_up_anim_result.position);
+            hand_mat.translatev(self.interact_anim_result.position);
+            hand_mat.translatev(self.bobbing_translate);
 
-            model_matrix.translatev(model.first_person_display_scale * 0.5);
-            model_matrix.rotatev_xyz(model.first_person_display_rot);
-            model_matrix.translatev(model.first_person_display_scale * -0.5);
+            let interact_anim_rot_origin = Vec3::new(
+                hand_model.first_person_display_scale.x * 0.5,
+                hand_model.first_person_display_scale.y * 0.5,
+                hand_model.first_person_display_scale.z
+            );
+            hand_mat.translatev(interact_anim_rot_origin);
+            hand_mat.rotatev_xyz(self.swap_down_anim_result.rotation);
+            hand_mat.rotatev_xyz(self.swap_up_anim_result.rotation);
+            hand_mat.translatev(-interact_anim_rot_origin);
 
-            model_matrix.scalev(model.first_person_display_scale);
+            hand_mat.translatev(hand_model.first_person_display_scale * 0.5);
+            hand_mat.rotatev_xyz(self.interact_anim_result.rotation);
+            hand_mat.rotatev_xyz(hand_model.first_person_display_rot);
+            hand_mat.translatev(hand_model.first_person_display_scale * -0.5);
 
-            global_renderer.set_push_constant(0, &model_matrix);
+            hand_mat.scalev(hand_model.first_person_display_scale);
+
+
+            global_renderer.set_push_constant(0, &hand_mat);
+            global_renderer.set_push_constant(size_of::<Matrix4>(), &light_levels);
             global_renderer.draw(&mesh.borrow(), &mut self.material.as_mut().unwrap().borrow_mut());
+
+            if let Some((item_model, mesh)) = &self.item_model_info {
+                let mut item_mat = Matrix4::IDENTITY;
+                hand_mat.translatev(item_model.first_person_display_pos);
+
+                hand_mat.translatev(item_model.first_person_display_scale * 0.5);
+                hand_mat.rotatev_xyz(item_model.first_person_display_rot);
+                hand_mat.translatev(item_model.first_person_display_scale * -0.5);
+
+                hand_mat.scalev(item_model.first_person_display_scale);
+
+                item_mat = hand_mat * item_mat;
+
+                global_renderer.set_push_constant(0, &item_mat);
+                global_renderer.set_push_constant(size_of::<Matrix4>(), &light_levels);
+                global_renderer.draw(&mesh.borrow(), &mut self.material.as_mut().unwrap().borrow_mut());
+            }
         }
     }
 }

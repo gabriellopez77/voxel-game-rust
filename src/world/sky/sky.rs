@@ -171,14 +171,6 @@ impl Sky {
         self.ambient_color = Color3b::new(255, 0, 0);
     }
 
-    pub fn cleanup(&mut self) {
-        let renderer = self.renderer.as_mut().unwrap();
-        renderer.0.destroy();
-
-        self.sky_bodies.cleanup();
-        self.clouds.cleanup();
-    }
-
     pub fn update(&mut self, dt: f32, camera: &Camera, render_distance: i32) {
         self.time += dt;
         self.update_delay += dt;

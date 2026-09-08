@@ -37,7 +37,7 @@ impl Planet {
 
             chunks_manager: ChunksManager::new(),
 
-            render_distance: 10,
+            render_distance: 4,
 
             blocks_aabb_list: Vec::new(),
         }

@@ -7,7 +7,7 @@ use crate::render::core::raw_buffer::BufferFlags;
 use crate::world::player::RaycastingResult;
 
 
-pub struct SelectionBox {
+pub struct BlockSelection {
     renderer: Option<(Mesh, Rc<RefCell<Material>>)>,
 
     position: Vec3,
@@ -16,7 +16,7 @@ pub struct SelectionBox {
     visible: bool,
 }
 
-impl SelectionBox {
+impl BlockSelection {
     pub fn new() -> Self {
         Self {
             renderer: None,
@@ -29,15 +29,10 @@ impl SelectionBox {
     }
 
     pub fn start(&mut self, global_renderer: &mut GlobalRenderer) {
-        let (mut mesh, material) = global_renderer.create_mesh_and_get_material("selectionBox");
+        let (mut mesh, material) = global_renderer.create_mesh_and_get_material("blockSelection");
         mesh.set(&OUTLINE_CUBE_VERTICES, &OUTLINE_CUBE_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
 
         self.renderer = Some((mesh, material));
-    }
-
-    pub fn cleanup(&mut self) {
-        let renderer = self.renderer.as_mut().unwrap();
-        renderer.0.destroy();
     }
 
     pub fn update(&mut self, result: &Option<RaycastingResult>) {

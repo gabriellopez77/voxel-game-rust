@@ -1,7 +1,7 @@
 use glfw::WindowEvent;
 use crate::inputs::Inputs;
 use crate::game::Game;
-use crate::render::core::VulkanApp;
+use crate::render::core::{VulkanApp, vulkan_app};
 
 
 pub struct Window {
@@ -41,11 +41,10 @@ impl Window {
         }
     }
 
-    pub fn run(&mut self) {
-        let mut vulkan_app = VulkanApp::new();
+    pub fn run(&mut self, vulkan_app: &mut VulkanApp) {
         vulkan_app.start(&self.window);
 
-        let mut game = Game::new(&mut vulkan_app);
+        let mut game = Game::new(vulkan_app);
         let mut inputs = Inputs::new();
 
         let mut imgui = imgui::Context::create();
@@ -96,7 +95,7 @@ impl Window {
             vulkan_app.begin_frame(&self.window);
 
             if first_time {
-                game.start(&mut vulkan_app, &mut imgui);
+                game.start(vulkan_app, &mut imgui);
                 game.resize(self.width, self.height);
                 first_time = false;
             }
@@ -107,8 +106,7 @@ impl Window {
             vulkan_app.end_frame();
         }
 
-        game.cleanup(&mut vulkan_app);
-        vulkan_app.cleanup();
+        game.cleanup(vulkan_app);
     }
 
     pub fn close(&mut self) {

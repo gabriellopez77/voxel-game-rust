@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, mem::offset_of, rc::Rc};
 use ash::{vk, vk::Handle};
 
-use crate::{math::Vec3, render::{BlockItemVertices, ChunkVertices, CloudsVertices, DrawInfo, EntitiesCubesVertices, GlobalUboData, Material, Mesh, MultiMesh, ParticlesVertices, SkyBodiesVertices, SpritesVertices, TextVertices, Ubo, core::raw_buffer::BufferResizeMode, draw_info::DrawType, material::{MaterialType, VertexAttribInfo}, mesh::BuffersTypes}, resources::{ResourceManager, ShadersCompiler}, utils::SafePtrMut};
+use crate::{math::{Color4b, Vec3}, render::{BlockItemVertices, ChunkVertices, CloudsVertices, DrawInfo, EntitiesCubesVertices, GlobalUboData, Material, Mesh, MultiMesh, OUTLINE_CUBE_INDICES, OUTLINE_CUBE_VERTICES, OutlineCubeVertices, ParticlesVertices, SkyBodiesVertices, SpritesVertices, TextVertices, Ubo, core::raw_buffer::BufferResizeMode, draw_info::DrawType, material::{MaterialType, VertexAttribInfo}, mesh::BuffersTypes}, resources::{ResourceManager, ShadersCompiler}, utils::SafePtrMut, world::Chunk};
 use super::core::{vkutl, VulkanApp, DescriptorSet, PipelineLayout, raw_buffer::BufferFlags};
 
 
@@ -13,6 +13,9 @@ pub struct GlobalRenderer {
     pub global_descriptor: DescriptorSet,
 
     pub shaders_compiler: ShadersCompiler,
+
+    outline_cubes_renderer: Option<(Mesh, Rc<RefCell<Material>>)>,
+    outline_cubes_instance_data: Vec<OutlineCubeVertices>,
 
     default_materials: HashMap<&'static str, Rc<RefCell<Material>>>,
 
@@ -46,6 +49,9 @@ impl GlobalRenderer {
             global_descriptor: DescriptorSet::new(),
 
             shaders_compiler: ShadersCompiler::new(),
+
+            outline_cubes_renderer: None,
+            outline_cubes_instance_data: Vec::new(),
 
             default_materials: HashMap::new(),
 
@@ -176,7 +182,7 @@ impl GlobalRenderer {
             self.default_materials.insert("skyDome", Rc::new(RefCell::new(material)));
         }
         {
-            let mut material = self.create_material(r"selectionBox", MaterialType::Alpha);
+            let mut material = self.create_material(r"blockSelection", MaterialType::Alpha);
             material.set_blend(true);
             material.set_topology(vk::PrimitiveTopology::LINE_LIST);
             material.set_line_width(3.0);
@@ -185,7 +191,7 @@ impl GlobalRenderer {
                 .add_attribute(vk::Format::R8G8B8_SINT, 0)
             );
 
-            self.default_materials.insert("selectionBox", Rc::new(RefCell::new(material)));
+            self.default_materials.insert("blockSelection", Rc::new(RefCell::new(material)));
         }
         {
             let mut material = self.create_material(r"skyBodies", MaterialType::Sky);
@@ -244,10 +250,34 @@ impl GlobalRenderer {
                 .add_vertex(size_of::<EntitiesCubesVertices>(), true)
                 .add_attribute_array_vec4(offset_of!(EntitiesCubesVertices, up_tex_coords), 6)
                 .add_attribute(vk::Format::R32G32_UINT, offset_of!(EntitiesCubesVertices, color))
+                .add_attribute(vk::Format::R8_UINT, offset_of!(EntitiesCubesVertices, light_levels))
                 .add_attribute_matrix(offset_of!(EntitiesCubesVertices, local_matrix))
             );
 
             self.default_materials.insert("entities", Rc::new(RefCell::new(material)));
+        }
+        {
+            let mut material = self.create_material(r"outlineCube", MaterialType::Alpha);
+            material.set_blend(true);
+            material.set_topology(vk::PrimitiveTopology::LINE_LIST);
+            material.set_line_width(2.0);
+            material.set_attributes_info(*VertexAttribInfo::default()
+                .add_vertex(3, false)
+                .add_attribute(vk::Format::R8G8B8_SINT, 0)
+                .add_vertex(size_of::<OutlineCubeVertices>(), true)
+                .add_attribute(vk::Format::R32G32B32_SFLOAT, offset_of!(OutlineCubeVertices, position))
+                .add_attribute(vk::Format::R32G32B32_SFLOAT, offset_of!(OutlineCubeVertices, size))
+                .add_attribute(vk::Format::R8G8B8A8_UINT, offset_of!(OutlineCubeVertices, color))
+            );
+
+            self.default_materials.insert("outlineCube", Rc::new(RefCell::new(material)));
+        }
+
+        {
+            let (mut mesh, material) = self.create_mesh_and_get_material("outlineCube");
+            mesh.set(&OUTLINE_CUBE_VERTICES, &OUTLINE_CUBE_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
+            mesh.create_instance_buffer(size_of::<OutlineCubeVertices>(), None, BufferFlags::VRAM);
+            self.outline_cubes_renderer = Some((mesh, material));
         }
     }
 
@@ -290,7 +320,7 @@ impl GlobalRenderer {
         self.default_materials.get(name).unwrap().clone()
     }
 
-
+// https://share.google/aimode/Jw7USlki74S3AGQJZ
 
     pub fn set_push_constant<T>(&mut self, offset: usize, data: *const T) {
         let size = size_of::<T>();
@@ -309,6 +339,14 @@ impl GlobalRenderer {
         unsafe {
             std::ptr::copy_nonoverlapping(data as _, push_data.as_mut_ptr().byte_add(offset), size);
         }
+    }
+
+    pub fn draw_outline_cube(&mut self, position: Vec3, size: Vec3, color: Color4b) {
+        self.outline_cubes_instance_data.push(OutlineCubeVertices {
+            position,
+            size,
+            color
+        });
     }
 
     pub fn draw_multi_mesh(&mut self, multi_mesh: &MultiMesh, material: &mut Material, profile_idx: usize) {
@@ -371,6 +409,16 @@ impl GlobalRenderer {
     pub fn end(&mut self) {
         self.app.render_pass_begin();
 
+        {
+            let (mut mesh, material) = std::mem::take(&mut self.outline_cubes_renderer).unwrap();
+            let mut instance_data = std::mem::take(&mut self.outline_cubes_instance_data);
+
+            self.draw_instanced_with_buffer(&mut mesh, &mut material.borrow_mut(), &mut instance_data, BufferResizeMode::Discard);
+
+            self.outline_cubes_renderer = Some((mesh, material));
+            self.outline_cubes_instance_data = instance_data;
+
+        }
         //let now = std::time::Instant::now();
         self.opaque_draw_list.sort();
         self.alpha_draw_list.sort();

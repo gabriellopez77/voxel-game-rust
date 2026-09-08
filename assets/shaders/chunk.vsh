@@ -34,5 +34,5 @@ void main() {
     Normal = aNormal;
     TexCoords = aTexCoords;
     FogFactor = calculateFog(viewSpace.xyz);
-    LightLevels = getLightLevel(aLightLevels);
+    LightLevels = extractLightLevels(aLightLevels);
 }

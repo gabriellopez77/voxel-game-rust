@@ -30,10 +30,9 @@ void main()
     // face shading
     const float shadeFace = Shade == 1 ? calculateShading(Normal) : 1.0f;
 
-    const vec3 lightColors = calculateLightLevels(LightLevels);
+    const vec3 lightColor = calculateLightColor(LightLevels);
 
-    FragColor = vec4(tex.rgb * lightColors * (shadeFace * AoLevel), tex.a);
-
+    FragColor = vec4(tex.rgb * lightColor * (shadeFace * AoLevel), tex.a);
 
     applyFog(FragColor.rgb, FogFactor);
 }

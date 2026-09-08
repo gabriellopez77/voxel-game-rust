@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::render::chunks_renderer::ChunksRendererType;
-use crate::resources::GenericModel;
+use crate::resources::ItemBlockModel;
 use crate::world::{Aabb, items::*};
 
 
@@ -94,7 +94,7 @@ impl BlockProperties {
     pub fn copy(&self,
         internal_name: &'static str,
         name: &'static str,
-        model: Rc<GenericModel>,
+        model: Rc<ItemBlockModel>,
         index: usize,
         state: u8
     ) -> Self {

@@ -59,7 +59,7 @@ impl<T: Copy + Default> KeyFrame<T> {
             let next = &self.frames[i + 1];
 
             if t >= current.0 && t <= next.0 {
-                let mut factor = (t - current.0) / (next.0 - current.0);
+                let factor = (t - current.0) / (next.0 - current.0);
 
                 return (self.func)(factor, current.1, next.1);
             }

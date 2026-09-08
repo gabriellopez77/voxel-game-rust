@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::{resources::{GenericModel, ResourceManager, TexCoords}, world::{blocks::BlockIdState, player::PlayerInventory}};
+use crate::{resources::{ItemBlockModel, ResourceManager, TexCoords}, world::{blocks::BlockIdState, player::PlayerInventory}};
 
 
 pub struct ItemCreationArgs<'a> {
@@ -27,7 +27,7 @@ pub struct ItemBaseProperties {
     pub internal_name: &'static str,
     pub name: &'static str,
     pub icon: TexCoords,
-    pub model: Rc<GenericModel>,
+    pub model: Rc<ItemBlockModel>,
 
     pub state: u8,
     pub parent_index: u32,
@@ -38,7 +38,7 @@ impl ItemBaseProperties {
     pub fn new(
         internal_name: &'static str,
         name: &'static str,
-        model: Rc<GenericModel>,
+        model: Rc<ItemBlockModel>,
         parent_index: usize,
         state: u8,
         item_base_type: ItemBaseType
@@ -74,7 +74,7 @@ impl ItemBaseProperties {
     pub fn copy(&self,
         internal_name: &'static str,
         name: &'static str,
-        mesh: Rc<GenericModel>,
+        mesh: Rc<ItemBlockModel>,
         parent_index: usize,
         state: u8,
         item_base_type: ItemBaseType

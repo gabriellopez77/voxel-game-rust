@@ -2,12 +2,12 @@ use crate::{world::{blocks::{BlockFunctions, BlockProperties}, items::{ItemCreat
 
 
 pub struct DeadBush {
-    properties: Vec<BlockProperties>
+    properties: BlockProperties
 }
 
 impl BlockFunctions for DeadBush {
     fn get_properties(&self, state: u8) -> &BlockProperties {
-        &self.properties[state as usize]
+        &self.properties
     }
 }
 
@@ -25,7 +25,7 @@ impl ItemCreation for DeadBush {
         properties.set_selection_box(2, 0, 2, 11, 12, 11);
 
         Self {
-            properties: vec![properties],
+            properties: properties,
         }
     }
 }

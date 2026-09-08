@@ -89,10 +89,6 @@ impl UiManager {
         self.debug_screen.start(&start_args);
     }
 
-    pub fn cleanup(&mut self) {
-        self.ui_renderer.cleanup();
-    }
-
     pub fn resize(&mut self, width: f32, height: f32, game: &Game) {
         // update pixel scale and screen size
         self.pixel_scale = 3.0;
@@ -169,8 +165,9 @@ impl UiManager {
 
         self.screens[self.current_screen_id as usize].screen.borrow_mut().draw(&mut self.ui_renderer);
         self.ui_common.draw(&mut self.ui_renderer);
+
         if self.debug_screen_visible {
-            self.debug_screen.draw(&mut self.ui_renderer);
+            self.debug_screen.draw(&mut self.ui_renderer, global_renderer);
         }
 
         self.ui_renderer.draw(global_renderer);

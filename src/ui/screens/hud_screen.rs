@@ -79,10 +79,11 @@ impl ScreenBase for HudScreen {
 
         self.item_name_text.draw(renderer);
 
-        self.hotbar_selected_slot.draw(renderer);
         for slot in &mut self.hotbar_slots_background {
             slot.draw(renderer);
         }
+
+        self.hotbar_selected_slot.draw(renderer);
 
         for slot in &mut self.hotbar_slots {
             slot.draw(renderer);

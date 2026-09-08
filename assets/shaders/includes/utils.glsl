@@ -14,16 +14,16 @@ void applyFog(inout vec3 fragColor, float factor)
     fragColor = mix(globalUbo.fogColor.rgb, fragColor, factor);
 }
 
-vec3 calculateLightLevels(vec2 lightLevels)
+vec3 calculateLightColor(vec2 lightLevels)
 {
     // mixes darknessColor and ambientColor with sky light strength as factor
-    const vec3 DarknessAndAmbient = mix(globalUbo.darknessColor.rgb, globalUbo.ambientColor.rgb, lightLevels.y);
+    const vec3 darknessAndAmbient = mix(globalUbo.darknessColor.rgb, globalUbo.ambientColor.rgb, lightLevels.y);
 
     // mixes ambient color and Light block color with light block strength as factor
-    return mix(DarknessAndAmbient, globalUbo.lightColor.rgb, lightLevels.x);
+    return mix(darknessAndAmbient, globalUbo.lightColor.rgb, lightLevels.x);
 }
 
-vec2 getLightLevel(uint lightLevels)
+vec2 extractLightLevels(uint lightLevels)
 {
    	uint lightValues = uint(lightLevels);
 

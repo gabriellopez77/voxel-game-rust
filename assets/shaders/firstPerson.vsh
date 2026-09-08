@@ -1,10 +1,12 @@
 #version 460 core
 
 #include "includes/globals.glsl"
+#include "includes/utils.glsl"
 
 
 layout(push_constant) uniform PushConstants {
     mat4 model;
+    uint lightLevels;
 } push;
 
 layout(location = 0) in vec3 aVertex;
@@ -13,6 +15,7 @@ layout(location = 2) in vec2 aTexCoords;
 
 layout(location = 0) out vec3 Normal;
 layout(location = 1) out vec2 TexCoords;
+layout(location = 2) out vec2 LightLevels;
 
 void main()
 {
@@ -20,4 +23,5 @@ void main()
 
     Normal = aNormal;
     TexCoords = aTexCoords;
+    LightLevels = extractLightLevels(push.lightLevels);
 }

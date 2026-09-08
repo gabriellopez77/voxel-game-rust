@@ -90,9 +90,9 @@ impl Game {
             imgui_renderer: None,
         }
     }
-    
+
     pub fn get_flags(&self) -> GameFlags { self.flags }
-    
+
 
     pub fn start(&mut self, app: &mut VulkanApp, imgui: &mut imgui::Context) {
         self.resources_manager.start(app);
@@ -197,17 +197,17 @@ impl Game {
 
         //    let first_person = &mut self.world.player.first_person;
 
-        //    ui.slider("Position X", -5.0, 5.0, &mut first_person.pos.x);
-        //    ui.slider("Position Y", -5.0, 5.0, &mut first_person.pos.y);
-        //    ui.slider("Position Z", -5.0, 5.0, &mut first_person.pos.z);
+        //    ui.slider("Position X", -5.0, 5.0, &mut first_person.test_pos.x);
+        //    ui.slider("Position Y", -5.0, 5.0, &mut first_person.test_pos.y);
+        //    ui.slider("Position Z", -5.0, 5.0, &mut first_person.test_pos.z);
 
         //    //ui.slider("Scale X", 0.0, 1.0, &mut first_person.hand_scale.x);
         //    //ui.slider("Scale Y", 0.0, 1.0, &mut first_person.hand_scale.y);
         //    //ui.slider("Scale Z", 0.0, 1.0, &mut first_person.hand_scale.z);
 
-        //    ui.slider("Rotate X", -360.0, 360.0, &mut first_person.rot.x);
-        //    ui.slider("Rotate Y", -360.0, 360.0, &mut first_person.rot.y);
-        //    ui.slider("Rotate Z", -360.0, 360.0, &mut first_person.rot.z);
+        //    //ui.slider("Rotate X", -360.0, 360.0, &mut first_person.rot.x);
+        //    //ui.slider("Rotate Y", -360.0, 360.0, &mut first_person.rot.y);
+        //    //ui.slider("Rotate Z", -360.0, 360.0, &mut first_person.rot.z);
 
         //    wt.end();
         //}
@@ -220,7 +220,6 @@ impl Game {
     pub fn cleanup(&mut self, app: &mut VulkanApp) {
         self.world.cleanup();
 
-        self.ui_manager.borrow_mut().cleanup();
         self.resources_manager.cleanup(app);
         self.global_renderer.cleanup();
     }
@@ -250,7 +249,7 @@ impl Game {
                     self.flags.turn_on(GameFlags::PLAYABLE);
                     self.flags.turn_off(GameFlags::PAUSED);
                     self.state = GameStates::None;
-                    
+
                     self.ui_manager.clone().borrow_mut().enter_world(self);
                 }
                 GameEvents::LeaveToWorld => {

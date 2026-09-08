@@ -128,12 +128,9 @@ impl World {
         self.planet.cleanup(&mut self.chunks_renderer);
         self.planet.stop();
         self.player.cleanup();
-        self.sky.cleanup();
-        self.particles_manager.cleanup();
 
         self.chunks_renderer.stop_mesh_worker();
         self.chunks_renderer.cleanup();
-        self.entities_renderer.cleanup();
     }
 
     pub fn leave(&mut self) {

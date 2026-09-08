@@ -6,6 +6,7 @@
 
 layout(location = 0) in vec3 Normal;
 layout(location = 1) in vec2 TexCoords;
+layout(location = 2) in vec2 LightLevels;
 
 layout(location = 0) out vec4 FragColor;
 
@@ -15,7 +16,9 @@ void main() {
     if (tex.a < 0.1f)
         discard;
 
-    float shadeFace = calculateShading(Normal);
+    const float shadeFace = calculateShading(Normal);
 
-    FragColor = vec4(tex.rgb * shadeFace, tex.a);
+    const vec3 lightColor = calculateLightColor(LightLevels);
+
+    FragColor = vec4(tex.rgb * lightColor * shadeFace, tex.a);
 }

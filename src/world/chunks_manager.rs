@@ -256,7 +256,9 @@ impl ChunksManager {
             let chunks_map = self.chunks.clone();
 
             self.chunks_background_worker.add_task(move || {
+                //let now = std::time::Instant::now();
                 light_engine::update_light_in_border_neighbors(chunks_map, chunk_data, neighbors_data);
+                //println!("{}", now.elapsed().as_micros());
             });
         }
     }

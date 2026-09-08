@@ -166,13 +166,6 @@ impl SkyBodies {
         self.matrix = model_matrix;
     }
 
-    pub fn cleanup(&mut self) {
-        let stars_renderer = self.stars_renderer.as_mut().unwrap();
-        stars_renderer.0.destroy();
-
-        let sun_moon_renderer = self.sun_moon_renderer.as_mut().unwrap();
-        sun_moon_renderer.0.destroy();
-    }
 
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
         if self.stars_alpha > 0.0 {

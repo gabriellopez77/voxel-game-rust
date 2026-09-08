@@ -55,14 +55,6 @@ impl UiRenderer {
         );
     }
 
-    pub fn cleanup(&mut self) {
-        let sprites_renderer = self.sprites_renderer.as_mut().unwrap();
-        sprites_renderer.0.destroy();
-
-        let text_renderer = self.text_renderer.as_mut().unwrap();
-        text_renderer.0.destroy();
-    }
-
     pub fn add_sprite(&mut self, data: SpritesVertices) { self.sprites_instance_data.push(data) }
     pub fn add_text(&mut self, data: TextVertices) { self.text_instance_data.push(data) }
 }

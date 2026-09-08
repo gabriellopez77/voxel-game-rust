@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use serde::Deserialize;
-use crate::{math, render::BlockItemVertices, resources::TexCoords};
+use crate::{render::BlockItemVertices, resources::TexCoords};
 use crate::math::{Matrix4, Vec2, Vec3, Vec4};
 use crate::render::Texture;
 
@@ -31,7 +31,7 @@ const ERROR_MODEL: &'static str =
 }";
 
 #[derive(Default)]
-pub struct GenericModel {
+pub struct ItemBlockModel {
     pub nothing_vertices: Vec<BlockItemVertices>,
     pub up_vertices: Vec<BlockItemVertices>,
     pub down_vertices: Vec<BlockItemVertices>,
@@ -50,7 +50,7 @@ pub struct GenericModel {
     pub first_person_display_scale: Vec3,
 }
 
-impl GenericModel {
+impl ItemBlockModel {
     pub fn new(models_path: &str, path: &str, texture: &Texture) -> Result<Self, String> {
         let file_content = match std::fs::read_to_string(path) {
             Ok(content) => content,
@@ -408,9 +408,9 @@ impl GenericModel {
 
     fn read_display_info(&mut self, display_info: &Option<DisplayInfo>) {
         if display_info.is_none() {
-            self.first_person_display_pos = Vec3::new(0.4, -0.67, -1.0);
-            self.first_person_display_rot = Vec3::new(0.0, 45.0, 0.0);
-            self.first_person_display_scale = Vec3::new(0.375, 0.375, 0.375);
+            self.first_person_display_pos = Vec3::new(0.325, 0.6, 0.05);
+            self.first_person_display_rot = Vec3::new(0.0, 0.0, 0.0);
+            self.first_person_display_scale = Vec3::new(0.35, 0.35, 0.35);
             return
         }
 
@@ -439,31 +439,29 @@ impl GenericModel {
     fn get_tex_coords(
         used_textures: &HashMap<String, TexCoords>,
         face_info: &FaceInfo,
-        texture_size: Vec2) -> (Vec2, Vec2, Vec2, Vec2
-    ) {
-        let tex_coords = used_textures.get(&face_info.texture)
+        texture_size: Vec2) -> (Vec2, Vec2, Vec2, Vec2)
+    {
+        let tex_coords = used_textures.get(&face_info.texture_name)
             .unwrap_or_else(|| used_textures.get("#missing").unwrap()).denormalized(texture_size);
 
 
         let tex_size = tex_coords.get_size();
 
-        let mut tex_quad_start = Vec2::new(
-            math::lerp(0.0, tex_size.x, face_info.uv[0] as f32 / TEXTURE_NORMALIZE_FACTOR),
-            math::lerp(0.0, tex_size.y, face_info.uv[1] as f32 / TEXTURE_NORMALIZE_FACTOR)
+        let tex_quad_start = Vec2::new(
+            tex_coords.minx + (tex_size.x * (face_info.uv[0] as f32 / TEXTURE_NORMALIZE_FACTOR)),
+            tex_coords.miny + (tex_size.y * (face_info.uv[1] as f32 / TEXTURE_NORMALIZE_FACTOR))
         );
 
-        let tex_quad_size = Vec2::new(
-            math::lerp(0.0, tex_size.x, face_info.uv[2] as f32 / TEXTURE_NORMALIZE_FACTOR) - tex_quad_start.x,
-            math::lerp(0.0, tex_size.y, face_info.uv[3] as f32 / TEXTURE_NORMALIZE_FACTOR) - tex_quad_start.y,
+        let tex_quad_end = Vec2::new(
+            tex_coords.minx + (tex_size.x * face_info.uv[2] as f32 / TEXTURE_NORMALIZE_FACTOR),
+            tex_coords.miny + (tex_size.y * face_info.uv[3] as f32 / TEXTURE_NORMALIZE_FACTOR),
         );
-
-        tex_quad_start += Vec2::new(tex_coords.minx, tex_coords.miny);
 
         return (
-            (Vec2::new(0.0, 0.0) * tex_quad_size + tex_quad_start) / texture_size,
-            (Vec2::new(0.0, 1.0) * tex_quad_size + tex_quad_start) / texture_size,
-            (Vec2::new(1.0, 1.0) * tex_quad_size + tex_quad_start) / texture_size,
-            (Vec2::new(1.0, 0.0) * tex_quad_size + tex_quad_start) / texture_size
+            Vec2::new(tex_quad_start.x, tex_quad_start.y) / texture_size,
+            Vec2::new(tex_quad_start.x, tex_quad_end.y) / texture_size,
+            Vec2::new(tex_quad_end.x, tex_quad_end.y) / texture_size,
+            Vec2::new(tex_quad_end.x, tex_quad_start.y) / texture_size
         );
     }
 
@@ -516,7 +514,8 @@ struct RotateInfo {
 #[derive(Deserialize)]
 struct FaceInfo {
     uv: [f32; 4],
-    texture: String,
+    #[serde(rename = "texture")]
+    texture_name: String,
     cullface: Option<String>,
 }
 

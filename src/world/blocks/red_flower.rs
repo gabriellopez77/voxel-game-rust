@@ -2,12 +2,12 @@ use crate::{world::{blocks::{BlockFunctions, BlockProperties}, items::{ItemCreat
 
 
 pub struct RedFlower {
-    properties: Vec<BlockProperties>
+    properties: BlockProperties
 }
 
 impl BlockFunctions for RedFlower {
     fn get_properties(&self, state: u8) -> &BlockProperties {
-        &self.properties[state as usize]
+        &self.properties
     }
 }
 
@@ -25,7 +25,7 @@ impl ItemCreation for RedFlower {
         properties.set_selection_box(5, 0, 5, 6, 10, 6);
 
         Self {
-            properties: vec![properties],
+            properties: properties,
         }
     }
 }

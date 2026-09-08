@@ -250,6 +250,7 @@ pub struct ChunkVertices {
     pub flags: u8,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct BlockItemVertices {
     pub vertices: Vec3,
@@ -295,6 +296,7 @@ pub struct EntitiesCubesVertices {
 
     pub color: Color4b,
     pub texture_idx: u32,
+    pub light_levels: u8,
 
     pub local_matrix: Matrix4,
 }

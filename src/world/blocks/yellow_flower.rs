@@ -2,12 +2,12 @@ use crate::world::{blocks::{BlockFunctions, BlockProperties}, items::{ItemCreati
 
 
 pub struct YellowFlower {
-    properties: Vec<BlockProperties>
+    properties: BlockProperties
 }
 
 impl BlockFunctions for YellowFlower {
     fn get_properties(&self, state: u8) -> &BlockProperties {
-        &self.properties[state as usize]
+        &self.properties
     }
 }
 
@@ -26,7 +26,7 @@ impl ItemCreation for YellowFlower {
         properties.light_emission = 15;
 
         Self {
-            properties: vec![properties],
+            properties: properties,
         }
     }
 }

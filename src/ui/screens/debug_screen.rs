@@ -1,13 +1,16 @@
 use std::collections::VecDeque;
 use std::fmt::Write;
 use crate::game::GameFlags;
-use crate::math::{self, Color3b, Color4b, KeyFrame};
-use crate::render::UiRenderer;
+use crate::math::{self, Color3b, Color4b, KeyFrame, Vec3, Vec3i};
+use crate::render::{GlobalRenderer, UiRenderer};
 use crate::ui::tools::{Slice, Sprite, Text, UiElement};
-use crate::ui::{ScreenBase, ScreenResizeArgs, ScreenStartArgs, ScreenUpdateArgs};
+use crate::ui::{ScreenResizeArgs, ScreenStartArgs, ScreenUpdateArgs};
+use crate::world::Chunk;
 
 
 pub struct DebugScreen {
+    player_chunk: Vec3i,
+
     fps_text: Text,
 
     global_staging_buffer_used_mb_text: Text,
@@ -32,8 +35,42 @@ pub struct DebugScreen {
     in_world: bool,
 }
 
-impl ScreenBase for DebugScreen {
-    fn start(&mut self, args: &ScreenStartArgs) {
+impl DebugScreen {
+    pub fn new() -> Self {
+        Self {
+            player_chunk: Vec3i::ZERO,
+
+            fps_text: Text::new(),
+
+            player_block_pos_text: Text::new(),
+            player_chunk_block_text: Text::new(),
+
+            global_staging_buffer_used_mb_text: Text::new(),
+            global_staging_buffer_capacity_text: Text::new(),
+
+            min_ms_text: Text::new(),
+            avg_ms_text: Text::new(),
+            max_ms_text: Text::new(),
+
+            background: Sprite::new(),
+            corner: Slice::new(),
+            avg_line: Sprite::new(),
+
+            fps_graphic_gradient: KeyFrame::new(|factor, current, next| {
+                let r = current.r as f32 + (next.r as f32 - current.r as f32) * factor;
+                let g = current.g as f32 + (next.g as f32 - current.g as f32) * factor;
+                let b = current.b as f32 + (next.b as f32 - current.b as f32) * factor;
+
+                return Color3b::new(r as u8, g as u8, b as u8);
+            }),
+
+            fps_graphic_lines: VecDeque::with_capacity(240),
+
+            in_world: false,
+        }
+    }
+
+    pub fn start(&mut self, args: &ScreenStartArgs) {
         self.fps_text.set_font(args.resources.get_font("default"));
         self.fps_text.set_pos(10.0, 10.0);
 
@@ -74,18 +111,19 @@ impl ScreenBase for DebugScreen {
         ]);
     }
 
-    fn update(&mut self, args: &mut ScreenUpdateArgs) {
+    pub fn update(&mut self, args: &mut ScreenUpdateArgs) {
         self.in_world = args.game.get_flags().contains(GameFlags::IN_WORLD);
 
         if self.in_world {
+            self.player_chunk = math::get_chunk_pos(args.game.world.player.get_pos());
+
             self.player_block_pos_text.set_text_delayed(args.dt, 0.1, |text| {
                 let block_pos = math::get_global_block(args.game.world.player.get_pos());
                 write!(text, "Block: {}, {}, {}", block_pos.x, block_pos.y, block_pos.z)
             });
 
             self.player_chunk_block_text.set_text_delayed(args.dt, 0.1, |text| {
-                let chunk_pos = math::get_chunk_pos(args.game.world.player.get_pos());
-                let block_pos = math::get_chunk_block(chunk_pos, args.game.world.player.get_pos());
+                let block_pos = math::get_chunk_block(self.player_chunk, args.game.world.player.get_pos());
                 write!(text, "Chunk Block: {}, {}, {}", block_pos.x, block_pos.y, block_pos.z)
             });
         }
@@ -156,10 +194,26 @@ impl ScreenBase for DebugScreen {
         );
     }
 
-    fn draw(&mut self, renderer: &mut UiRenderer) {
+    pub fn draw(&mut self, renderer: &mut UiRenderer, global_renderer: &mut GlobalRenderer) {
         if self.in_world {
             self.player_block_pos_text.draw(renderer);
             self.player_chunk_block_text.draw(renderer);
+
+            let player_chunk_pos = self.player_chunk.as_vec3() * Chunk::CHUNK_SIZEF;
+
+            global_renderer.draw_outline_cube(
+                Vec3::new(player_chunk_pos.x, 0.0, player_chunk_pos.z),
+                Chunk::CHUNK_SIZEF,
+                Color4b::WHITE
+            );
+
+            for i in 0..Chunk::SUB_CHUNK_COUNT {
+                global_renderer.draw_outline_cube(
+                    Vec3::new(player_chunk_pos.x, Chunk::SUB_CHUNK_SIZE.y as f32 * i as f32, player_chunk_pos.z),
+                    Chunk::SUB_CHUNK_SIZE.as_vec3(),
+                    Color4b::new(0, 0, 230, 255)
+                );
+            }
         }
 
         self.fps_text.draw(renderer);
@@ -180,43 +234,9 @@ impl ScreenBase for DebugScreen {
         self.max_ms_text.draw(renderer);
     }
 
-    fn resize(&mut self, args: &ScreenResizeArgs) {
+    pub fn resize(&mut self, args: &ScreenResizeArgs) {
         self.background.set_pos(0.0, args.screen_size.y - self.background.get_size().y);
         self.corner.set_posv(self.background.get_pos());
         self.avg_line.set_pos(0.0, self.avg_line.get_centery(&self.background));
-    }
-}
-
-impl DebugScreen {
-    pub fn new() -> Self {
-        Self {
-            fps_text: Text::new(),
-
-            player_block_pos_text: Text::new(),
-            player_chunk_block_text: Text::new(),
-
-            global_staging_buffer_used_mb_text: Text::new(),
-            global_staging_buffer_capacity_text: Text::new(),
-
-            min_ms_text: Text::new(),
-            avg_ms_text: Text::new(),
-            max_ms_text: Text::new(),
-
-            background: Sprite::new(),
-            corner: Slice::new(),
-            avg_line: Sprite::new(),
-
-            fps_graphic_gradient: KeyFrame::new(|factor, current, next| {
-                let r = current.r as f32 + (next.r as f32 - current.r as f32) * factor;
-                let g = current.g as f32 + (next.g as f32 - current.g as f32) * factor;
-                let b = current.b as f32 + (next.b as f32 - current.b as f32) * factor;
-
-                return Color3b::new(r as u8, g as u8, b as u8);
-            }),
-
-            fps_graphic_lines: VecDeque::with_capacity(240),
-
-            in_world: false,
-        }
     }
 }

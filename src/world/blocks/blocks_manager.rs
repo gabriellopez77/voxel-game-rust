@@ -31,6 +31,8 @@ pub struct BlocksManager {
     pub dead_bush: BlockIdState,
     pub sandstone: BlockIdState,
     pub smooth_stone_slab: BlockIdState,
+    pub torch: BlockIdState,
+    pub glass_block: BlockIdState,
 }
 
 impl BlocksManager {
@@ -55,6 +57,8 @@ impl BlocksManager {
             dead_bush: Self::add::<DeadBush>("dead_bush", "Dead Bush", &mut blocks, resources, inventory),
             sandstone: Self::add::<Sandstone>("sandstone", "Sandstone", &mut blocks, resources, inventory),
             smooth_stone_slab: Self::add::<SmoothStoneSlab>("smooth_stone_slab", "Smooth Stone Slab", &mut blocks, resources, inventory),
+            torch: Self::add::<Torch>("torch", "Torch", &mut blocks, resources, inventory),
+            glass_block: Self::add::<GlassBlock>("glass_block", "Glass Block", &mut blocks, resources, inventory),
 
             blocks,
         }

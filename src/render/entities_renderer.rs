@@ -37,10 +37,6 @@ impl EntitiesRenderer {
         );
     }
 
-    pub fn cleanup(&mut self) {
-        self.renderer.as_mut().unwrap().0.destroy();
-    }
-
     pub fn add_cube(&mut self, cube: EntitiesCubesVertices) {
         self.instance_data.push(cube);
     }
