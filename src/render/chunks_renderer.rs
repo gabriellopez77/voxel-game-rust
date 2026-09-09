@@ -1,22 +1,30 @@
 use std::{array, cell::RefCell, collections::HashMap, rc::Rc, sync::{Arc, RwLock}};
 
-use crate::{math::Vec3i, render::{ChunkVertices, GlobalRenderer, Material, MultiMesh, core::raw_buffer::BufferFlags, multi_mesh::MultiMeshInfo}, resources::{ResourceManager, ThreadWorkerValue}, utils::NullSafePtr, world::{Chunk, blocks::BlocksManager, chunk::{ChunkData, NeighborsChunksData}}};
+use ash::vk;
+
+use crate::{math::{Vec3, Vec3i, Vec4}, render::{ChunkVertices, GlobalRenderer, Material, MultiMesh, core::{RawBuffer, raw_buffer::{BufferFlags, BufferResizeMode}}, multi_mesh::MultiMeshInfo}, resources::{ResourceManager, ThreadWorkerValue}, utils::NullSafePtr, world::{Chunk, blocks::BlocksManager, chunk::{ChunkData, NeighborsChunksData}}};
 use crate::utils::ObjectPool;
 
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct ChunkInstanceData {
+    pub fade_in_effect: f32,
+}
 
 pub struct ChunkMeshResult {
     pub neighbors_data: NeighborsChunksData,
     pub chunk_data: Arc<RwLock<ChunkData>>,
 
-    pub vertices: [Vec<ChunkVertices>; ChunksRendererType::RENDERS_COUNT],
-    pub indices: [Vec<u32>; ChunksRendererType::RENDERS_COUNT],
+    pub vertices: [Vec<ChunkVertices>; ChunkRendererType::RENDERS_COUNT],
+    pub indices: [Vec<u32>; ChunkRendererType::RENDERS_COUNT],
 
     pub chunk_pos: Vec3i,
 }
 
 impl ChunkMeshResult {
     pub fn gen_indices(&mut self) {
-        for i in 0..ChunksRendererType::RENDERS_COUNT {
+        for i in 0..ChunkRendererType::RENDERS_COUNT {
             let vertices = &self.vertices[i];
 
             if vertices.is_empty() { continue }
@@ -27,21 +35,24 @@ impl ChunkMeshResult {
 }
 
 #[derive(Copy, Clone)]
-pub enum ChunksRendererType {
+pub enum ChunkRendererType {
     Opaque,
     Alpha,
 }
 
-impl ChunksRendererType {
+impl ChunkRendererType {
     pub const RENDERS_COUNT: usize = 2;
 }
 
 pub struct ChunksRenderer {
     multi_mesh: Option<MultiMesh>,
 
-    materials: Option<[Rc<RefCell<Material>>; ChunksRendererType::RENDERS_COUNT]>,
+    materials: Option<[Rc<RefCell<Material>>; ChunkRendererType::RENDERS_COUNT]>,
 
-    generated_mesh: HashMap<Vec3i, ChunkMeshResult>,
+    instance_buffer: RawBuffer,
+    instances_data: [Vec<ChunkInstanceData>; ChunkRendererType::RENDERS_COUNT],
+
+    //generated_mesh: HashMap<Vec3i, ChunkMeshResult>,
 
     mesh_gen_worker: ThreadWorkerValue<ChunkMeshResult, 1>,
 
@@ -58,7 +69,9 @@ impl ChunksRenderer {
 
             materials: None,
 
-            generated_mesh: HashMap::new(),
+            instance_buffer: RawBuffer::new(),
+            instances_data: array::from_fn(|_| Vec::new()),
+            //generated_mesh: HashMap::new(),
 
             mesh_gen_worker: ThreadWorkerValue::new(),
 
@@ -81,18 +94,31 @@ impl ChunksRenderer {
             global_renderer.get_material("chunksAlpha"),
         ]);
 
+        self.instance_buffer.create(&mut global_renderer.app,
+            size_of::<ChunkInstanceData>(),
+            std::ptr::null(),
+            vk::BufferUsageFlags::UNIFORM_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS,
+            BufferFlags::RAM
+        );
+
         self.mesh_gen_worker.start();
+
         self.blocks_manager = NullSafePtr::new(blocks_manager);
     }
 
-    pub fn cleanup(&mut self) {
+    pub fn cleanup(&mut self, global_renderer: &mut GlobalRenderer) {
         self.multi_mesh.as_mut().unwrap().destroy();
 
         self.chunk_mesh_indices_pool.clear();
         self.chunk_mesh_vertices_pool.clear();
+        self.instance_buffer.destroy(&mut global_renderer.app);
     }
 
-    pub fn update_mesh(&mut self, info: &mut MultiMeshInfo, mesh_result: &ChunkMeshResult, render_type: ChunksRendererType) {
+    pub fn update_mesh(&mut self,
+        info: &mut MultiMeshInfo,
+        mesh_result: &ChunkMeshResult,
+        render_type: ChunkRendererType
+    ) {
         let multi_mesh = self.multi_mesh.as_mut().unwrap();
 
         multi_mesh.remove_mesh(info);
@@ -107,19 +133,46 @@ impl ChunksRenderer {
         self.multi_mesh.as_mut().unwrap().remove_mesh(info);
     }
 
-    pub fn record_draw(&mut self, info: MultiMeshInfo, render_type: ChunksRendererType) {
+    pub fn record_draw(&mut self,
+        info: MultiMeshInfo,
+        instance_data: ChunkInstanceData,
+        render_type: ChunkRendererType
+    ) {
+        if info.is_empty() { return }
+
         let multi_mesh = self.multi_mesh.as_mut().unwrap();
 
         multi_mesh.record_mesh_info(info, render_type as usize);
+        self.instances_data[render_type as usize].push(instance_data);
     }
 
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
         let multi_mesh = self.multi_mesh.as_mut().unwrap();
 
-        for i in 0..ChunksRendererType::RENDERS_COUNT {
+        let mut offset_idx = 0;
+
+        for i in 0..ChunkRendererType::RENDERS_COUNT {
             multi_mesh.update_profile(i);
 
+            if multi_mesh.get_profile_draw_count(i) > 0 {
+                self.instance_buffer.update_and_resize(&mut global_renderer.app,
+                    self.instances_data[i].len() * size_of::<ChunkInstanceData>(),
+                    offset_idx * size_of::<ChunkInstanceData>(),
+                    self.instances_data[i].as_ptr() as _,
+                    BufferResizeMode::Discard
+                );
+            }
+
+
+            let device_address = self.instance_buffer.get_device_address(global_renderer.frame_index);
+            let offset = offset_idx as u32;
+
+            global_renderer.set_push_constant(0, &device_address);
+            global_renderer.set_push_constant(size_of::<u64>(), &offset);
             global_renderer.draw_multi_mesh(multi_mesh, &mut self.materials.as_mut().unwrap()[i].borrow_mut(), i);
+
+            offset_idx += self.instances_data[i].len();
+            self.instances_data[i].clear();
         }
     }
 
@@ -151,11 +204,11 @@ impl ChunksRenderer {
     //    self.generated_mesh.remove(&chunk_pos)
     //}
 
-    pub fn dispose_generated_mesh(&mut self, chunk_pos: Vec3i) {
-        if let Some(mesh_result) = self.generated_mesh.remove(&chunk_pos) {
-            self.restore_mesh_result(mesh_result);
-        }
-    }
+    //pub fn dispose_generated_mesh(&mut self, chunk_pos: Vec3i) {
+    //    if let Some(mesh_result) = self.generated_mesh.remove(&chunk_pos) {
+    //        self.restore_mesh_result(mesh_result);
+    //    }
+    //}
 
     pub fn gen_mesh(&mut self,
         chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<RwLock<Chunk>>>>>>,

@@ -67,8 +67,6 @@ impl FirstPerson {
     }
 
     pub fn start(&mut self, global_renderer: &mut GlobalRenderer, resources: &mut ResourceManager) {
-        self.material = Some(global_renderer.get_material("firstPerson"));
-
         self.swap_down_anim.start(1.0, vec![
             (0.0, None, None, Some(Vec3::ZERO)),
             (0.2, None, None, Some(Vec3::new(-90.0, 0.0, 0.0))),
@@ -92,6 +90,8 @@ impl FirstPerson {
             (1.5, Some(Vec3::new(0.04, 0.03, 0.0)), None, None),
             (2.0, Some(Vec3::new(0.0, 0.0, 0.0)), None, None),
         ]);
+
+        self.material = Some(global_renderer.get_material("firstPerson"));
 
         let hand_model = resources.get_model("playerHand");
         self.hand_model_info = Some((hand_model.clone(), resources.get_or_load_model_mesh("playerHand", &hand_model)));

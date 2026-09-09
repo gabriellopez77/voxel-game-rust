@@ -124,13 +124,13 @@ impl World {
         ubo.data.render_distance = self.planet.render_distance as f32;
     }
 
-    pub fn cleanup(&mut self) {
+    pub fn cleanup(&mut self, global_renderer: &mut GlobalRenderer) {
         self.planet.cleanup(&mut self.chunks_renderer);
         self.planet.stop();
         self.player.cleanup();
 
         self.chunks_renderer.stop_mesh_worker();
-        self.chunks_renderer.cleanup();
+        self.chunks_renderer.cleanup(global_renderer);
     }
 
     pub fn leave(&mut self) {

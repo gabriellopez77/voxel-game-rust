@@ -23,6 +23,20 @@ vec3 calculateLightColor(vec2 lightLevels)
     return mix(darknessAndAmbient, globalUbo.lightColor.rgb, lightLevels.x);
 }
 
+bool extractShadingValue(uint flags)
+{
+    const uint MASK = 0x4u;
+
+    return bool((flags & MASK) >> 2);
+}
+
+float extractAoLevels(uint flags)
+{
+    const uint MASK = 0x3u;
+
+    return float(flags & MASK) / 3.f;
+}
+
 vec2 extractLightLevels(uint lightLevels)
 {
    	uint lightValues = uint(lightLevels);
@@ -43,6 +57,7 @@ float calculateShading(vec3 normal)
 
     float light0 = max(0.f, dot(lightDir0, normal));
     float light1 = max(0.f, dot(lightDir1, normal));
+
     return min(1.f, (light0 + light1) * LIGHT_POWER + AMBIENT_LIGHT_POWER);
 }
 
@@ -63,9 +78,9 @@ mat4 buildTransform(vec3 position, vec3 scale, vec3 rotation)
 {
     mat4 scaleMatrix = mat4(
         scale.x, 0.0,      0.0,      0.0,
-        0.0,      scale.y, 0.0,      0.0,
-        0.0,      0.0,      scale.z, 0.0,
-        0.0,      0.0,      0.0,      1.0
+        0.0,     scale.y,  0.0,      0.0,
+        0.0,     0.0,      scale.z,  0.0,
+        0.0,     0.0,      0.0,      1.0
     );
 
     vec3 rad = rotation;
@@ -99,7 +114,7 @@ mat4 buildTransform(vec3 position, vec3 scale, vec3 rotation)
         1.0,           0.0,           0.0,           0.0,
         0.0,           1.0,           0.0,           0.0,
         0.0,           0.0,           1.0,           0.0,
-        position.x, position.y, position.z, 1.0
+        position.x,    position.y,    position.z,    1.0
     );
 
     return translationMatrix * rotationMatrix * scaleMatrix;

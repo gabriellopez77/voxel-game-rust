@@ -443,7 +443,7 @@ impl Player {
 
 
 
-        let og = ya_org != ya && ya_org < 0.0;
+        let og = self.on_ground && (ya_org != ya && ya_org < 0.0);
 
         let foot_size = 0.5;
 
@@ -465,10 +465,22 @@ impl Player {
             self.aabb.move_at(0.0, ya, 0.0);
 
             for cube in cubes { xa = cube.clip_x_collide(&self.aabb, xa) }
-            self.aabb.move_at(xa, 0.0, 0.0);
-
             for cube in cubes { za = cube.clip_z_collide(&self.aabb, za) }
-            self.aabb.move_at(0.0, 0.0, za);
+
+            if xa.abs() > za.abs() {
+                for cube in cubes { xa = cube.clip_x_collide(&self.aabb, xa) }
+                self.aabb.move_at(xa, 0.0, 0.0);
+
+                for cube in cubes { za = cube.clip_z_collide(&self.aabb, za) }
+                self.aabb.move_at(0.0, 0.0, za);
+            }
+            else {
+                for cube in cubes { za = cube.clip_z_collide(&self.aabb, za) }
+                self.aabb.move_at(0.0, 0.0, za);
+
+                for cube in cubes { xa = cube.clip_x_collide(&self.aabb, xa) }
+                self.aabb.move_at(xa, 0.0, 0.0);
+            }
 
             if xa_n * xa_n + za_n * za_n >= xa * xa + za * za {
                 xa = xa_n;

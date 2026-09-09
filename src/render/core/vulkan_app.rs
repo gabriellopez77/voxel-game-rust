@@ -493,7 +493,7 @@ impl VulkanApp {
 
 
         let mut allocator_info = vk_mem::AllocatorCreateInfo::new(&self.ash_instance, &self.ash_device, self.physical_device);
-        allocator_info.flags = vk_mem::AllocatorCreateFlags::EXTERNALLY_SYNCHRONIZED;
+        allocator_info.flags = vk_mem::AllocatorCreateFlags::EXTERNALLY_SYNCHRONIZED | vk_mem::AllocatorCreateFlags::BUFFER_DEVICE_ADDRESS;
 
         self.vma_allocator = unsafe { vk_mem::Allocator::new(allocator_info).expect("error to init vma allocator") };
 
@@ -708,14 +708,18 @@ impl VulkanApp {
 
     fn create_logical_device(&mut self) {
         // features
+        let mut shader_draw_params_features = vk::PhysicalDeviceShaderDrawParametersFeatures::default()
+            .shader_draw_parameters(true);
 
         let mut features13 = vk::PhysicalDeviceVulkan13Features::default()
             .synchronization2(true);
+        features13.p_next = &mut shader_draw_params_features as *mut _ as _;
 
         let mut features12 = vk::PhysicalDeviceVulkan12Features::default()
             .descriptor_binding_partially_bound(true)
             .runtime_descriptor_array(true)
-            .shader_sampled_image_array_non_uniform_indexing(true);
+            .shader_sampled_image_array_non_uniform_indexing(true)
+            .buffer_device_address(true);
         features12.p_next = &mut features13 as *mut _ as _;
 
         let features = vk::PhysicalDeviceFeatures::default()

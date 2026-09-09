@@ -1,4 +1,7 @@
-layout(std140, set = 0, binding = 1) readonly uniform sla {
+#extension GL_EXT_buffer_reference : require
+
+
+layout(std140, set = 0, binding = 1) readonly uniform GlobalUbo {
     // ui
     mat4 uiProj;
     float pixelScale;
@@ -24,3 +27,13 @@ layout(std140, set = 0, binding = 1) readonly uniform sla {
     int fogEnable;
     float renderDistance;
 } globalUbo;
+
+struct ChunksInstanceData
+{
+    float fadeInEffect;
+};
+
+layout(buffer_reference, std430) readonly buffer ChunksInstanceBDA
+{
+    ChunksInstanceData data[];
+};

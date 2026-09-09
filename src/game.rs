@@ -218,7 +218,7 @@ impl Game {
     }
 
     pub fn cleanup(&mut self, app: &mut VulkanApp) {
-        self.world.cleanup();
+        self.world.cleanup(&mut self.global_renderer);
 
         self.resources_manager.cleanup(app);
         self.global_renderer.cleanup();

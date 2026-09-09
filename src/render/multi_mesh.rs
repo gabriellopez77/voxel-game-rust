@@ -20,6 +20,8 @@ impl MultiMeshInfo {
             index_count: 0,
         }
     }
+
+    pub fn is_empty(&self) -> bool { self.index_count == 0 }
 }
 
 // used for to avoids unnecessary heap allocation when have only 1 profile
@@ -227,7 +229,7 @@ impl MultiMesh {
     }
 
     pub fn record_mesh_info(&mut self, mesh_info: MultiMeshInfo, profile_idx: usize) {
-        if mesh_info.index_count == 0 { return }
+        if mesh_info.is_empty() { return }
 
         let indirect_command = vk::DrawIndexedIndirectCommand {
            index_count: mesh_info.index_count,

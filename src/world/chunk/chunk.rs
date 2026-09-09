@@ -2,10 +2,9 @@
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, RwLock};
 use crate::math::{self, Vec3, Vec3i};
-use crate::render::chunks_renderer::{self, ChunkMeshResult};
+use crate::render::chunks_renderer::ChunkMeshResult;
 use crate::render::{BlockItemVertices, ChunkMesh, ChunkVertices, ChunksRenderer};
 use crate::utils::SafePtr;
-use crate::world::ChunksManager;
 use crate::world::blocks::{BlockProperties, BlockTypes, BlocksManager};
 use crate::world::chunk::neighbors_chunks_data::NeighborsChunksData;
 use crate::world::chunk::ChunkData;

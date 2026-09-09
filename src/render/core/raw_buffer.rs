@@ -56,7 +56,9 @@ pub struct RawBuffer {
     // VRAM: not used
     buffers: [vk::Buffer; vkutl::FRAMES_COUNT],
     allocations: [vk_mem::Allocation; vkutl::FRAMES_COUNT],
+
     mapped_memory: [*mut u8; vkutl::FRAMES_COUNT],
+    device_address: [vk::DeviceAddress; vkutl::FRAMES_COUNT],
 }
 
 impl RawBuffer {
@@ -71,7 +73,8 @@ impl RawBuffer {
             buffers: [vk::Buffer::null(); vkutl::FRAMES_COUNT],
             allocations: [vkutl::null_allocation(); vkutl::FRAMES_COUNT],
 
-            mapped_memory: [std::ptr::null_mut(); vkutl::FRAMES_COUNT]
+            mapped_memory: [std::ptr::null_mut(); vkutl::FRAMES_COUNT],
+            device_address: [0; vkutl::FRAMES_COUNT],
         }
     }
 
@@ -82,6 +85,15 @@ impl RawBuffer {
 
         // SAFETY: frame_index is always 0..vkutl::FRAMES_COUNT
         return unsafe { *self.buffers.get_unchecked(frame_index) };
+    }
+
+    pub fn get_device_address(&self, frame_index: usize) -> vk::DeviceAddress {
+        if self.flags.contains(BufferFlags::ONCE) {
+            return self.device_address[0];
+        }
+
+        // SAFETY: frame_index is always 0..vkutl::FRAMES_COUNT
+        return unsafe { *self.device_address.get_unchecked(frame_index) };
     }
 
     pub fn get_mapped_memory(&self, frame_index: usize) -> *mut u8 {
@@ -105,7 +117,7 @@ impl RawBuffer {
         self.size = size;
         self.flags = flags;
         self.usage = usage;
-        
+
         if flags.contains(BufferFlags::VRAM) {
             let mut allocation_info = vk_mem::AllocationCreateInfo::default();
             allocation_info.usage = vk_mem::MemoryUsage::Auto;
@@ -123,7 +135,6 @@ impl RawBuffer {
                     vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::TRANSFER_SRC | usage,
                     &allocation_info, !flags.contains(BufferFlags::ONCE)
                 );
-
 
                 // if not DUPLICATE then we use only first buffer
                 if flags.contains(BufferFlags::ONCE) { break }
@@ -171,6 +182,17 @@ impl RawBuffer {
             }
         }
 
+        if usage.contains(vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS) {
+            for i in 0..vkutl::FRAMES_COUNT {
+                let device_address_info = vk::BufferDeviceAddressInfo::default()
+                    .buffer(self.buffers[i]);
+
+                self.device_address[i] = unsafe { app.ash_device.get_buffer_device_address(&device_address_info) };
+
+                // if not DUPLICATE then we use only first buffer
+                if flags.contains(BufferFlags::ONCE) { break }
+            }
+        }
 
         // if data is not null then copy to buffer
         if !data.is_null() {
@@ -207,10 +229,10 @@ impl RawBuffer {
     }
 
     pub fn update(&mut self, app: &mut VulkanApp, size: usize, offset: usize, data: *const u8) {
-        assert!(self.size >= size, "Invalid data size");
+        assert!(self.size >= offset + size, "Invalid data size");
         debug_assert!(!data.is_null(), "Data is null!");
         debug_assert!(!self.flags.contains(BufferFlags::ONCE), "Buffers that constains ONCE flag cant be updated!");
-        debug_assert!(size > 0, "Is not possible update zero bytes");
+        debug_assert!(offset + size > 0, "Is not possible update zero bytes");
 
         self.update_with_index(app, app.frame_index, size, offset, data);
     }
@@ -226,12 +248,8 @@ impl RawBuffer {
         debug_assert!(!self.flags.contains(BufferFlags::ONCE), "Buffers that constains ONCE flag cant be updated!");
         debug_assert!(size > 0, "Is not possible update zero bytes");
 
-        if size > self.size {
-            let mut new_size = self.size * 2;
-
-            if new_size - self.size < size {
-                new_size += size;
-            }
+        if offset + size > self.size {
+            let new_size = (offset + size).max(self.size * 2);
 
             self.resize(app, new_size, resize_mode);
         }
@@ -241,22 +259,28 @@ impl RawBuffer {
 
     pub fn resize(&mut self, app: &mut VulkanApp, new_size: usize, resize_mode: BufferResizeMode) {
         assert!(new_size > self.size, "invalid new size");
-        
+
         println!("Buffer Resized! {} -> {}", self.size, new_size);
-        
+
         if resize_mode == BufferResizeMode::Preserve {
             app.resize_buffer_preserve_content(self, new_size);
         }
         else {
             let usage = self.usage;
             let flags = self.flags;
-            
+
             self.destroy(app);
             self.create(app, new_size, std::ptr::null(), usage, flags);
         }
     }
 
-    fn update_with_index(&mut self, app: &mut VulkanApp, index: usize, size: usize, offset: usize, data: *const u8) {
+    fn update_with_index(&mut self,
+        app: &mut VulkanApp,
+        index: usize,
+        size: usize,
+        offset: usize,
+        data: *const u8
+    ) {
         if self.flags.contains(BufferFlags::RARE_UPDATE) {
             app.update_buffer(self, data, offset, size);
             return;

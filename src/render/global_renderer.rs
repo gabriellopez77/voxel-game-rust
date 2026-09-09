@@ -28,10 +28,10 @@ pub struct GlobalRenderer {
     particle_draw_list: Vec<DrawInfo>,
     first_person_draw_list: Vec<DrawInfo>,
 
-    push_constant_list: Vec<(u8, [u8; vkutl::MAX_PUSH_CONSTANT_SIZE])>,
+    push_constant_slots: Vec<(u8, [u8; vkutl::MAX_PUSH_CONSTANT_SIZE])>,
     push_constant_idx: i32,
 
-    frame_index: usize,
+    pub frame_index: usize,
 
     //pipeline_layouts: Vec<(vk::PipelineLayout, [vk::DescriptorSetLayout; vkutl::MAX_DESCRIPTORS_BINDING_COUNT])>,
 }
@@ -64,7 +64,7 @@ impl GlobalRenderer {
             particle_draw_list: Vec::new(),
             first_person_draw_list: Vec::new(),
 
-            push_constant_list: Vec::new(),
+            push_constant_slots: Vec::new(),
             push_constant_idx: -1,
 
             frame_index: 0,
@@ -96,6 +96,7 @@ impl GlobalRenderer {
 
         {
             let mut material = self.create_material("chunk", MaterialType::ChunksOpaque);
+                        material.set_blend(true);
             material.set_attributes_info(*VertexAttribInfo::default()
                 .add_vertex(size_of::<ChunkVertices>(), false)
                 .add_attribute(vk::Format::R32G32B32_SFLOAT, offset_of!(ChunkVertices, vertices))
@@ -327,13 +328,13 @@ impl GlobalRenderer {
 
         debug_assert!(offset + size <= vkutl::MAX_PUSH_CONSTANT_SIZE, "push constant size not valid");
 
-
+        // if equal -1 then get a new slot, else the update current slot
         if self.push_constant_idx == -1 {
-            self.push_constant_idx = self.push_constant_list.len() as i32;
-            self.push_constant_list.push((size as u8, [0u8; vkutl::MAX_PUSH_CONSTANT_SIZE]));
+            self.push_constant_idx = self.push_constant_slots.len() as i32;
+            self.push_constant_slots.push((size as u8, [0; vkutl::MAX_PUSH_CONSTANT_SIZE]));
         }
 
-        let (push_size, push_data) = &mut self.push_constant_list[self.push_constant_idx as usize];
+        let (push_size, push_data) = &mut self.push_constant_slots[self.push_constant_idx as usize];
         *push_size = (*push_size).max((offset + size) as u8);
 
         unsafe {
@@ -392,7 +393,7 @@ impl GlobalRenderer {
 
 
     pub fn begin(&mut self) {
-        self.push_constant_list.clear();
+        self.push_constant_slots.clear();
 
         self.sky_draw_list.clear();
         self.chunks_opaque_draw_list.clear();
@@ -482,7 +483,7 @@ impl GlobalRenderer {
                 }
 
                 if draw_info.push_constant_idx != -1 {
-                    let (push_size, push_data) = &self.push_constant_list[draw_info.push_constant_idx as usize];
+                    let (push_size, push_data) = &self.push_constant_slots[draw_info.push_constant_idx as usize];
 
                     vulkan_app.ash_device.cmd_push_constants(command_buffer,
                         current_pipeline_layout,

@@ -1,6 +1,5 @@
 #version 460 core
 
-#include "includes/globals.glsl"
 #include "includes/utils.glsl"
 
 

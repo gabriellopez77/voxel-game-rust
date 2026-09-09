@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::render::chunks_renderer::ChunksRendererType;
+use crate::render::chunks_renderer::ChunkRendererType;
 use crate::resources::ItemBlockModel;
 use crate::world::{Aabb, items::*};
 
@@ -43,7 +43,7 @@ pub struct BlockProperties {
     pub light_filter: u8,
     pub light_emission: u8,
     pub block_type: BlockTypes,
-    pub renderer_type: ChunksRendererType,
+    pub renderer_type: ChunkRendererType,
     pub collision_box: Option<Aabb>,
     pub selection_box: Option<Aabb>,
 
@@ -72,7 +72,7 @@ impl BlockProperties {
             light_filter: 0,
             light_emission: 0,
             block_type: BlockTypes::Default,
-            renderer_type: ChunksRendererType::Opaque,
+            renderer_type: ChunkRendererType::Opaque,
             collision_box: Some(Aabb::CUBE),
             selection_box: Some(Aabb::CUBE),
 

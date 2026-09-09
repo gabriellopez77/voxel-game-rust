@@ -1,4 +1,4 @@
-use crate::{render::chunks_renderer::ChunksRendererType, world::{blocks::{BlockFunctions, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
+use crate::{render::chunks_renderer::ChunkRendererType, world::{blocks::{BlockFunctions, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
 
 
 pub struct WaterBlock {
@@ -21,7 +21,7 @@ impl ItemCreation for WaterBlock {
         properties.can_replace = true;
         properties.is_transparent = true;
         properties.light_filter = 1;
-        properties.renderer_type = ChunksRendererType::Alpha;
+        properties.renderer_type = ChunkRendererType::Alpha;
         properties.block_type = super::BlockTypes::Water;
         properties.collision_box = None;
         properties.selection_box = None;
