@@ -82,7 +82,7 @@ impl World {
 
         self.planet.update(self.player.get_pos());
 
-        self.particles_manager.update(args.dt);
+        self.particles_manager.update(args.dt, &self.planet);
     }
 
     pub fn draw(&mut self, dt: f32, global_renderer: &mut GlobalRenderer) {

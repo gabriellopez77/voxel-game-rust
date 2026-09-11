@@ -10,22 +10,22 @@ use crate::world::world_gen::WorldGen;
 
 
 pub struct ChunksManager {
-    pub chunks: Arc<RwLock<HashMap<Vec3i, Option<Arc<RwLock<Chunk>>>>>>,
+    pub chunks: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>,
     world_gen: Arc<Mutex<WorldGen>>,
     blocks_manager: NullSafePtr<BlocksManager>,
 
     render_distance: i32,
     pendings_chunks_count: i32,
 
-    dispose_chunks_renderers_list: Vec<Arc<RwLock<Chunk>>>,
-    remove_chunks_list: Vec<Arc<RwLock<Chunk>>>,
-    ordered_chunks: Vec<Arc<RwLock<Chunk>>>,
+    dispose_chunks_renderers_list: Vec<Arc<Chunk>>,
+    remove_chunks_list: Vec<Arc<Chunk>>,
+    ordered_chunks: Vec<Arc<Chunk>>,
 
     last_player_chunk: Vec3i,
     update_change_chunk_logic: bool,
     need_ordering_chunks: bool,
 
-    pub chunks_gen_worker: ThreadWorkerValue<Box<RwLock<Chunk>>, 1>,
+    pub chunks_gen_worker: ThreadWorkerValue<Box<Chunk>, 1>,
     pub chunks_background_worker: ThreadWorker<1>,
 
     pub chunk_data_pool: ObjectPool<Arc<RwLock<ChunkData>>>,
@@ -58,11 +58,11 @@ impl ChunksManager {
 
     pub fn get_pendings_chunks_count(&self) -> i32 { self.pendings_chunks_count }
 
-    pub fn get_chunki(&self, x: i32, y: i32, z: i32) -> Option<Arc<RwLock<Chunk>>> {
+    pub fn get_chunki(&self, x: i32, y: i32, z: i32) -> Option<Arc<Chunk>> {
         self.get_chunk(Vec3i::new(x, y, z))
     }
 
-    pub fn get_chunk(&self, pos: Vec3i) -> Option<Arc<RwLock<Chunk>>> {
+    pub fn get_chunk(&self, pos: Vec3i) -> Option<Arc<Chunk>> {
         if let Some(chunk) = self.chunks.read().unwrap().get(&pos) {
             return chunk.clone();
         }
@@ -82,7 +82,7 @@ impl ChunksManager {
     pub fn cleanup(&mut self, chunks_renderer: &mut ChunksRenderer) {
         for (_, chunk) in &mut *self.chunks.write().unwrap() {
             if let Some(chunk) = chunk {
-                chunk.write().unwrap().renderer.dispose(chunks_renderer);
+                chunk.content.borrow_mut().renderer.dispose(chunks_renderer);
             }
         }
 
@@ -109,7 +109,7 @@ impl ChunksManager {
 
     pub fn draw_chunks(&self, dt: f32, camera: &Camera, chunks_renderer: &mut ChunksRenderer) {
         for ch in &self.ordered_chunks {
-            ch.write().unwrap().draw(self.chunks.clone(), camera, chunks_renderer, dt);
+            ch.draw(self.chunks.clone(), camera, chunks_renderer, dt);
         }
     }
 
@@ -127,8 +127,8 @@ impl ChunksManager {
             self.need_ordering_chunks = false;
 
             self.ordered_chunks.sort_by(|ch1, ch2| {
-                let ch1_distance = math::get_chunk_distance(ch1.read().unwrap().position, player_chunk_pos);
-                let ch2_distance = math::get_chunk_distance(ch2.read().unwrap().position, player_chunk_pos);
+                let ch1_distance = math::get_chunk_distance(ch1.position, player_chunk_pos);
+                let ch2_distance = math::get_chunk_distance(ch2.position, player_chunk_pos);
 
                 return ch1_distance.cmp(&ch2_distance);
             });
@@ -137,9 +137,7 @@ impl ChunksManager {
 
     pub fn dispose_chunks_renderers(&mut self, chunks_renderer: &mut ChunksRenderer) {
         for ch in &self.dispose_chunks_renderers_list {
-            let mut chu = ch.write().unwrap();
-
-            chu.renderer.dispose(chunks_renderer);
+            ch.content.borrow_mut().renderer.dispose(chunks_renderer);
 
             //chunks_renderer.dispose_generated_mesh(chu.position);
         }
@@ -180,9 +178,8 @@ impl ChunksManager {
 
         // remove chunk from chunks and add to dispose_chunks_render_list
         for ch in &self.remove_chunks_list {
-            let ch_borrow = ch.read().unwrap();
-            chunks.remove(&ch_borrow.position);
-            self.chunk_data_pool.restore(ch_borrow.data.clone());
+            chunks.remove(&ch.position);
+            self.chunk_data_pool.restore(ch.data.clone());
 
             self.dispose_chunks_renderers_list.push(ch.clone());
         }
@@ -225,7 +222,7 @@ impl ChunksManager {
                 light_engine::compute_light_value(new_chunk.data.clone());
                 //println!("{}", now.elapsed().as_micros());
 
-                return Box::new(RwLock::new(new_chunk));
+                return Box::new(new_chunk);
             });
 
             self.pendings_chunks_count += 1;
@@ -238,8 +235,8 @@ impl ChunksManager {
         self.chunks_gen_worker.process_tasks();
 
         while let Some(chunk_result) = self.chunks_gen_worker.get_finalized_task() {
-            let chunk_pos = chunk_result.read().unwrap().position;
-            let chunk_arc: Arc<RwLock<Chunk>> = Arc::from(chunk_result);
+            let chunk_pos = chunk_result.position;
+            let chunk_arc: Arc<Chunk> = Arc::from(chunk_result);
 
             self.need_ordering_chunks = true;
             self.ordered_chunks.push(chunk_arc.clone());
@@ -252,7 +249,7 @@ impl ChunksManager {
             *self.chunks.write().unwrap().get_mut(&chunk_pos).unwrap() = Some(chunk_arc.clone());
 
             //chunk_arc.read().unwrap().data.read().unwrap().light_gen_stage.store(false, Ordering::Relaxed);
-            let chunk_data = chunk_arc.read().unwrap().data.clone();
+            let chunk_data = chunk_arc.data.clone();
             let chunks_map = self.chunks.clone();
 
             self.chunks_background_worker.add_task(move || {

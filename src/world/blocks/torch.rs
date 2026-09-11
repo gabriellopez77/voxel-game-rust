@@ -20,7 +20,7 @@ impl ItemCreation for Torch {
 
         properties.can_replace = false;
         properties.is_transparent = true;
-        properties.light_emission = 15;
+        properties.light_emission = 14;
         properties.light_filter = 0;
         properties.collision_box = None;
         properties.set_selection_box(6, 0, 6, 4, 11, 4);

@@ -1,18 +1,18 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use crate::{math::Vec3i, world::{Chunk}};
 use crate::world::ChunksManager;
 
 pub struct NeighborsChunks {
-    pub north: Option<Arc<RwLock<Chunk>>>,
-    pub south: Option<Arc<RwLock<Chunk>>>,
-    pub west: Option<Arc<RwLock<Chunk>>>,
-    pub east: Option<Arc<RwLock<Chunk>>>,
+    pub north: Option<Arc<Chunk>>,
+    pub south: Option<Arc<Chunk>>,
+    pub west: Option<Arc<Chunk>>,
+    pub east: Option<Arc<Chunk>>,
 
-    pub northwest: Option<Arc<RwLock<Chunk>>>,
-    pub northeast: Option<Arc<RwLock<Chunk>>>,
-    pub southwest: Option<Arc<RwLock<Chunk>>>,
-    pub southeast: Option<Arc<RwLock<Chunk>>>,
+    pub northwest: Option<Arc<Chunk>>,
+    pub northeast: Option<Arc<Chunk>>,
+    pub southwest: Option<Arc<Chunk>>,
+    pub southeast: Option<Arc<Chunk>>,
 
     chunk_pos: Vec3i,
     first_time: bool,

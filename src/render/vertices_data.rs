@@ -281,6 +281,7 @@ pub struct ParticlesVertices {
     pub scale: Vec3,
     pub rotation: Vec3,
     pub uv: TexCoords,
+    pub light_levels: u8,
     pub texture_idx: u8,
 }
 

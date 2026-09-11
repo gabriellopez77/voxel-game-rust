@@ -1,4 +1,5 @@
-﻿use std::collections::HashMap;
+﻿use std::cell::RefCell;
+use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, RwLock};
 use crate::math::{self, Vec3, Vec3i};
@@ -30,15 +31,24 @@ impl Directions {
     }
 }
 
+pub struct SingleThreadContent {
+    pub renderer: ChunkMesh,
+    pub inside_frustum: bool,
+}
+
+
 pub struct Chunk {
     pub position: Vec3i,
     pub visual_position: Vec3,
 
     pub data: Arc<RwLock<ChunkData>>,
 
-    pub renderer: ChunkMesh,
-    pub inside_frustum: bool,
+    pub content: RefCell<SingleThreadContent>,
 }
+
+// 'content' is acessed only on the main thread
+unsafe impl Send for Chunk {}
+unsafe impl Sync for Chunk {}
 
 impl Chunk {
     pub const CHUNK_SIZE: Vec3i = Vec3i { x: 16, y: 128, z: 16 };
@@ -59,8 +69,10 @@ impl Chunk {
 
             data: if let Some(data) = chunk_data { data } else { Arc::new(RwLock::new(ChunkData::new(position, blocks_manager))) },
 
-            renderer: ChunkMesh::new(),
-            inside_frustum: false,
+            content: RefCell::new(SingleThreadContent {
+                renderer: ChunkMesh::new(),
+                inside_frustum: false,
+            }),
         }
     }
 
@@ -68,17 +80,19 @@ impl Chunk {
         world_gen.gen_data(self.position, &mut self.data.write().unwrap(), blocks_manager);
     }
 
-    pub fn draw(&mut self,
-        chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<RwLock<Chunk>>>>>>,
+    pub fn draw(&self,
+        chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>,
         camera: &Camera,
         renderer: &mut ChunksRenderer,
         dt: f32,
     ) {
+        let mut content = self.content.borrow_mut();
+
         if camera.view_changed {
-            self.inside_frustum = camera.chunk_inside_frustum(self.visual_position);
+            content.inside_frustum = camera.chunk_inside_frustum(self.visual_position);
         }
 
-        if !self.inside_frustum {
+        if !content.inside_frustum {
             return;
         }
 
@@ -92,7 +106,7 @@ impl Chunk {
             renderer.gen_mesh(chunks_map, self.data.clone(), self.position);
         }
 
-        self.renderer.draw(dt, renderer);
+        content.renderer.draw(dt, renderer);
     }
 
     pub fn gen_mesh(mesh_result: &mut ChunkMeshResult, blocks_manager: &BlocksManager) {

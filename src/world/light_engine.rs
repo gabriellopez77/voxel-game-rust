@@ -23,6 +23,21 @@ pub const MIN_LEVEL: u8 = 0;
 pub const BLOCK_MASK: u8 = 0b11110000;
 pub const SKY_MASK: u8 = 0b00001111;
 
+pub const MAX_SKY_LEVEL: u8 = SKY_MASK;
+pub const MAX_BLOCK_LEVEL: u8 = BLOCK_MASK;
+pub const MAX_BOTH_LEVEL: u8 = SKY_MASK | BLOCK_MASK;
+
+pub const fn get_level(value: u8, light_type: LightType) -> u8 {
+    if matches!(light_type, LightType::Sky) {
+        return value & SKY_MASK;
+    }
+    else if matches!(light_type, LightType::Block) {
+        return value >> 4;
+    }
+
+    return value;
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum UpdateType {
     Add,
@@ -67,17 +82,21 @@ fn get_queue() -> VecDeque<LightQueueData> {
 fn restore_queue(queue: VecDeque<LightQueueData>) { QUEUE_DATA_POOL.lock().unwrap().push(queue); }
 
 pub fn update_light(
-    chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<RwLock<Chunk>>>>>>,
+    chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>,
     chunk_data: Arc<RwLock<ChunkData>>,
     chunk_block: Vec3i,
     old_block: &BlockProperties,
     new_block: &BlockProperties
 ) {
+    // update the light is redundant
+    if old_block.light_filter == 0 && old_block.light_emission == 0 &&
+        new_block.light_filter == 0 && new_block.light_emission == 0 {
+        return
+    }
+
     // remove around light sources
-    if old_block.light_filter > MIN_LEVEL ||
-        old_block.light_emission > MIN_LEVEL ||
-        new_block.light_filter > MIN_LEVEL
-    {
+    if old_block.light_filter > MIN_LEVEL || old_block.light_emission > MIN_LEVEL ||
+        new_block.light_filter > MIN_LEVEL {
         remove_block_light_source(chunks_map.clone(), chunk_data.clone(), chunk_block);
     }
 
@@ -88,10 +107,23 @@ pub fn update_light(
     let mut add_sky_queue = get_queue();
     let mut remove_queue = get_queue();
 
-    // uses remove light logic to update skylight around
-    remove_queue.push_back(LightQueueData::new(chunk_data.clone(), chunk_block, MIN_LEVEL, chunk_data.read().unwrap().get_light(chunk_block, LightType::Sky)));
+    let mut new_value = MIN_LEVEL;
 
-    chunk_data.write().unwrap().set_light(chunk_block, MIN_LEVEL, LightType::Sky);
+    if chunk_block.y == Chunk::CHUNK_SIZE_MINUS_ONE.y && new_block.light_filter < MAX_LEVEL {
+        add_sky_queue.push_back(LightQueueData::new(chunk_data.clone(), chunk_block, MAX_LEVEL, 0));
+
+        new_value = MAX_LEVEL - new_block.light_filter;
+    }
+
+    // uses remove light logic to update skylight around
+    remove_queue.push_back(LightQueueData::new(
+        chunk_data.clone(),
+        chunk_block,
+        MIN_LEVEL,
+        chunk_data.read().unwrap().get_light(chunk_block, LightType::Sky)
+    ));
+
+    chunk_data.write().unwrap().set_light(chunk_block, new_value, LightType::Sky);
 
     let mut neighbors = NeighborsChunksData::new_from_map(chunks_map.clone(), chunk_data.read().unwrap().position, false);
 
@@ -103,7 +135,7 @@ pub fn update_light(
 }
 
 pub fn update_light_in_border_neighbors(
-    chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<RwLock<Chunk>>>>>>,
+    chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>,
     chunk_data: Arc<RwLock<ChunkData>>,
     neighbors_chunks_data: NeighborsChunksData
 ) {
@@ -290,7 +322,7 @@ fn compute_sections(chunk_data: &mut ChunkData) {
 }
 
 fn add_block_light_source(
-    chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<RwLock<Chunk>>>>>>,
+    chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>,
     chunk_data: Arc<RwLock<ChunkData>>,
     chunk_block: Vec3i,
     block: &BlockProperties
@@ -309,7 +341,7 @@ fn add_block_light_source(
 }
 
 fn remove_block_light_source(
-    chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<RwLock<Chunk>>>>>>,
+    chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>,
     chunk_data: Arc<RwLock<ChunkData>>,
     chunk_block: Vec3i
 ) {
@@ -332,7 +364,7 @@ fn remove_block_light_source(
 }
 
 fn process_add_queue(
-    chunks_map: Option<&Arc<RwLock<HashMap<Vec3i, Option<Arc<RwLock<Chunk>>>>>>>,
+    chunks_map: Option<&Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>>,
     light_type: LightType,
     add_queue: &mut VecDeque<LightQueueData>,
     neighbor_chunks: &mut NeighborsChunksData,
@@ -351,7 +383,7 @@ fn process_add_queue(
 }
 
 fn process_remove_queue(
-    chunks_map: Option<&Arc<RwLock<HashMap<Vec3i, Option<Arc<RwLock<Chunk>>>>>>>,
+    chunks_map: Option<&Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>>,
     light_type: LightType,
     add_queue: &mut VecDeque<LightQueueData>,
     remove_queue: &mut VecDeque<LightQueueData>,
@@ -371,7 +403,7 @@ fn process_remove_queue(
 }
 
 fn process_light_logic(
-    chunks_map: Option<&Arc<RwLock<HashMap<Vec3i, Option<Arc<RwLock<Chunk>>>>>>>,
+    chunks_map: Option<&Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>>,
     light_data: &LightQueueData,
     light_type: LightType,
     update_type: UpdateType,

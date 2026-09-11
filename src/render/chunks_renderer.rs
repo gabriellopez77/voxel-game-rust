@@ -2,7 +2,7 @@ use std::{array, cell::RefCell, collections::HashMap, rc::Rc, sync::{Arc, RwLock
 
 use ash::vk;
 
-use crate::{math::{Vec3, Vec3i, Vec4}, render::{ChunkVertices, GlobalRenderer, Material, MultiMesh, core::{RawBuffer, raw_buffer::{BufferFlags, BufferResizeMode}}, multi_mesh::MultiMeshInfo}, resources::{ResourceManager, ThreadWorkerValue}, utils::NullSafePtr, world::{Chunk, blocks::BlocksManager, chunk::{ChunkData, NeighborsChunksData}}};
+use crate::{math::Vec3i, render::{ChunkVertices, GlobalRenderer, Material, MultiMesh, core::{RawBuffer, raw_buffer::{BufferFlags, BufferResizeMode}}, multi_mesh::MultiMeshInfo}, resources::{ResourceManager, ThreadWorkerValue}, utils::NullSafePtr, world::{Chunk, blocks::BlocksManager, chunk::{ChunkData, NeighborsChunksData}}};
 use crate::utils::ObjectPool;
 
 
@@ -211,7 +211,7 @@ impl ChunksRenderer {
     //}
 
     pub fn gen_mesh(&mut self,
-        chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<RwLock<Chunk>>>>>>,
+        chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>,
         chunk_data: Arc<RwLock<ChunkData>>,
         chunk_pos: Vec3i
     ) {

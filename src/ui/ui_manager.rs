@@ -1,5 +1,4 @@
 use std::collections::VecDeque;
-use std::cell::RefCell;
 use crate::game::{Game, GameEvents};
 use crate::inputs::Inputs;
 use crate::math::{Color4b, Matrix4, Vec2};
@@ -109,7 +108,7 @@ impl UiManager {
             game
         };
 
-        self.screens[self.current_screen_id as usize].screen.borrow_mut().resize(&args);
+        self.screens[self.current_screen_id as usize].screen.resize(&args);
         self.ui_common.resize(&args);
         self.debug_screen.resize(&args);
     }
@@ -127,7 +126,7 @@ impl UiManager {
             inputs,
             ui_common: &mut self.ui_common,
         };
-        self.screens[self.current_screen_id as usize].screen.borrow_mut().update(&mut args);
+        self.screens[self.current_screen_id as usize].screen.update(&mut args);
 
         let mut ui_common_args = UiCommonUpdateArgs {
             dt,
@@ -163,7 +162,7 @@ impl UiManager {
             self.screens_background.draw(&mut self.ui_renderer);
         }
 
-        self.screens[self.current_screen_id as usize].screen.borrow_mut().draw(&mut self.ui_renderer);
+        self.screens[self.current_screen_id as usize].screen.draw(&mut self.ui_renderer);
         self.ui_common.draw(&mut self.ui_renderer);
 
         if self.debug_screen_visible {
@@ -271,7 +270,7 @@ impl UiManager {
             game
         };
 
-        let mut screen = screen_info.screen.borrow_mut();
+        let screen = &mut screen_info.screen;
 
         if !screen_info.started {
             screen_info.started = true;
@@ -297,6 +296,6 @@ impl UiManager {
         T: ScreenBase,
         for<'a> T: 'a
     {
-        return ScreenInfo::new(Box::new(RefCell::new(screen)), id);
+        return ScreenInfo::new(Box::new(screen), id);
     }
 }

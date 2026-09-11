@@ -5,7 +5,8 @@ use crate::math::{self, Color3b, Color4b, KeyFrame, Vec3, Vec3i};
 use crate::render::{GlobalRenderer, UiRenderer};
 use crate::ui::tools::{Slice, Sprite, Text, UiElement};
 use crate::ui::{ScreenResizeArgs, ScreenStartArgs, ScreenUpdateArgs};
-use crate::world::Chunk;
+use crate::world::light_engine::LightType;
+use crate::world::{Chunk, light_engine};
 
 
 pub struct DebugScreen {
@@ -18,6 +19,9 @@ pub struct DebugScreen {
 
     player_block_pos_text: Text,
     player_chunk_block_text: Text,
+
+    player_light_level_text: Text,
+
 
     // ms graph
     min_ms_text: Text,
@@ -42,11 +46,16 @@ impl DebugScreen {
 
             fps_text: Text::new(),
 
+            global_staging_buffer_used_mb_text: Text::new(),
+            global_staging_buffer_capacity_text: Text::new(),
+
             player_block_pos_text: Text::new(),
             player_chunk_block_text: Text::new(),
 
-            global_staging_buffer_used_mb_text: Text::new(),
-            global_staging_buffer_capacity_text: Text::new(),
+            player_light_level_text: Text::new(),
+
+
+
 
             min_ms_text: Text::new(),
             avg_ms_text: Text::new(),
@@ -84,7 +93,10 @@ impl DebugScreen {
         self.global_staging_buffer_used_mb_text.set_pos(10.0, 28.0 + (9.0 * 3.0));
 
         self.global_staging_buffer_capacity_text.set_font(args.resources.get_font("default"));
-        self.global_staging_buffer_capacity_text.set_pos(10.0, 28.0 + (9.0 * 4.0));
+        self.global_staging_buffer_capacity_text.set_pos(10.0, 28.0 + (9.0 * 6.0));
+
+        self.player_light_level_text.set_font(args.resources.get_font("default"));
+        self.player_light_level_text.set_pos(10.0, 28.0 + (9.0 * 4.0));
 
 
         self.min_ms_text.set_font(args.resources.get_font("default"));
@@ -125,6 +137,15 @@ impl DebugScreen {
             self.player_chunk_block_text.set_text_delayed(args.dt, 0.1, |text| {
                 let block_pos = math::get_chunk_block(self.player_chunk, args.game.world.player.get_pos());
                 write!(text, "Chunk Block: {}, {}, {}", block_pos.x, block_pos.y, block_pos.z)
+            });
+
+            self.player_light_level_text.set_text_delayed(args.dt, 0.1, |text| {
+                let level = args.game.world.player.light_levels;
+
+                write!(text, "Light: {} Sky, {} Block",
+                    light_engine::get_level(level, LightType::Sky),
+                    light_engine::get_level(level, LightType::Block)
+                )
             });
         }
 
@@ -198,6 +219,7 @@ impl DebugScreen {
         if self.in_world {
             self.player_block_pos_text.draw(renderer);
             self.player_chunk_block_text.draw(renderer);
+            self.player_light_level_text.draw(renderer);
 
             let player_chunk_pos = self.player_chunk.as_vec3() * Chunk::CHUNK_SIZEF;
 

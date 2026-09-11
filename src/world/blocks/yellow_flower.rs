@@ -20,10 +20,10 @@ impl ItemCreation for YellowFlower {
 
         properties.can_replace = false;
         properties.is_transparent = true;
+        properties.light_emission = 0;
         properties.light_filter = 0;
         properties.collision_box = None;
         properties.set_selection_box(5, 0, 5, 6, 10, 6);
-        properties.light_emission = 15;
 
         Self {
             properties: properties,

@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, mem::offset_of, rc::Rc};
 use ash::{vk, vk::Handle};
 
-use crate::{math::{Color4b, Vec3}, render::{BlockItemVertices, ChunkVertices, CloudsVertices, DrawInfo, EntitiesCubesVertices, GlobalUboData, Material, Mesh, MultiMesh, OUTLINE_CUBE_INDICES, OUTLINE_CUBE_VERTICES, OutlineCubeVertices, ParticlesVertices, SkyBodiesVertices, SpritesVertices, TextVertices, Ubo, core::raw_buffer::BufferResizeMode, draw_info::DrawType, material::{MaterialType, VertexAttribInfo}, mesh::BuffersTypes}, resources::{ResourceManager, ShadersCompiler}, utils::SafePtrMut, world::Chunk};
+use crate::{math::{Color4b, Vec3}, render::{BlockItemVertices, ChunkVertices, CloudsVertices, DrawInfo, EntitiesCubesVertices, GlobalUboData, Material, Mesh, MultiMesh, OUTLINE_CUBE_INDICES, OUTLINE_CUBE_VERTICES, OutlineCubeVertices, ParticlesVertices, SkyBodiesVertices, SpritesVertices, TextVertices, Ubo, core::raw_buffer::BufferResizeMode, draw_info::DrawType, material::{MaterialType, VertexAttribInfo}, mesh::BuffersTypes}, resources::{ResourceManager, ShadersCompiler}, utils::SafePtrMut};
 use super::core::{vkutl, VulkanApp, DescriptorSet, PipelineLayout, raw_buffer::BufferFlags};
 
 
@@ -223,6 +223,7 @@ impl GlobalRenderer {
                 .add_attribute(vk::Format::R32G32B32A32_SFLOAT, offset_of!(ParticlesVertices, rotation))
                 .add_attribute(vk::Format::R32G32B32A32_SFLOAT, offset_of!(ParticlesVertices, uv))
                 .add_attribute(vk::Format::R8_UINT, offset_of!(ParticlesVertices, texture_idx))
+                .add_attribute(vk::Format::R8_UINT, offset_of!(ParticlesVertices, light_levels))
             );
 
             self.default_materials.insert("particles", Rc::new(RefCell::new(material)));

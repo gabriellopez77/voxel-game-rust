@@ -1,5 +1,4 @@
 ﻿use crate::game::{GameEvents, PlayerStates};
-use crate::inputs::Keys::P;
 use crate::render::{EntitiesCubesVertices, EntitiesRenderer, GlobalRenderer};
 use crate::resources::ResourceManager;
 use crate::ui::ui_manager::ScreensId;
@@ -42,7 +41,7 @@ pub struct Player {
 
     aabb: Aabb,
     velocity: Vec3,
-    light_levels: u8,
+    pub light_levels: u8,
 
     in_water: bool,
     flying_mode: bool,
@@ -222,14 +221,12 @@ impl Player {
                     let chunk_block = math::get_chunk_block(chunk_pos, place_block);
 
                     if let Some(chunk) = planet.chunks_manager.get_chunk(chunk_pos) {
-                        let ch = chunk.read().unwrap();
-
-                        let block_properties = ch.data.read().unwrap().get_block_properties(chunk_block);
+                        let block_properties = chunk.data.read().unwrap().get_block_properties(chunk_block);
 
                         if block_properties.can_replace {
                             action = true;
 
-                            planet.place_block(&ch, chunk_block, item.get_id_state());
+                            planet.place_block(&chunk, chunk_block, item.get_id_state());
                         }
                     }
                 }
@@ -240,10 +237,10 @@ impl Player {
         if let Some(chunk) = planet.chunks_manager.get_chunk(chunk_pos) {
             let chunk_block = math::get_chunk_block(chunk_pos, self.aabb.get_min());
 
-            self.light_levels = chunk.read().unwrap().data.read().unwrap().get_light(chunk_block, LightType::Both);
+            self.light_levels = chunk.data.read().unwrap().get_light(chunk_block, LightType::Both);
         }
         else {
-            self.light_levels = light_engine::MAX_LEVEL << 4;
+            self.light_levels = light_engine::MAX_SKY_LEVEL;
         }
 
         self.first_person.update(args,
@@ -329,7 +326,7 @@ impl Player {
                 if let Some(hit) = aabb.ray_intersect(ray_pos, ray_dir) {
                     // break block
                     if inputs.mouse_pressed(inputs::MouseButton::Left) && self.state == PlayerStates::Active {
-                        planet.destroy_block(&it.chunk.read().unwrap(), it.chunk_block, particles_manager);
+                        planet.destroy_block(&it.chunk, it.chunk_block, particles_manager);
                     }
 
                     result = Some(RaycastingResult {

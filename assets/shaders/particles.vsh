@@ -1,6 +1,5 @@
 #version 460 core
 
-#include "includes/globals.glsl"
 #include "includes/utils.glsl"
 
 
@@ -11,11 +10,13 @@ layout(location = 3) in vec3 aScale;
 layout(location = 4) in vec3 aRotation;
 layout(location = 5) in vec4 aInstanceTexCoords;
 layout(location = 6) in uint aTextureIdx;
+layout(location = 7) in uint aLightLevels;
 
 
 layout(location = 0) out vec2 TexCoords;
 layout(location = 1) out uint TextureIdx;
 layout(location = 2) out float FogFactor;
+layout(location = 3) out vec2 LightLevels;
 
 void main()
 {
@@ -27,4 +28,5 @@ void main()
     TexCoords = mix(aInstanceTexCoords.xy, aInstanceTexCoords.zw, aTexCoords);
     TextureIdx = aTextureIdx;
     FogFactor = calculateFog(viewSpace.xyz);
+    LightLevels = extractLightLevels(aLightLevels);
 }

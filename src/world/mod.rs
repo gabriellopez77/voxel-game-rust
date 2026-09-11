@@ -10,6 +10,7 @@ pub mod aabb;
 pub mod particles;
 pub mod light_engine;
 pub mod chunks_manager;
+pub mod entities;
 
 pub use {
     chunk::Chunk,

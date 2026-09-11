@@ -1,4 +1,4 @@
-﻿use std::cell::RefCell;
+﻿
 use crate::game::Game;
 use crate::inputs::Inputs;
 use crate::math::Vec2;
@@ -21,11 +21,11 @@ pub struct ScreenInfo {
     pub started: bool,
     pub id: ScreensId,
 
-    pub screen: Box<RefCell<dyn ScreenBase>>,
+    pub screen: Box<dyn ScreenBase>,
 }
 
 impl ScreenInfo {
-    pub fn new(screen: Box<RefCell<dyn ScreenBase>>, id: ScreensId) -> Self {
+    pub fn new(screen: Box<dyn ScreenBase>, id: ScreensId) -> Self {
         Self {
             screen_size: Vec2::ZERO,
             screen_center: Vec2::ZERO,

@@ -102,7 +102,7 @@ impl Camera {
 
         // check if camera is on water
         self.is_underwater = if let Some(chunk) = planet.chunks_manager.get_chunk(self.chunk_pos) {
-            *chunk.read().unwrap().data.read().unwrap().get_block_properties(self.chunk_block) == planet.blocks_manager.water_block
+            *chunk.data.read().unwrap().get_block_properties(self.chunk_block) == planet.blocks_manager.water_block
         } else { false };
 
 

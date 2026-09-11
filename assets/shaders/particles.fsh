@@ -7,6 +7,7 @@
 layout(location = 0) in vec2 TexCoords;
 layout(location = 1) in flat uint TextureIdx;
 layout(location = 2) in float FogFactor;
+layout(location = 3) in vec2 LightLevels;
 
 layout(location = 0) out vec4 FragColor;
 
@@ -16,7 +17,9 @@ void main() {
     if (tex.a < 0.1f)
         discard;
 
-    FragColor = tex;
+    const vec3 lightColors = calculateLightColor(LightLevels);
+
+    FragColor = vec4(tex.rgb * lightColors, tex.a);
 
     applyFog(FragColor.xyz, FogFactor);
 }

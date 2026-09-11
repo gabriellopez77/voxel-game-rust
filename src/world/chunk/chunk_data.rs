@@ -95,17 +95,10 @@ impl ChunkData {
     pub fn get_light(&self, chunk_block: Vec3i, light_type: LightType) -> u8 {
         let index = Self::get_index(chunk_block.x, chunk_block.y, chunk_block.z);
 
-        let mut light = self.light_levels[index];
+        let value = self.light_levels[index];
         //let mut light = unsafe { *self.light_levels.get_unchecked(index) };
 
-        if light_type == LightType::Sky {
-            light &= light_engine::SKY_MASK;
-        }
-        else if light_type == LightType::Block {
-            light >>= 4;
-        }
-
-        return light;
+        return light_engine::get_level(value, light_type);
     }
 
     pub fn set_block(&mut self, chunk_block: Vec3i, id_state: BlockIdState) {

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, sync::{Arc, RwLock}};
+use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use crate::{math::Vec3i, world::{Chunk, chunk::ChunkData}};
 use crate::world::ChunksManager;
@@ -39,7 +39,7 @@ impl NeighborsChunksData {
         Self::new_from_map(chunks_manager.chunks.clone(), pos, corners)
     }
 
-    pub fn new_from_map(chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<RwLock<Chunk>>>>>>, pos: Vec3i, corners: bool) -> Self {
+    pub fn new_from_map(chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>, pos: Vec3i, corners: bool) -> Self {
         let mut data_northwest: Option<Arc<RwLock<ChunkData>>> = None;
         let mut data_northeast: Option<Arc<RwLock<ChunkData>>> = None;
         let mut data_southwest: Option<Arc<RwLock<ChunkData>>> = None;
@@ -69,7 +69,7 @@ impl NeighborsChunksData {
     }
 
     pub fn change_from_map(&mut self,
-        chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<RwLock<Chunk>>>>>>,
+        chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>,
         pos: Vec3i,
         corners: bool
     ) {
@@ -96,9 +96,9 @@ impl NeighborsChunksData {
         self.change_from_map(chunks_manager.chunks.clone(), pos, corners);
     }
 
-    fn set_data(chunks_map: &Arc<RwLock<HashMap<Vec3i, Option<Arc<RwLock<Chunk>>>>>>, x: i32, y: i32, z: i32) -> Option<Arc<RwLock<ChunkData>>> {
+    fn set_data(chunks_map: &Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>, x: i32, y: i32, z: i32) -> Option<Arc<RwLock<ChunkData>>> {
         if let Some(chunk1) = chunks_map.read().unwrap().get(&Vec3i::new(x, y, z)) && let Some(chunk2) = chunk1 {
-            return Some(chunk2.read().unwrap().data.clone());
+            return Some(chunk2.data.clone());
         }
 
         return None;

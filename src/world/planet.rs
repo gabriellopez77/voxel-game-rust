@@ -1,5 +1,4 @@
-﻿use std::sync::RwLock;
-use std::sync::Arc;
+﻿use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use crate::math::{Vec3, Vec3i, self};
@@ -16,7 +15,7 @@ use crate::world::{Chunk, player::Camera};
 pub struct BlockIteraterInfo {
     pub global_block: Vec3,
     pub chunk_block: Vec3i,
-    pub chunk: Arc<RwLock<Chunk>>,
+    pub chunk: Arc<Chunk>,
     pub block_properties: SafePtr<BlockProperties>,
 }
 
@@ -37,7 +36,7 @@ impl Planet {
 
             chunks_manager: ChunksManager::new(),
 
-            render_distance: 4,
+            render_distance: 10,
 
             blocks_aabb_list: Vec::new(),
         }
@@ -69,7 +68,7 @@ impl Planet {
 
         while let Some(mesh_result) = chunks_renderer.get_generated_mesh() {
             if let Some(ch) = self.chunks_manager.get_chunk(mesh_result.chunk_pos) {
-                ch.write().unwrap().renderer.update_mesh(&mesh_result, chunks_renderer);
+                ch.content.borrow_mut().renderer.update_mesh(&mesh_result, chunks_renderer);
             }
 
             chunks_renderer.restore_mesh_result(mesh_result);
@@ -138,7 +137,7 @@ impl Planet {
             if let Some(ref ch) = chunk_getter.chunk {
                 let chunk_block = math::get_chunk_block(chunk_pos, global_coords);
 
-                let block_properties = ch.read().unwrap().data.read().unwrap().get_block_properties(chunk_block);
+                let block_properties = ch.data.read().unwrap().get_block_properties(chunk_block);
 
                 let mut stop = false;
                 func(&mut stop, self, blocks_manager.clone(), x, y, z, block_properties.clone());
@@ -203,7 +202,7 @@ impl Planet {
             if let Some(chunk) = chunk_getter.change(chunk_pos, &self.chunks_manager) {
                 let chunk_block = math::get_chunk_block(chunk_pos, block_pos);
 
-                let block_properties = chunk.read().unwrap().data.read().unwrap().get_block_properties(chunk_block);
+                let block_properties = chunk.data.read().unwrap().get_block_properties(chunk_block);
 
                 let iterater_info = BlockIteraterInfo {
                     global_block: block_pos,
@@ -263,19 +262,19 @@ impl Planet {
 
         // update around chunks to avoids visual glitchs
         if let Some(south) = neighbors.south && chunk_block.z == Chunk::CHUNK_SIZE_MINUS_ONE.z {
-            south.read().unwrap().data.read().unwrap().regen_mesh.store(true, Ordering::Relaxed);
+            south.data.read().unwrap().regen_mesh.store(true, Ordering::Relaxed);
         }
 
         if let Some(north) = neighbors.north && chunk_block.z == 0 {
-            north.read().unwrap().data.read().unwrap().regen_mesh.store(true, Ordering::Relaxed);
+            north.data.read().unwrap().regen_mesh.store(true, Ordering::Relaxed);
         }
 
         if let Some(west) = neighbors.west && chunk_block.x == 0 {
-            west.read().unwrap().data.read().unwrap().regen_mesh.store(true, Ordering::Relaxed);
+            west.data.read().unwrap().regen_mesh.store(true, Ordering::Relaxed);
         }
 
         if let Some(east) = neighbors.east && chunk_block.x == Chunk::CHUNK_SIZE_MINUS_ONE.x {
-            east.read().unwrap().data.read().unwrap().regen_mesh.store(true, Ordering::Relaxed);
+            east.data.read().unwrap().regen_mesh.store(true, Ordering::Relaxed);
         }
     }
 }
