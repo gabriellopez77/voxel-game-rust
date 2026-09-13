@@ -107,8 +107,6 @@ pub struct Material {
     modified: bool,
 }
 
-unsafe impl Send for Material {}
-
 impl Material {
     pub fn new(app: SafePtrMut<VulkanApp>, shader_name: &'static str, material_type: MaterialType) -> Self {
         Self {
@@ -289,19 +287,17 @@ impl Material {
                 .base_pipeline_index(-1)
         ];
 
-        self.pipeline = unsafe {
-            match self.app.ash_device.create_graphics_pipelines(vk::PipelineCache::null(), &pipeline_info, None) {
+        unsafe {
+            self.pipeline = match self.app.ash_device.create_graphics_pipelines(vk::PipelineCache::null(), &pipeline_info, None) {
                 Ok(pipeline) => pipeline[0],
                 Err(err) => {
                     println!("Failed to create graphics pipeline: {}", err.1);
 
                     vk::Pipeline::null()
                 }
-            }
-        };
+            };
 
-        // destroy shaders modules
-        unsafe {
+            // destroy shaders modules
             self.app.ash_device.destroy_shader_module(vertex_module, None);
             self.app.ash_device.destroy_shader_module(fragment_module, None);
         }

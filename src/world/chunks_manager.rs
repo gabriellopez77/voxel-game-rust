@@ -1,10 +1,10 @@
-use std::{collections::HashMap, sync::{Arc, Mutex, atomic::Ordering}};
+use std::{collections::HashMap, sync::{Arc, Mutex}};
 use std::sync::RwLock;
-use crate::{math::{self, Vec3i}, resources::{ThreadWorker, ThreadWorkerValue}, world::{Chunk, chunk::NeighborsChunksData, player::Camera}};
+use crate::{math::{self, Vec3i}, resources::{ThreadWorker, ThreadWorkerValue}, world::{Chunk, chunk::{NeighborsChunksData, chunk_data::ChunkDataFlags}, player::Camera}};
 use crate::render::ChunksRenderer;
 use crate::utils::{NullSafePtr, ObjectPool, SafePtr};
 use crate::world::blocks::BlocksManager;
-use crate::world::chunk::ChunkData;
+use crate::world::chunk::chunk_data::ChunkData;
 use crate::world::light_engine;
 use crate::world::world_gen::WorldGen;
 
@@ -28,7 +28,7 @@ pub struct ChunksManager {
     pub chunks_gen_worker: ThreadWorkerValue<Box<Chunk>, 1>,
     pub chunks_background_worker: ThreadWorker<1>,
 
-    pub chunk_data_pool: ObjectPool<Arc<RwLock<ChunkData>>>,
+    pub chunk_data_pool: ObjectPool<Arc<ChunkData>>,
 }
 
 impl ChunksManager {
@@ -205,17 +205,29 @@ impl ChunksManager {
             let blocks_manager = self.blocks_manager.clone();
 
             let world_gen = self.world_gen.clone();
-            let new_chunk_data = self.chunk_data_pool.get();
+            let new_chunk_data = self.chunk_data_pool.get_from_fn(|value| {
+                if let Some(data) = Arc::get_mut(value) {
+                    *data = ChunkData::new(new_chunk_pos, SafePtr::from_ptr(NullSafePtr::get_raw(&blocks_manager)));
+
+                    return true;
+                }
+
+                return false;
+            });
 
 
             // create chunk async
             self.chunks_gen_worker.add_task(move || {
                 // resets chunk data to avoid corrupted values
-                if let Some(ref chunk_data) = new_chunk_data {
-                    chunk_data.write().unwrap().clear(new_chunk_pos);
-                }
+                //if let Some(ref chunk_data) = new_chunk_data {
+                //    chunk_data.clear(new_chunk_pos);
+                //}
 
-                let mut new_chunk = Chunk::new(new_chunk_pos, new_chunk_data, SafePtr::from_ptr(blocks_manager.get_raw()));
+                let mut new_chunk = Chunk::new(
+                    new_chunk_pos,
+                    new_chunk_data,
+                    SafePtr::from_ptr(NullSafePtr::get_raw(&blocks_manager))
+                );
                 new_chunk.start(&mut world_gen.lock().unwrap(), &blocks_manager);
 
                 //let now = std::time::Instant::now();
@@ -261,9 +273,9 @@ impl ChunksManager {
     }
 
     fn regen_neighbor_chunks(&self, neighbors_data: &NeighborsChunksData) {
-        if let Some(ref north) = neighbors_data.north { north.read().unwrap().regen_mesh.store(true, Ordering::Relaxed); }
-        if let Some(ref south) = neighbors_data.south { south.read().unwrap().regen_mesh.store(true, Ordering::Relaxed); }
-        if let Some(ref west) = neighbors_data.west { west.read().unwrap().regen_mesh.store(true, Ordering::Relaxed); }
-        if let Some(ref east) = neighbors_data.east { east.read().unwrap().regen_mesh.store(true, Ordering::Relaxed); }
+        if let Some(ref north) = neighbors_data.north { north.turn_on_flag(ChunkDataFlags::REGEN_MESH_FLAG); }
+        if let Some(ref south) = neighbors_data.south { south.turn_on_flag(ChunkDataFlags::REGEN_MESH_FLAG); }
+        if let Some(ref west) = neighbors_data.west { west.turn_on_flag(ChunkDataFlags::REGEN_MESH_FLAG); }
+        if let Some(ref east) = neighbors_data.east { east.turn_on_flag(ChunkDataFlags::REGEN_MESH_FLAG); }
     }
 }

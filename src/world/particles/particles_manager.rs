@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use rand::{RngExt, rngs::ThreadRng};
 
-use crate::{math::{Vec2, Vec3, math}, render::{GlobalRenderer, Material, Mesh, PARTICLES_VERTICES, ParticlesVertices, SPRITES_INDICES, core::raw_buffer::{BufferFlags, BufferResizeMode}}, resources::ResourceManager, utils::NullSafePtr, world::{Planet, blocks::BlockProperties, chunk::ChunkGetter, light_engine::{self, LightType}, particles::{BlockDestroy, ParticleBase, ParticleFunc}}};
+use crate::{math::{Vec2, Vec3, math}, render::{GlobalRenderer, Material, Mesh, PARTICLES_VERTICES, ParticlesVertices, SPRITES_INDICES, core::raw_buffer::{BufferFlags, BufferResizeMode}}, resources::ResourceManager, utils::NullSafePtr, world::{Planet, blocks::BlockProperties, chunk::{ChunkGetter, chunk_data::ChunkDataReadBehavior}, light_engine::{self, LightType}, particles::{BlockDestroy, ParticleBase, ParticleFunc}}};
 
 
 struct ParticlesInfo {
@@ -75,7 +75,7 @@ impl ParticlesManager {
             if let Some(ref chunk) = chunk_getter.chunk {
                 let chunk_block = math::get_chunk_block(chunk_pos, p.position);
 
-                p.light_levels = chunk.data.read().unwrap().get_light(chunk_block, LightType::Both);
+                p.light_levels = chunk.data.get_light(chunk_block, LightType::Both);
             }
             else {
                 p.light_levels = light_engine::MAX_SKY_LEVEL;
@@ -123,7 +123,7 @@ impl ParticlesManager {
                 const SCALE: f32 = 4.0;
 
                 //let now = std::time::Instant::now();
-                for _ in 0..20 {
+                for _ in 0..10_000 {
                     let mut p = ParticleBase::default();
                     p.life = self.rand.random_range(0.4..1.5);
                     p.size = Vec2::from1(self.rand.random_range(0.1..=0.2));

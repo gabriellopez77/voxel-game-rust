@@ -29,3 +29,4 @@ filetime = "0.2"
 # imgui
 imgui = "0.12.0"
 imgui-rs-vulkan-renderer = "1.16.0"
+parking_lot = "0.12.5"

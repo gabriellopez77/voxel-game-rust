@@ -87,7 +87,6 @@ impl BlocksManager {
 
     pub fn get_properties(&self, id: u16, state: u8) -> SafePtr<BlockProperties> {
         SafePtr::new(self.blocks[id as usize].get_properties(state))
-        //unsafe { SafePtr::new(self.blocks.get_unchecked(id as usize).get_properties(state)) }
     }
 
 

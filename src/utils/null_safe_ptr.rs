@@ -32,5 +32,5 @@ impl<T: ?Sized> NullSafePtr<T> {
         Self { ptr: ptr as *const T }
     }
 
-    pub fn get_raw(&self) -> *const T { self.ptr }
+    pub fn get_raw(this: &Self) -> *const T { this.ptr }
 }

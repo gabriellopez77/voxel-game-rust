@@ -1511,6 +1511,7 @@ dependencies = [
  "image",
  "imgui",
  "imgui-rs-vulkan-renderer",
+ "parking_lot",
  "rand 0.10.1",
  "raw-window-handle",
  "serde",

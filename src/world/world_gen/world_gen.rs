@@ -6,7 +6,7 @@ use crate::math::Vec3i;
 use crate::world::world_gen::biomes::*;
 use crate::world::Chunk;
 use crate::world::blocks::BlocksManager;
-use crate::world::chunk::ChunkData;
+use crate::world::chunk::chunk_data::ChunkData;
 
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -73,7 +73,9 @@ impl WorldGen {
         self.snow_mountains_biome.start(blocks_manager);
     }
 
-    pub fn gen_data(&mut self, chunk_pos: Vec3i, data: &mut ChunkData, blocks_manager: &BlocksManager) {
+    pub fn gen_data(&mut self, chunk_pos: Vec3i, chunk_data: &ChunkData, blocks_manager: &BlocksManager) {
+        let mut data = chunk_data.write_guard();
+
         let start_x = chunk_pos.x * Chunk::CHUNK_SIZE.x;
         let start_z = chunk_pos.z * Chunk::CHUNK_SIZE.z;
 

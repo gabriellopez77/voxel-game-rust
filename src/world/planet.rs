@@ -1,14 +1,14 @@
 ﻿use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
 use crate::math::{Vec3, Vec3i, self};
 
 use crate::render::ChunksRenderer;
 use crate::utils::{NullSafePtr, SafePtr};
+use crate::world::chunk::chunk_data::ChunkDataFlags;
 use crate::world::particles::{ParticlesManager, ParticlesSpawnArgs};
 use crate::world::{Aabb, ChunksManager, light_engine};
 use crate::world::blocks::{BlockIdState, BlockProperties, BlocksManager};
-use crate::world::chunk::{ChunkGetter, NeighborsChunks};
+use crate::world::chunk::{ChunkGetter, NeighborsChunks, chunk_data::ChunkDataReadBehavior};
 use crate::world::{Chunk, player::Camera};
 
 
@@ -78,13 +78,13 @@ impl Planet {
     }
 
     pub fn place_block(&self, chunk: &Chunk, chunk_block: Vec3i, id_state: BlockIdState) {
-        let old_block = chunk.data.write().unwrap().change_block(chunk_block, id_state);
+        let old_block = chunk.data.change_block(chunk_block, id_state);
 
         self.change_block_logic(chunk, chunk_block, &old_block, &self.blocks_manager.get_properties(id_state.id, 0));
     }
 
     pub fn destroy_block(&self, chunk: &Chunk, chunk_block: Vec3i, particles_manager: &mut ParticlesManager) {
-        let old_block = chunk.data.write().unwrap().change_block(chunk_block, BlockIdState::AIR);
+        let old_block = chunk.data.change_block(chunk_block, BlockIdState::AIR);
 
         self.change_block_logic(chunk, chunk_block, &old_block, &self.blocks_manager.get_properties(0, 0));
 
@@ -124,7 +124,7 @@ impl Planet {
         let z1 = (aabb.z1 + 1.0).floor() as i32;
 
         let mut chunk_getter = ChunkGetter::new();
-        let blocks_manager = SafePtr::from_ptr(self.blocks_manager.get_raw());
+        let blocks_manager = SafePtr::from_ptr(NullSafePtr::get_raw(&self.blocks_manager));
 
         for x in x0..x1 {
         for y in y0..y1 {
@@ -137,7 +137,7 @@ impl Planet {
             if let Some(ref ch) = chunk_getter.chunk {
                 let chunk_block = math::get_chunk_block(chunk_pos, global_coords);
 
-                let block_properties = ch.data.read().unwrap().get_block_properties(chunk_block);
+                let block_properties = ch.data.get_block_properties(chunk_block);
 
                 let mut stop = false;
                 func(&mut stop, self, blocks_manager.clone(), x, y, z, block_properties.clone());
@@ -202,7 +202,7 @@ impl Planet {
             if let Some(chunk) = chunk_getter.change(chunk_pos, &self.chunks_manager) {
                 let chunk_block = math::get_chunk_block(chunk_pos, block_pos);
 
-                let block_properties = chunk.data.read().unwrap().get_block_properties(chunk_block);
+                let block_properties = chunk.data.get_block_properties(chunk_block);
 
                 let iterater_info = BlockIteraterInfo {
                     global_block: block_pos,
@@ -262,19 +262,19 @@ impl Planet {
 
         // update around chunks to avoids visual glitchs
         if let Some(south) = neighbors.south && chunk_block.z == Chunk::CHUNK_SIZE_MINUS_ONE.z {
-            south.data.read().unwrap().regen_mesh.store(true, Ordering::Relaxed);
+            south.data.turn_on_flag(ChunkDataFlags::REGEN_MESH_FLAG);
         }
 
         if let Some(north) = neighbors.north && chunk_block.z == 0 {
-            north.data.read().unwrap().regen_mesh.store(true, Ordering::Relaxed);
+            north.data.turn_on_flag(ChunkDataFlags::REGEN_MESH_FLAG);
         }
 
         if let Some(west) = neighbors.west && chunk_block.x == 0 {
-            west.data.read().unwrap().regen_mesh.store(true, Ordering::Relaxed);
+            west.data.turn_on_flag(ChunkDataFlags::REGEN_MESH_FLAG);
         }
 
         if let Some(east) = neighbors.east && chunk_block.x == Chunk::CHUNK_SIZE_MINUS_ONE.x {
-            east.data.read().unwrap().regen_mesh.store(true, Ordering::Relaxed);
+            east.data.turn_on_flag(ChunkDataFlags::REGEN_MESH_FLAG);
         }
     }
 }

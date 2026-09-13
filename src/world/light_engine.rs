@@ -1,6 +1,5 @@
 use std::{collections::{HashMap, VecDeque}, sync::{Arc, Mutex, RwLock}};
-use std::sync::atomic::Ordering;
-use crate::{math::Vec3i, world::{Chunk, blocks::BlockProperties, chunk::{ChunkData, NeighborsChunksData, chunk::Directions}}};
+use crate::{math::Vec3i, world::{Chunk, blocks::BlockProperties, chunk::{NeighborsChunksData, chunk::Directions, chunk_data::{ChunkData, ChunkDataFlags, ChunkDataReadBehavior, ChunkDataReadGuard}}}};
 
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -45,7 +44,7 @@ enum UpdateType {
 }
 
 struct LightQueueData{
-    chunk_data: Arc<RwLock<ChunkData>>,
+    chunk_data: Arc<ChunkData>,
     chunk_block: Vec3i,
     light_level: u8,
     old_value: u8,
@@ -53,7 +52,7 @@ struct LightQueueData{
 
 impl LightQueueData {
     pub fn new(
-        chunk_data: Arc<RwLock<ChunkData>>,
+        chunk_data: Arc<ChunkData>,
         chunk_block: Vec3i,
         light_level: u8,
         old_value: u8
@@ -83,7 +82,7 @@ fn restore_queue(queue: VecDeque<LightQueueData>) { QUEUE_DATA_POOL.lock().unwra
 
 pub fn update_light(
     chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>,
-    chunk_data: Arc<RwLock<ChunkData>>,
+    chunk_data: Arc<ChunkData>,
     chunk_block: Vec3i,
     old_block: &BlockProperties,
     new_block: &BlockProperties
@@ -120,12 +119,12 @@ pub fn update_light(
         chunk_data.clone(),
         chunk_block,
         MIN_LEVEL,
-        chunk_data.read().unwrap().get_light(chunk_block, LightType::Sky)
+        chunk_data.get_light(chunk_block, LightType::Sky)
     ));
 
-    chunk_data.write().unwrap().set_light(chunk_block, new_value, LightType::Sky);
+    chunk_data.set_light(chunk_block, new_value, LightType::Sky);
 
-    let mut neighbors = NeighborsChunksData::new_from_map(chunks_map.clone(), chunk_data.read().unwrap().position, false);
+    let mut neighbors = NeighborsChunksData::new_from_map(chunks_map.clone(), chunk_data.get_position(), false);
 
     process_remove_queue(Some(&chunks_map), LightType::Sky, &mut add_sky_queue, &mut remove_queue, &mut neighbors);
     process_add_queue(Some(&chunks_map), LightType::Sky, &mut add_sky_queue, &mut neighbors);
@@ -136,14 +135,14 @@ pub fn update_light(
 
 pub fn update_light_in_border_neighbors(
     chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>,
-    chunk_data: Arc<RwLock<ChunkData>>,
+    chunk_data: Arc<ChunkData>,
     neighbors_chunks_data: NeighborsChunksData
 ) {
-    let update_light_in_border = |chunk_data: Arc<RwLock<ChunkData>>, light_type: LightType, face: Directions| {
+    let update_light_in_border = |chunk_data: Arc<ChunkData>, light_type: LightType, face: Directions| {
         let mut add_queue = get_queue();
         let chunk_pos: Vec3i;
 
-        let mut add_light_border_in_queue = |data: &ChunkData, chunk_block: Vec3i| {
+        let mut add_light_border_in_queue = |data: &ChunkDataReadGuard, chunk_block: Vec3i| {
             //let sub_chunk = (chunk_block.y as f32 / Chunk::SUB_CHUNK_SIZE.y as f32).floor() as usize;
             //if data.light_sections[sub_chunk] == LightSectionLevel::Two {
             //    return;
@@ -158,10 +157,10 @@ pub fn update_light_in_border_neighbors(
 
 
         {
-            let data = chunk_data.read().unwrap();
-            chunk_pos = data.position;
+            let data = chunk_data.read_guard();
+            chunk_pos = data.get_position();
 
-            if light_type == LightType::Block && !data.contains_emissive_blocks {
+            if light_type == LightType::Block && !data.flag_contains(ChunkDataFlags::CONTAINS_EMISSIVE_BLOCKS_FLAG) {
                 restore_queue(add_queue);
 
                 return;
@@ -210,39 +209,39 @@ pub fn update_light_in_border_neighbors(
     update_light_in_border(chunk_data.clone(), LightType::Sky, Directions::Nothing);
 
     if let Some(north) = neighbors_chunks_data.north {
-        north.read().unwrap().light_gen_stage.store(true, Ordering::Relaxed);
+        north.turn_on_flag(ChunkDataFlags::LIGHT_COMPUTE_STAGE_FLAG);
         update_light_in_border(north.clone(), LightType::Block, Directions::South);
         update_light_in_border(north.clone(), LightType::Sky, Directions::South);
-        north.read().unwrap().light_gen_stage.store(false, Ordering::Relaxed)
+        north.turn_off_flag(ChunkDataFlags::LIGHT_COMPUTE_STAGE_FLAG)
     }
     if let Some(south) = neighbors_chunks_data.south {
-        south.read().unwrap().light_gen_stage.store(true, Ordering::Relaxed);
+        south.turn_on_flag(ChunkDataFlags::LIGHT_COMPUTE_STAGE_FLAG);
         update_light_in_border(south.clone(), LightType::Block, Directions::North);
         update_light_in_border(south.clone(), LightType::Sky, Directions::North);
-        south.read().unwrap().light_gen_stage.store(false, Ordering::Relaxed)
+        south.turn_off_flag(ChunkDataFlags::LIGHT_COMPUTE_STAGE_FLAG)
     }
     if let Some(west) = neighbors_chunks_data.west {
-        west.read().unwrap().light_gen_stage.store(true, Ordering::Relaxed);
+        west.turn_on_flag(ChunkDataFlags::LIGHT_COMPUTE_STAGE_FLAG);
         update_light_in_border(west.clone(), LightType::Block, Directions::East);
         update_light_in_border(west.clone(), LightType::Sky, Directions::East);
-        west.read().unwrap().light_gen_stage.store(false, Ordering::Relaxed)
+        west.turn_off_flag(ChunkDataFlags::LIGHT_COMPUTE_STAGE_FLAG)
     }
     if let Some(east) = neighbors_chunks_data.east {
-        east.read().unwrap().light_gen_stage.store(true, Ordering::Relaxed);
+        east.turn_on_flag(ChunkDataFlags::LIGHT_COMPUTE_STAGE_FLAG);
         update_light_in_border(east.clone(), LightType::Block, Directions::West);
         update_light_in_border(east.clone(), LightType::Sky, Directions::West);
-        east.read().unwrap().light_gen_stage.store(false, Ordering::Relaxed)
+        east.turn_off_flag(ChunkDataFlags::LIGHT_COMPUTE_STAGE_FLAG)
     }
 
-    chunk_data.read().unwrap().light_gen_stage.store(false, Ordering::Relaxed);
+    chunk_data.turn_off_flag(ChunkDataFlags::LIGHT_COMPUTE_STAGE_FLAG);
 }
 
-pub fn compute_light_value(chunk_data: Arc<RwLock<ChunkData>>) {
+pub fn compute_light_value(chunk_data: Arc<ChunkData>) {
     let mut add_sky_queue = get_queue();
     let mut add_block_queue = get_queue();
 
     {
-        let mut data = chunk_data.write().unwrap();
+        let mut data = chunk_data.write_guard();
         //compute_sections(&mut data);
 
         for x in 0..Chunk::CHUNK_SIZE.x {
@@ -259,7 +258,7 @@ pub fn compute_light_value(chunk_data: Arc<RwLock<ChunkData>>) {
                 let block = data.get_block_properties(chunk_block);
 
                 if block.light_emission > MIN_LEVEL {
-                    data.contains_emissive_blocks = true;
+                    data.turn_on_flag(ChunkDataFlags::CONTAINS_EMISSIVE_BLOCKS_FLAG);
 
                     data.set_light(chunk_block, block.light_emission, LightType::Block);
                     add_block_queue.push_back(LightQueueData::new(chunk_data.clone(), chunk_block, block.light_emission, MIN_LEVEL));
@@ -292,49 +291,49 @@ pub fn compute_light_value(chunk_data: Arc<RwLock<ChunkData>>) {
 
 fn compute_sections(chunk_data: &mut ChunkData) {
     // checks if sub chunks contains only air blocks
-    for sub_chunk in 0..Chunk::SUB_CHUNK_COUNT {
-        for i in 0..Chunk::SUB_CHUNK_DATA_SIZE {
-            // block != air founded, then mark that light section to 0
-            if chunk_data.blocks_id[sub_chunk * Chunk::SUB_CHUNK_DATA_SIZE + i] != 0 {
-                chunk_data.light_sections[sub_chunk] = LightSectionLevel::Zero;
+    //for sub_chunk in 0..Chunk::SUB_CHUNK_COUNT {
+    //    for i in 0..Chunk::SUB_CHUNK_DATA_SIZE {
+    //        // block != air founded, then mark that light section to 0
+    //        if chunk_data.blocks_id[sub_chunk * Chunk::SUB_CHUNK_DATA_SIZE + i] != 0 {
+    //            chunk_data.light_sections[sub_chunk] = LightSectionLevel::Zero;
 
-                if sub_chunk > 0 && chunk_data.light_sections[sub_chunk - 1] == LightSectionLevel::Two {
-                    chunk_data.light_sections[sub_chunk - 1] = LightSectionLevel::One;
-                }
-                else if sub_chunk < Chunk::SUB_CHUNK_COUNT - 1 && chunk_data.light_sections[sub_chunk + 1] == LightSectionLevel::Two {
-                    chunk_data.light_sections[sub_chunk + 1] = LightSectionLevel::One;
-                }
+    //            if sub_chunk > 0 && chunk_data.light_sections[sub_chunk - 1] == LightSectionLevel::Two {
+    //                chunk_data.light_sections[sub_chunk - 1] = LightSectionLevel::One;
+    //            }
+    //            else if sub_chunk < Chunk::SUB_CHUNK_COUNT - 1 && chunk_data.light_sections[sub_chunk + 1] == LightSectionLevel::Two {
+    //                chunk_data.light_sections[sub_chunk + 1] = LightSectionLevel::One;
+    //            }
 
-                break;
-            }
-        }
-    }
+    //            break;
+    //        }
+    //    }
+    //}
 
-    for sub_chunk in (0..Chunk::SUB_CHUNK_COUNT).rev() {
-        if chunk_data.light_sections[sub_chunk] != LightSectionLevel::Two {
-            break;
-        }
+    //for sub_chunk in (0..Chunk::SUB_CHUNK_COUNT).rev() {
+    //    if chunk_data.light_sections[sub_chunk] != LightSectionLevel::Two {
+    //        break;
+    //    }
 
-        for i in 0..Chunk::SUB_CHUNK_DATA_SIZE {
-            chunk_data.light_levels[sub_chunk * Chunk::SUB_CHUNK_DATA_SIZE + i] = MAX_LEVEL;
-        }
-    }
+    //    for i in 0..Chunk::SUB_CHUNK_DATA_SIZE {
+    //        chunk_data.light_levels[sub_chunk * Chunk::SUB_CHUNK_DATA_SIZE + i] = MAX_LEVEL;
+    //    }
+    //}
 }
 
 fn add_block_light_source(
     chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>,
-    chunk_data: Arc<RwLock<ChunkData>>,
+    chunk_data: Arc<ChunkData>,
     chunk_block: Vec3i,
     block: &BlockProperties
 ) {
-    let new_value = chunk_data.read().unwrap().get_light(chunk_block, LightType::Block).max(block.light_emission);
-    chunk_data.write().unwrap().set_light(chunk_block, new_value, LightType::Block);
+    let new_value = chunk_data.get_light(chunk_block, LightType::Block).max(block.light_emission);
+    chunk_data.set_light(chunk_block, new_value, LightType::Block);
 
     let mut add_queue = get_queue();
 
     add_queue.push_back(LightQueueData::new(chunk_data.clone(), chunk_block, new_value, MIN_LEVEL));
 
-    let mut neighbors = NeighborsChunksData::new_from_map(chunks_map.clone(), chunk_data.read().unwrap().position, false);
+    let mut neighbors = NeighborsChunksData::new_from_map(chunks_map.clone(), chunk_data.get_position(), false);
 
     process_add_queue(Some(&chunks_map), LightType::Block, &mut add_queue, &mut neighbors);
     restore_queue(add_queue);
@@ -342,18 +341,18 @@ fn add_block_light_source(
 
 fn remove_block_light_source(
     chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>,
-    chunk_data: Arc<RwLock<ChunkData>>,
+    chunk_data: Arc<ChunkData>,
     chunk_block: Vec3i
 ) {
     let mut add_queue = get_queue();
     let mut remove_queue = get_queue();
 
-    let current_value = chunk_data.read().unwrap().get_light(chunk_block, LightType::Block);
+    let current_value = chunk_data.get_light(chunk_block, LightType::Block);
     remove_queue.push_back(LightQueueData::new(chunk_data.clone(), chunk_block, MIN_LEVEL, current_value));
 
-    chunk_data.write().unwrap().set_light(chunk_block, MIN_LEVEL, LightType::Block);
+    chunk_data.set_light(chunk_block, MIN_LEVEL, LightType::Block);
 
-    let mut neighbors = NeighborsChunksData::new_from_map(chunks_map.clone(), chunk_data.read().unwrap().position, false);
+    let mut neighbors = NeighborsChunksData::new_from_map(chunks_map.clone(), chunk_data.get_position(), false);
 
     process_remove_queue(Some(&chunks_map), LightType::Block, &mut add_queue, &mut remove_queue, &mut neighbors);
 
@@ -415,7 +414,7 @@ fn process_light_logic(
     let old_value = light_data.old_value;
 
     if let Some(chunks_map) = chunks_map {
-        neighbor_chunks.change_from_map(chunks_map.clone(), light_data.chunk_data.read().unwrap().position, false);
+        neighbor_chunks.change_from_map(chunks_map.clone(), light_data.chunk_data.get_position(), false);
     }
 
     let x = light_data.chunk_block.x;
@@ -476,11 +475,11 @@ fn update_light_logic(
     update_type: UpdateType,
     dir: Directions,
     mut chunk_block: Vec3i,
-    chunk_data: Arc<RwLock<ChunkData>>,
+    chunk_data: Arc<ChunkData>,
     add_queue: &mut VecDeque<LightQueueData>,
     remove_queue: &mut Option<&mut VecDeque<LightQueueData>>
 ) {
-    let mut ch_data = chunk_data.write().unwrap();
+    let mut ch_data = chunk_data.write_guard();
 
     let mut current_value = ch_data.get_light(chunk_block, light_type);
     let mut current_block = ch_data.get_block_properties(chunk_block);

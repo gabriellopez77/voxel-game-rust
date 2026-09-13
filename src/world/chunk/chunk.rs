@@ -7,8 +7,9 @@ use crate::render::chunks_renderer::ChunkMeshResult;
 use crate::render::{BlockItemVertices, ChunkMesh, ChunkVertices, ChunksRenderer};
 use crate::utils::SafePtr;
 use crate::world::blocks::{BlockProperties, BlockTypes, BlocksManager};
+use crate::world::chunk::chunk_data::ChunkDataFlags;
 use crate::world::chunk::neighbors_chunks_data::NeighborsChunksData;
-use crate::world::chunk::ChunkData;
+use crate::world::chunk::chunk_data::{ChunkData, ChunkDataReadGuard, ChunkDataReadBehavior};
 use crate::world::light_engine::LightType;
 use crate::world::player::Camera;
 use crate::world::world_gen::WorldGen;
@@ -41,13 +42,12 @@ pub struct Chunk {
     pub position: Vec3i,
     pub visual_position: Vec3,
 
-    pub data: Arc<RwLock<ChunkData>>,
+    pub data: Arc<ChunkData>,
 
     pub content: RefCell<SingleThreadContent>,
 }
 
 // 'content' is acessed only on the main thread
-unsafe impl Send for Chunk {}
 unsafe impl Sync for Chunk {}
 
 impl Chunk {
@@ -60,14 +60,14 @@ impl Chunk {
     pub const SUB_CHUNK_COUNT: usize = (Self::CHUNK_SIZE.y / Self::SUB_CHUNK_SIZE.y) as usize;
     pub const REGION_SIZE: usize = 16;
 
-    pub fn new(position: Vec3i, chunk_data: Option<Arc<RwLock<ChunkData>>>, blocks_manager: SafePtr<BlocksManager>) -> Self {
+    pub fn new(position: Vec3i, chunk_data: Option<Arc<ChunkData>>, blocks_manager: SafePtr<BlocksManager>) -> Self {
         let visual_position = position * Self::CHUNK_SIZE;
 
         Self {
             position,
             visual_position: visual_position.as_vec3(),
 
-            data: if let Some(data) = chunk_data { data } else { Arc::new(RwLock::new(ChunkData::new(position, blocks_manager))) },
+            data: if let Some(data) = chunk_data { data } else { Arc::new(ChunkData::new(position, blocks_manager)) },
 
             content: RefCell::new(SingleThreadContent {
                 renderer: ChunkMesh::new(),
@@ -77,7 +77,7 @@ impl Chunk {
     }
 
     pub fn start(&mut self, world_gen: &mut WorldGen, blocks_manager: &BlocksManager) {
-        world_gen.gen_data(self.position, &mut self.data.write().unwrap(), blocks_manager);
+        world_gen.gen_data(self.position, &self.data, blocks_manager);
     }
 
     pub fn draw(&self,
@@ -100,8 +100,8 @@ impl Chunk {
         //    self.renderer.update_mesh(&mesh_result, renderer);
         //}
 
-        if let Ok(data) = self.data.try_read() && data.need_regen_mesh() {
-            data.regen_mesh.store(false, Ordering::Relaxed);
+        if self.data.need_regen_mesh() {
+            self.data.turn_off_flag(ChunkDataFlags::REGEN_MESH_FLAG);
 
             renderer.gen_mesh(chunks_map, self.data.clone(), self.position);
         }
@@ -110,10 +110,10 @@ impl Chunk {
     }
 
     pub fn gen_mesh(mesh_result: &mut ChunkMeshResult, blocks_manager: &BlocksManager) {
-        let chunk_data = &*mesh_result.chunk_data.read().unwrap();
+        let chunk_data = mesh_result.chunk_data.read_guard();
         let neighbors_data = &mesh_result.neighbors_data;
 
-        let chunk_pos = chunk_data.position.as_vec3() * Self::CHUNK_SIZEF;
+        let chunk_pos = chunk_data.get_position().as_vec3() * Self::CHUNK_SIZEF;
 
         for x in 0..Chunk::CHUNK_SIZE.x {
         for y in 0..Chunk::CHUNK_SIZE.y {
@@ -132,7 +132,7 @@ impl Chunk {
             let mut draw = false;
 
             // add nothing faces
-            Self::add_face(chunk_data, neighbors_data, &mut vertices, &mesh.nothing_vertices, chunk_block, chunk_pos, Directions::Nothing, ambient_occlusion);
+            Self::add_face(&chunk_data, neighbors_data, &mut vertices, &mesh.nothing_vertices, chunk_block, chunk_pos, Directions::Nothing, ambient_occlusion);
 
 
             // up
@@ -142,7 +142,7 @@ impl Chunk {
             }
             else if y == Chunk::CHUNK_SIZE_MINUS_ONE.y { draw = true }
 
-            if draw { Self::add_face(chunk_data, neighbors_data, &mut vertices, &mesh.up_vertices, chunk_block, chunk_pos, Directions::Up, ambient_occlusion); }
+            if draw { Self::add_face(&chunk_data, neighbors_data, &mut vertices, &mesh.up_vertices, chunk_block, chunk_pos, Directions::Up, ambient_occlusion); }
             draw = false;
 
 
@@ -152,7 +152,7 @@ impl Chunk {
                 draw = Self::draw_face(&block_properties, &around, Directions::Down);
             }
 
-            if draw { Self::add_face(chunk_data, neighbors_data, &mut vertices, &mesh.down_vertices, chunk_block, chunk_pos, Directions::Down, ambient_occlusion); }
+            if draw { Self::add_face(&chunk_data, neighbors_data, &mut vertices, &mesh.down_vertices, chunk_block, chunk_pos, Directions::Down, ambient_occlusion); }
             draw = false;
 
 
@@ -162,11 +162,11 @@ impl Chunk {
                 draw = Self::draw_face(&block_properties, &around, Directions::South);
             }
             else if let Some(ref south) = neighbors_data.south {
-                let around = south.read().unwrap().get_block_properties(Vec3i::new(x, y, 0));
+                let around = south.get_block_properties(Vec3i::new(x, y, 0));
                 draw = Self::draw_face(&block_properties, &around, Directions::South);
             }
 
-            if draw { Self::add_face(chunk_data, neighbors_data, &mut vertices, &mesh.south_vertices, chunk_block, chunk_pos, Directions::South, ambient_occlusion); }
+            if draw { Self::add_face(&chunk_data, neighbors_data, &mut vertices, &mesh.south_vertices, chunk_block, chunk_pos, Directions::South, ambient_occlusion); }
             draw = false;
 
 
@@ -176,11 +176,11 @@ impl Chunk {
                 draw = Self::draw_face(&block_properties, &around, Directions::North);
             }
             else if let Some(ref north) = neighbors_data.north {
-                let around = north.read().unwrap().get_block_properties(Vec3i::new(x, y, Self::CHUNK_SIZE_MINUS_ONE.z));
+                let around = north.get_block_properties(Vec3i::new(x, y, Self::CHUNK_SIZE_MINUS_ONE.z));
                 draw = Self::draw_face(&block_properties, &around, Directions::North);
             }
 
-            if draw { Self::add_face(chunk_data, neighbors_data, &mut vertices, &mesh.north_vertices, chunk_block, chunk_pos, Directions::North, ambient_occlusion); }
+            if draw { Self::add_face(&chunk_data, neighbors_data, &mut vertices, &mesh.north_vertices, chunk_block, chunk_pos, Directions::North, ambient_occlusion); }
             draw = false;
 
 
@@ -190,11 +190,11 @@ impl Chunk {
                 draw = Self::draw_face(&block_properties, &around, Directions::East);
             }
             else if let Some(ref east) = neighbors_data.east {
-                let around = east.read().unwrap().get_block_properties(Vec3i::new(0, y, z));
+                let around = east.get_block_properties(Vec3i::new(0, y, z));
                 draw = Self::draw_face(&block_properties, &around, Directions::East);
             }
 
-            if draw { Self::add_face(chunk_data, neighbors_data, &mut vertices, &mesh.east_vertices, chunk_block, chunk_pos, Directions::East, ambient_occlusion); }
+            if draw { Self::add_face(&chunk_data, neighbors_data, &mut vertices, &mesh.east_vertices, chunk_block, chunk_pos, Directions::East, ambient_occlusion); }
             draw = false;
 
 
@@ -204,18 +204,18 @@ impl Chunk {
                 draw = Self::draw_face(&block_properties, &around, Directions::West);
             }
             else if let Some(ref west) = neighbors_data.west {
-                let around = west.read().unwrap().get_block_properties(Vec3i::new(Self::CHUNK_SIZE_MINUS_ONE.x, y, z));
+                let around = west.get_block_properties(Vec3i::new(Self::CHUNK_SIZE_MINUS_ONE.x, y, z));
                 draw = Self::draw_face(&block_properties, &around, Directions::West);
             }
 
-            if draw { Self::add_face(chunk_data, neighbors_data, &mut vertices, &mesh.west_vertices, chunk_block, chunk_pos, Directions::West, ambient_occlusion); }
+            if draw { Self::add_face(&chunk_data, neighbors_data, &mut vertices, &mesh.west_vertices, chunk_block, chunk_pos, Directions::West, ambient_occlusion); }
         }
         }
         }
     }
 
     fn add_face(
-        chunk_data: &ChunkData,
+        chunk_data: &ChunkDataReadGuard,
         neighbors_data: &NeighborsChunksData,
         vertices: &mut Vec<ChunkVertices>,
         mesh_vertices: &Vec<BlockItemVertices>,
@@ -292,7 +292,7 @@ impl Chunk {
     }
 
     fn get_light_level(
-        chunk_data: &ChunkData,
+        chunk_data: &ChunkDataReadGuard,
         neighbors_data: &NeighborsChunksData,
         ch_block: Vec3i,
         face_pos: Vec3,
@@ -303,7 +303,7 @@ impl Chunk {
             let ndy = (if dy < 0.0 { dy.ceil() } else { dy.floor() }).clamp(-1.0, 1.0) as i32;
             let ndz = (if dz < 0.0 { dz.ceil() } else { dz.floor() }).clamp(-1.0, 1.0) as i32;
 
-            let chunk_pos = chunk_data.position;
+            let chunk_pos = chunk_data.get_position();
 
             let global_block = (chunk_pos * Self::CHUNK_SIZE) + ch_block + Vec3i::new(ndx, ndy, ndz);
 
@@ -315,8 +315,8 @@ impl Chunk {
 		    let other_chunk_block = math::get_chunk_block(other_chunk_pos, global_block.as_vec3());
 
             enum Tee<'a> {
-                Same(&'a ChunkData),
-                Other(Option<&'a Arc<RwLock<ChunkData>>>)
+                Same(&'a ChunkDataReadGuard<'a>),
+                Other(Option<&'a Arc<ChunkData>>)
             }
 
 		    let mut ch_data = Tee::Same(chunk_data);
@@ -338,7 +338,7 @@ impl Chunk {
 
             return match ch_data {
                 Tee::Same(c) => c.get_light(other_chunk_block, LightType::Both),
-                Tee::Other(o) if let Some(c) = o => c.read().unwrap().get_light(other_chunk_block, LightType::Both),
+                Tee::Other(o) if let Some(c) = o => c.get_light(other_chunk_block, LightType::Both),
                 _ => 0
             }
         };
@@ -357,14 +357,14 @@ impl Chunk {
     }
 
     fn get_ao_level(
-        chunk_data: &ChunkData,
+        chunk_data: &ChunkDataReadGuard,
         neighbors_data: &NeighborsChunksData,
         ch_block: Vec3i,
         face_pos: Vec3,
         dir: Directions,
         vertex: u8
     ) -> u8 {
-        let ch_pos = { chunk_data.position };
+        let ch_pos = { chunk_data.get_position() };
 
    	    let get_ao = |dx: f32, dy: f32, dz: f32| -> u8 {
             let ndx = (if dx < 0.0 { dx.ceil() } else { dx.floor() }).clamp(-1.0, 1.0) as i32;
@@ -394,8 +394,8 @@ impl Chunk {
 		    let other_chunk_block = math::get_chunk_block(other_ch_pos, global_block.as_vec3());
 
             enum Tee<'a> {
-                Same(&'a ChunkData),
-                Other(Option<&'a Arc<RwLock<ChunkData>>>)
+                Same(&'a ChunkDataReadGuard<'a>),
+                Other(Option<&'a Arc<ChunkData>>)
             }
 
 			let mut ch = Tee::Same(chunk_data);
@@ -420,7 +420,7 @@ impl Chunk {
                     !c.get_block_properties(other_chunk_block).is_transparent as u8
                 }
                 Tee::Other(o) if let Some(c) = o => {
-                    !c.read().unwrap().get_block_properties(other_chunk_block).is_transparent as u8
+                    !c.get_block_properties(other_chunk_block).is_transparent as u8
                 }
                 _ => 0
             }

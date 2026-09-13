@@ -1,19 +1,19 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use crate::{math::Vec3i, world::{Chunk, chunk::ChunkData}};
+use crate::{math::Vec3i, world::{Chunk, chunk::chunk_data::ChunkData}};
 use crate::world::ChunksManager;
 
 
 pub struct NeighborsChunksData {
-    pub north: Option<Arc<RwLock<ChunkData>>>,
-    pub south: Option<Arc<RwLock<ChunkData>>>,
-    pub west: Option<Arc<RwLock<ChunkData>>>,
-    pub east: Option<Arc<RwLock<ChunkData>>>,
+    pub north: Option<Arc<ChunkData>>,
+    pub south: Option<Arc<ChunkData>>,
+    pub west: Option<Arc<ChunkData>>,
+    pub east: Option<Arc<ChunkData>>,
 
-    pub northwest: Option<Arc<RwLock<ChunkData>>>,
-    pub northeast: Option<Arc<RwLock<ChunkData>>>,
-    pub southwest: Option<Arc<RwLock<ChunkData>>>,
-    pub southeast: Option<Arc<RwLock<ChunkData>>>,
+    pub northwest: Option<Arc<ChunkData>>,
+    pub northeast: Option<Arc<ChunkData>>,
+    pub southwest: Option<Arc<ChunkData>>,
+    pub southeast: Option<Arc<ChunkData>>,
 
     chunk_pos: Vec3i,
     first_time: bool,
@@ -40,10 +40,10 @@ impl NeighborsChunksData {
     }
 
     pub fn new_from_map(chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>, pos: Vec3i, corners: bool) -> Self {
-        let mut data_northwest: Option<Arc<RwLock<ChunkData>>> = None;
-        let mut data_northeast: Option<Arc<RwLock<ChunkData>>> = None;
-        let mut data_southwest: Option<Arc<RwLock<ChunkData>>> = None;
-        let mut data_southeast: Option<Arc<RwLock<ChunkData>>> = None;
+        let mut data_northwest: Option<Arc<ChunkData>> = None;
+        let mut data_northeast: Option<Arc<ChunkData>> = None;
+        let mut data_southwest: Option<Arc<ChunkData>> = None;
+        let mut data_southeast: Option<Arc<ChunkData>> = None;
 
         if corners {
             data_northwest = Self::set_data(&chunks_map, pos.x - 1, pos.y, pos.z - 1);
@@ -96,7 +96,7 @@ impl NeighborsChunksData {
         self.change_from_map(chunks_manager.chunks.clone(), pos, corners);
     }
 
-    fn set_data(chunks_map: &Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>, x: i32, y: i32, z: i32) -> Option<Arc<RwLock<ChunkData>>> {
+    fn set_data(chunks_map: &Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>, x: i32, y: i32, z: i32) -> Option<Arc<ChunkData>> {
         if let Some(chunk1) = chunks_map.read().unwrap().get(&Vec3i::new(x, y, z)) && let Some(chunk2) = chunk1 {
             return Some(chunk2.data.clone());
         }

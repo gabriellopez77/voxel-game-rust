@@ -22,8 +22,6 @@ pub struct Mesh {
     triangles_count: u32,
 }
 
-unsafe impl Send for Mesh {}
-
 impl Drop for Mesh {
     fn drop(&mut self) {
         for buffer in &mut self.raw_buffers {

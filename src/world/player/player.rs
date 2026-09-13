@@ -221,7 +221,7 @@ impl Player {
                     let chunk_block = math::get_chunk_block(chunk_pos, place_block);
 
                     if let Some(chunk) = planet.chunks_manager.get_chunk(chunk_pos) {
-                        let block_properties = chunk.data.read().unwrap().get_block_properties(chunk_block);
+                        let block_properties = chunk.data.get_block_properties(chunk_block);
 
                         if block_properties.can_replace {
                             action = true;
@@ -237,7 +237,7 @@ impl Player {
         if let Some(chunk) = planet.chunks_manager.get_chunk(chunk_pos) {
             let chunk_block = math::get_chunk_block(chunk_pos, self.aabb.get_min());
 
-            self.light_levels = chunk.data.read().unwrap().get_light(chunk_block, LightType::Both);
+            self.light_levels = chunk.data.get_light(chunk_block, LightType::Both);
         }
         else {
             self.light_levels = light_engine::MAX_SKY_LEVEL;

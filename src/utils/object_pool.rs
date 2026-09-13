@@ -1,3 +1,5 @@
+use serde_json::Value::Object;
+
 pub struct ObjectPool<T> {
     objects: Vec<T>,
 }
@@ -30,5 +32,17 @@ impl<T> ObjectPool<T> {
 
     pub fn restore(&mut self, obj: T) {
         self.objects.push(obj);
+    }
+
+    pub fn get_from_fn<T2>(&mut self, mut func: T2) -> Option<T>
+    where T2: FnMut(&mut T) -> bool
+    {
+        for i in 0..self.objects.len() {
+            if func(&mut self.objects[i]) {
+                return Some(self.objects.swap_remove(i));
+            }
+        }
+
+        return None;
     }
 }

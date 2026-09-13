@@ -2,7 +2,7 @@ use std::{array, cell::RefCell, collections::HashMap, rc::Rc, sync::{Arc, RwLock
 
 use ash::vk;
 
-use crate::{math::Vec3i, render::{ChunkVertices, GlobalRenderer, Material, MultiMesh, core::{RawBuffer, raw_buffer::{BufferFlags, BufferResizeMode}}, multi_mesh::MultiMeshInfo}, resources::{ResourceManager, ThreadWorkerValue}, utils::NullSafePtr, world::{Chunk, blocks::BlocksManager, chunk::{ChunkData, NeighborsChunksData}}};
+use crate::{math::Vec3i, render::{ChunkVertices, GlobalRenderer, Material, MultiMesh, core::{RawBuffer, raw_buffer::{BufferFlags, BufferResizeMode}}, multi_mesh::MultiMeshInfo}, resources::{ResourceManager, ThreadWorkerValue}, utils::NullSafePtr, world::{Chunk, blocks::BlocksManager, chunk::{chunk_data::ChunkData, NeighborsChunksData}}};
 use crate::utils::ObjectPool;
 
 
@@ -14,7 +14,7 @@ pub struct ChunkInstanceData {
 
 pub struct ChunkMeshResult {
     pub neighbors_data: NeighborsChunksData,
-    pub chunk_data: Arc<RwLock<ChunkData>>,
+    pub chunk_data: Arc<ChunkData>,
 
     pub vertices: [Vec<ChunkVertices>; ChunkRendererType::RENDERS_COUNT],
     pub indices: [Vec<u32>; ChunkRendererType::RENDERS_COUNT],
@@ -212,7 +212,7 @@ impl ChunksRenderer {
 
     pub fn gen_mesh(&mut self,
         chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>,
-        chunk_data: Arc<RwLock<ChunkData>>,
+        chunk_data: Arc<ChunkData>,
         chunk_pos: Vec3i
     ) {
         // SAFETY: blocks_manager reference is valid for all game time
