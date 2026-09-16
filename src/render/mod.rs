@@ -17,7 +17,6 @@ pub mod core;
 pub use {
     texture::Texture,
     ubo::Ubo,
-    vertices_data::*,
     chunk_mesh::ChunkMesh,
     ui_renderer::UiRenderer,
     global_renderer::GlobalRenderer,

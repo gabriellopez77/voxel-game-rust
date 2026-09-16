@@ -2,6 +2,7 @@
 
 use crate::math::{self, Matrix4, Vec2, Vec3, Vec3i};
 
+use crate::world::chunk::chunk_data::ChunkDataReadBehavior;
 use crate::world::{Aabb, Chunk, Planet};
 
 

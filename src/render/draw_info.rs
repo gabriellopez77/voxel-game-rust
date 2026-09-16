@@ -15,7 +15,7 @@ pub struct DrawInfo {
 
     pub buffers: [vk::Buffer; vkutl::MAX_VERTEX_BINDING_COUNT],
     pub index_buffer: vk::Buffer,
-    
+
     pub draw_type: DrawType,
 
     pub push_constant_idx: i32,

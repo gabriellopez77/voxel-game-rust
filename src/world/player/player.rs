@@ -1,9 +1,11 @@
 ﻿use crate::game::{GameEvents, PlayerStates};
-use crate::render::{EntitiesCubesVertices, EntitiesRenderer, GlobalRenderer};
+use crate::render::vertices_data::EntitiesCubesVertices;
+use crate::render::{EntitiesRenderer, GlobalRenderer};
 use crate::resources::ResourceManager;
 use crate::ui::ui_manager::ScreensId;
 use crate::utils::SafePtr;
 use crate::world::blocks::BlockProperties;
+use crate::world::chunk::chunk_data::ChunkDataReadBehavior;
 use crate::world::light_engine::{self, LightType};
 use crate::world::particles::ParticlesManager;
 use crate::world::world::WorldUpdateArgs;

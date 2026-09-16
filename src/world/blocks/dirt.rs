@@ -1,11 +1,11 @@
-use crate::{world::{blocks::{BlockFunctions, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
+use crate::{world::{blocks::{BlockBehaviors, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
 
 
 pub struct Dirt {
     properties: BlockProperties
 }
 
-impl BlockFunctions for Dirt {
+impl BlockBehaviors for Dirt {
     fn get_properties(&self, state: u8) -> &BlockProperties {
         &self.properties
     }

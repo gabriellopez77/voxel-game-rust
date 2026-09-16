@@ -7,7 +7,6 @@ pub mod vec3;
 pub mod vec3i;
 
 pub mod vec4;
-pub mod vec4i16;
 
 pub mod color3b;
 pub mod color4b;
@@ -32,13 +31,12 @@ pub use {
     vec3i::Vec3i,
 
     vec4::Vec4,
-    vec4i16::Vec4i16,
 
     color4b::Color4b,
     color3b::Color3b,
 
     matrix4::Matrix4,
     quaternion::Quaternion,
-    
+
     key_frame::KeyFrame,
 };

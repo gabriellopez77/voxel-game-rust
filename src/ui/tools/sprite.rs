@@ -1,7 +1,13 @@
-﻿use crate::math::{Color4b, Vec2, Vec2i16};
-use crate::render::{SpritesVertices, Texture, UiRenderer};
-use crate::resources::TexCoords;
-use crate::ui::tools::ui_element::UiElement;
+﻿use crate::{
+    math::{Color4b, Vec2, Vec2i16},
+    render::{
+        UiRenderer,
+        Texture,
+        vertices_data::SpritesVertices,
+    },
+    ui::tools::UiElement,
+    resources::TexCoords,
+};
 
 
 pub struct Sprite {

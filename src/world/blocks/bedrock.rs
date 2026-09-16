@@ -1,11 +1,11 @@
-use crate::{world::{blocks::{BlockFunctions, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
+use crate::{world::{blocks::{BlockBehaviors, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
 
 
 pub struct Bedrock {
     properties: BlockProperties
 }
 
-impl BlockFunctions for Bedrock {
+impl BlockBehaviors for Bedrock {
     fn get_properties(&self, state: u8) -> &BlockProperties {
         &self.properties
     }

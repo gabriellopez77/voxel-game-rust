@@ -1,11 +1,11 @@
-use crate::{render::chunks_renderer::ChunkRendererType, world::{blocks::{BlockFunctions, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
+use crate::{render::chunks_renderer::ChunkRendererType, world::{blocks::{BlockBehaviors, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
 
 
 pub struct WaterBlock {
     properties: BlockProperties
 }
 
-impl BlockFunctions for WaterBlock {
+impl BlockBehaviors for WaterBlock {
     fn get_properties(&self, state: u8) -> &BlockProperties {
         &self.properties
     }

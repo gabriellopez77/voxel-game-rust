@@ -50,7 +50,7 @@ impl World {
         self.planet.start(&self.blocks_manager);
 
         self.sky.start(resources, global_renderer);
-        self.particles_manager.start(resources, global_renderer);
+        self.particles_manager.start(global_renderer);
 
 
         self.chunks_renderer.start(&self.blocks_manager, global_renderer);
@@ -82,7 +82,7 @@ impl World {
 
         self.planet.update(self.player.get_pos());
 
-        self.particles_manager.update(args.dt, &self.planet);
+        self.particles_manager.update(args.dt, args.resources, &self.blocks_manager, &self.planet);
     }
 
     pub fn draw(&mut self, dt: f32, global_renderer: &mut GlobalRenderer) {

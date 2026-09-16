@@ -8,13 +8,18 @@ use std::{
 };
 
 use image::DynamicImage;
-use crate::math::Vec3;
-use crate::render::core::raw_buffer::BufferFlags;
-use crate::render::{BlockItemVertices, Mesh};
-use crate::render::{Texture, core::VulkanApp};
-use crate::resources::{ItemBlockModel, FontInfo};
-use crate::ui::ButtonsStyles;
-use crate::utils::{NullSafePtrMut, SafePtrMut};
+
+use crate::{
+    math::Vec3,
+    render::{
+        core::{VulkanApp, raw_buffer::BufferFlags},
+        vertices_data::BlockItemVertices,
+        Texture, Mesh,
+    },
+    ui::ButtonsStyles,
+    resources::{ItemBlockModel, FontInfo},
+    utils::{NullSafePtrMut, SafePtrMut}
+};
 
 
 pub struct ResourceManager {

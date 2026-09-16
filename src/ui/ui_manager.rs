@@ -1,13 +1,21 @@
 use std::collections::VecDeque;
-use crate::game::{Game, GameEvents};
-use crate::inputs::Inputs;
-use crate::math::{Color4b, Matrix4, Vec2};
-use crate::render::{GlobalRenderer, UiRenderer};
-use crate::ui::screens::ui_common::UiCommonUpdateArgs;
-use crate::ui::{ScreenResizeArgs, ScreenStartArgs};
-use crate::ui::tools::Sprite;
-use crate::ui::{ScreenBase, screen_base::ScreenInfo, ScreenUpdateArgs, screens::*};
-use super::tools::UiElement;
+
+use crate::{
+    math::{Color4b, Matrix4, Vec2},
+    game::{Game, GameEvents},
+    inputs::Inputs,
+    render::{GlobalRenderer, UiRenderer},
+    ui::{
+        tools::{UiElement, Sprite},
+        screens::ui_common::UiCommonUpdateArgs,
+        screen_base::ScreenInfo,
+        screens::*,
+        ScreenResizeArgs,
+        ScreenStartArgs,
+        ScreenBase,
+        ScreenUpdateArgs,
+    },
+};
 
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]

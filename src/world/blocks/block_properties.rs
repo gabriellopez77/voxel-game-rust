@@ -15,7 +15,7 @@ pub enum BlockTypes {
     SnowLayer,
 }
 
-pub trait BlockFunctions {
+pub trait BlockBehaviors {
     fn get_properties(&self, state: u8) -> &BlockProperties;
 
     fn get_base(&self) -> &ItemBaseProperties { &self.get_properties(0).base_properties }
@@ -35,6 +35,13 @@ pub struct BlockIdState {
 
 impl BlockIdState {
     pub const AIR: Self = Self { id: 0, state: 0 };
+
+    pub fn new(id: u16, state: u8) -> Self {
+        Self {
+            id,
+            state
+        }
+    }
 }
 
 pub struct BlockProperties {

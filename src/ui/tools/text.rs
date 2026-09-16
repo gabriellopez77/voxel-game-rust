@@ -1,6 +1,14 @@
 use std::rc::Rc;
-use crate::{math::{Color3b, Vec2, Vec2i16}, render::{TextVertices, UiRenderer}, ui::tools::UiElement};
-use crate::resources::FontInfo;
+
+use crate::{
+    math::{Color3b, Vec2, Vec2i16},
+    render::{
+        UiRenderer,
+        vertices_data::TextVertices,
+    },
+    ui::tools::UiElement,
+    resources::FontInfo,
+};
 
 
 enum TextTypes {

@@ -1,11 +1,11 @@
-use crate::world::{Aabb, blocks::{BlockFunctions, BlockProperties}, items::{ItemCreation, ItemCreationArgs}};
+use crate::world::{Aabb, blocks::{BlockBehaviors, BlockProperties}, items::{ItemCreation, ItemCreationArgs}};
 
 
 pub struct SmoothStoneSlab {
     properties: BlockProperties
 }
 
-impl BlockFunctions for SmoothStoneSlab {
+impl BlockBehaviors for SmoothStoneSlab {
     fn get_properties(&self, state: u8) -> &BlockProperties {
         &self.properties
     }

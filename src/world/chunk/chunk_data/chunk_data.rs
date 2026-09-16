@@ -1,5 +1,21 @@
-use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard, atomic::{AtomicU16, Ordering}};
-use crate::{math::Vec3i, utils::SafePtr, world::{Chunk, blocks::{BlockIdState, BlockProperties, BlocksManager}, chunk::chunk_data::{ChunkDataReadBehavior, ChunkDataSharedContent, InternalReadBehavior}, light_engine::{LightSectionLevel, LightType}}};
+use std::{sync::{RwLock, RwLockReadGuard, RwLockWriteGuard, atomic::{AtomicU16, Ordering}}};
+
+use crate::{
+    math::Vec3i,
+    utils::SafePtr,
+    world::{
+        blocks::{BlockIdState, BlockProperties, BlocksManager},
+        chunk::{
+            chunk_data::{
+                ChunkDataReadBehavior,
+                ChunkDataSharedContent,
+                InternalReadBehavior,
+            },
+            Chunk,
+        },
+        light_engine::{LightSectionLevel, LightType},
+    }
+};
 
 
 #[derive(Clone, Copy)]
@@ -37,6 +53,15 @@ pub struct ChunkData {
 
 unsafe impl Sync for ChunkData {}
 
+impl<'a> InternalReadBehavior<'a, RwLockReadGuard<'a, ChunkDataSharedContent>> for ChunkData {
+    fn get_content(&self) -> &ChunkDataContent { &self.content }
+    fn get_shared_content(&self) -> RwLockReadGuard<'_, ChunkDataSharedContent> {
+        self.shared_content.read().unwrap()
+    }
+}
+
+impl<'a> ChunkDataReadBehavior<'a, RwLockReadGuard<'a, ChunkDataSharedContent>> for ChunkData {}
+
 impl ChunkData {
     /// uses the order: y, x, z
     pub fn get_index(x: i32, y: i32, z: i32) -> usize {
@@ -72,27 +97,6 @@ impl ChunkData {
         }
     }
 
-    pub fn get_position(&self) -> Vec3i { self.content.position }
-    pub fn flag_contains(&self, flag: ChunkDataFlags) -> bool { (self.content.flags.load(Ordering::Relaxed) & flag.0) != 0 }
-    pub fn need_regen_mesh(&self) -> bool {
-        let flags = ChunkDataFlags { 0: self.content.flags.load(Ordering::Relaxed) };
-
-        flags.contains(ChunkDataFlags::REGEN_MESH_FLAG) && !flags.contains(ChunkDataFlags::LIGHT_COMPUTE_STAGE_FLAG)
-    }
-
-    pub fn get_block_properties(&self, chunk_block: Vec3i) -> SafePtr<BlockProperties> {
-        self.shared_content.read().unwrap().get_block_properties(chunk_block, &self.content)
-    }
-
-    pub fn get_block_info(&self, chunk_block: Vec3i) -> ChunkBlockInfo {
-        self.shared_content.read().unwrap().get_block_info(chunk_block)
-    }
-
-    pub fn get_light(&self, chunk_block: Vec3i, light_type: LightType) -> u8 {
-        self.shared_content.read().unwrap().get_light(chunk_block, light_type)
-    }
-
-
     pub fn turn_on_flag(&self, flag: ChunkDataFlags) { self.content.flags.fetch_or(flag.0, Ordering::Relaxed); }
     pub fn turn_off_flag(&self, flag: ChunkDataFlags) { self.content.flags.fetch_and(!flag.0, Ordering::Relaxed); }
 
@@ -117,12 +121,12 @@ pub struct ChunkDataReadGuard<'a> {
     pub(super) shared_content_lock: RwLockReadGuard<'a, ChunkDataSharedContent>,
 }
 
-impl<'a> InternalReadBehavior for ChunkDataReadGuard<'a> {
+impl<'a> InternalReadBehavior<'a, &'a ChunkDataSharedContent> for ChunkDataReadGuard<'a> {
     fn get_content(&self) -> &ChunkDataContent { self.content }
-    fn get_shared_content(&self) -> &ChunkDataSharedContent { &self.shared_content_lock }
+    fn get_shared_content(&'a self) -> &'a ChunkDataSharedContent { &self.shared_content_lock }
 }
 
-impl<'a> ChunkDataReadBehavior for ChunkDataReadGuard<'a> {}
+impl<'a> ChunkDataReadBehavior<'a, &'a ChunkDataSharedContent> for ChunkDataReadGuard<'a> {}
 
 
 
@@ -131,12 +135,12 @@ pub struct ChunkDataWriteGuard<'a> {
     pub(super) shared_content_lock: RwLockWriteGuard<'a, ChunkDataSharedContent>,
 }
 
-impl<'a> InternalReadBehavior for ChunkDataWriteGuard<'a> {
+impl<'a> InternalReadBehavior<'a, &'a ChunkDataSharedContent> for ChunkDataWriteGuard<'a> {
     fn get_content(&self) -> &ChunkDataContent { self.content }
-    fn get_shared_content(&self) -> &ChunkDataSharedContent { &self.shared_content_lock }
+    fn get_shared_content(&'a self) -> &'a ChunkDataSharedContent { &self.shared_content_lock }
 }
 
-impl<'a> ChunkDataReadBehavior for ChunkDataWriteGuard<'a> {}
+impl<'a> ChunkDataReadBehavior<'a, &'a ChunkDataSharedContent> for ChunkDataWriteGuard<'a> {}
 
 impl<'a> ChunkDataWriteGuard<'a> {
     pub fn change_block(&mut self, chunk_block: Vec3i, id_state: BlockIdState) -> SafePtr<BlockProperties> {

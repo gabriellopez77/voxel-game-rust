@@ -81,22 +81,22 @@ impl DebugScreen {
 
     pub fn start(&mut self, args: &ScreenStartArgs) {
         self.fps_text.set_font(args.resources.get_font("default"));
-        self.fps_text.set_pos(10.0, 10.0);
+        self.fps_text.set_pos(10.0, 9.0 * 1.0);
 
         self.player_block_pos_text.set_font(args.resources.get_font("default"));
-        self.player_block_pos_text.set_pos(10.0, 19.0);
+        self.player_block_pos_text.set_pos(10.0, 9.0 * 2.0);
 
         self.player_chunk_block_text.set_font(args.resources.get_font("default"));
-        self.player_chunk_block_text.set_pos(10.0, 28.0);
+        self.player_chunk_block_text.set_pos(10.0, 9.0 * 3.0);
 
         self.global_staging_buffer_used_mb_text.set_font(args.resources.get_font("default"));
         self.global_staging_buffer_used_mb_text.set_pos(10.0, 28.0 + (9.0 * 3.0));
 
         self.global_staging_buffer_capacity_text.set_font(args.resources.get_font("default"));
-        self.global_staging_buffer_capacity_text.set_pos(10.0, 28.0 + (9.0 * 6.0));
+        self.global_staging_buffer_capacity_text.set_pos(10.0, 28.0 + (9.0 * 4.0));
 
         self.player_light_level_text.set_font(args.resources.get_font("default"));
-        self.player_light_level_text.set_pos(10.0, 28.0 + (9.0 * 4.0));
+        self.player_light_level_text.set_pos(10.0, 9.0 * 4.0);
 
 
         self.min_ms_text.set_font(args.resources.get_font("default"));

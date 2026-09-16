@@ -1,36 +1,34 @@
 ﻿use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::atomic::Ordering;
 use std::sync::{Arc, RwLock};
-use crate::math::{self, Vec3, Vec3i};
-use crate::render::chunks_renderer::ChunkMeshResult;
-use crate::render::{BlockItemVertices, ChunkMesh, ChunkVertices, ChunksRenderer};
-use crate::utils::SafePtr;
-use crate::world::blocks::{BlockProperties, BlockTypes, BlocksManager};
-use crate::world::chunk::chunk_data::ChunkDataFlags;
-use crate::world::chunk::neighbors_chunks_data::NeighborsChunksData;
-use crate::world::chunk::chunk_data::{ChunkData, ChunkDataReadGuard, ChunkDataReadBehavior};
-use crate::world::light_engine::LightType;
-use crate::world::player::Camera;
-use crate::world::world_gen::WorldGen;
 
+use crate::{
+   math::{self, Vec3, Vec3i},
+   utils::SafePtr,
+   game::Directions,
+   render::{
+       chunks_renderer::ChunkMeshResult,
+       vertices_data::{BlockItemVertices, ChunkVertices},
+       ChunkMesh,
+       ChunksRenderer,
+   },
+   world::{
+       blocks::{BlockProperties, BlockTypes, BlocksManager},
+       chunk::{
+           chunk_data::{
+               ChunkData,
+               ChunkDataFlags,
+               ChunkDataReadGuard,
+               ChunkDataReadBehavior
+           },
+           neighbors_chunks_data::NeighborsChunksData
+       },
+       light_engine::LightType,
+       player::Camera,
+       world_gen::WorldGen,
+   }
+};
 
-#[derive(Copy, Clone, Eq, PartialEq)]
-pub enum Directions {
-    Up,
-    Down,
-    North,
-    South,
-    West,
-    East,
-    Nothing,
-}
-
-impl Directions {
-    pub fn is_vertical(self) -> bool {
-        self == Self::Up || self == Self::Down
-    }
-}
 
 pub struct SingleThreadContent {
     pub renderer: ChunkMesh,
@@ -95,10 +93,6 @@ impl Chunk {
         if !content.inside_frustum {
             return;
         }
-
-        //if let Some(mesh_result) = renderer.get_generated_mesh(self.position) {
-        //    self.renderer.update_mesh(&mesh_result, renderer);
-        //}
 
         if self.data.need_regen_mesh() {
             self.data.turn_off_flag(ChunkDataFlags::REGEN_MESH_FLAG);

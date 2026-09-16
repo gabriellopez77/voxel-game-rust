@@ -1,8 +1,42 @@
 use std::{cell::RefCell, collections::HashMap, mem::offset_of, rc::Rc};
 use ash::{vk, vk::Handle};
 
-use crate::{math::{Color4b, Vec3}, render::{BlockItemVertices, ChunkVertices, CloudsVertices, DrawInfo, EntitiesCubesVertices, GlobalUboData, Material, Mesh, MultiMesh, OUTLINE_CUBE_INDICES, OUTLINE_CUBE_VERTICES, OutlineCubeVertices, ParticlesVertices, SkyBodiesVertices, SpritesVertices, TextVertices, Ubo, core::raw_buffer::BufferResizeMode, draw_info::DrawType, material::{MaterialType, VertexAttribInfo}, mesh::BuffersTypes}, resources::{ResourceManager, ShadersCompiler}, utils::SafePtrMut};
-use super::core::{vkutl, VulkanApp, DescriptorSet, PipelineLayout, raw_buffer::BufferFlags};
+use crate::{
+    math::{Color4b, Vec3},
+    render::{
+        core::{
+            vkutl,
+            VulkanApp,
+            DescriptorSet,
+            PipelineLayout,
+            raw_buffer::BufferFlags,
+        },
+        vertices_data::{
+            BlockItemVertices,
+            ChunkVertices,
+            CloudsVertices,
+            EntitiesCubesVertices,
+            OutlineCubeVertices,
+            ParticlesVertices,
+            SkyBodiesVertices,
+            SpritesVertices,
+            TextVertices,
+            GlobalUboData,
+            OUTLINE_CUBE_INDICES, OUTLINE_CUBE_VERTICES,
+        },
+        Material,
+        Mesh,
+        MultiMesh,
+        Ubo,
+        DrawInfo,
+        draw_info::DrawType,
+        material::{MaterialType, VertexAttribInfo},
+        mesh::BuffersTypes,
+        core::raw_buffer::BufferResizeMode,
+    },
+    utils::SafePtrMut,
+    resources::{ResourceManager, ShadersCompiler},
+};
 
 
 pub struct GlobalRenderer {

@@ -1,9 +1,8 @@
 pub mod particles_manager;
-pub mod blocks_destroy;
-pub mod particle_base;
+pub mod behaviors;
+pub mod particles_info;
 
 pub use {
     particles_manager::*,
-    blocks_destroy::BlockDestroy,
-    particle_base::*,
+    particles_info::*,
 };

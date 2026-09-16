@@ -1,15 +1,24 @@
 ﻿use std::sync::Arc;
 
-use crate::math::{Vec3, Vec3i, self};
-
-use crate::render::ChunksRenderer;
-use crate::utils::{NullSafePtr, SafePtr};
-use crate::world::chunk::chunk_data::ChunkDataFlags;
-use crate::world::particles::{ParticlesManager, ParticlesSpawnArgs};
-use crate::world::{Aabb, ChunksManager, light_engine};
-use crate::world::blocks::{BlockIdState, BlockProperties, BlocksManager};
-use crate::world::chunk::{ChunkGetter, NeighborsChunks, chunk_data::ChunkDataReadBehavior};
-use crate::world::{Chunk, player::Camera};
+use crate::{
+    math::{self, Vec3, Vec3i},
+    render::ChunksRenderer,
+    utils::{NullSafePtr, SafePtr},
+    world::{
+        chunk::{
+            chunk_data::{ChunkDataFlags, ChunkDataReadBehavior},
+            Chunk,
+            ChunkGetter,
+            NeighborsChunks,
+        },
+        blocks::{BlockIdState, BlockProperties, BlocksManager},
+        particles::{ParticlesManager, ParticlesSpawnArgs},
+        player::Camera,
+        Aabb,
+        ChunksManager,
+        light_engine,
+    }
+};
 
 
 pub struct BlockIteraterInfo {
@@ -80,16 +89,16 @@ impl Planet {
     pub fn place_block(&self, chunk: &Chunk, chunk_block: Vec3i, id_state: BlockIdState) {
         let old_block = chunk.data.change_block(chunk_block, id_state);
 
-        self.change_block_logic(chunk, chunk_block, &old_block, &self.blocks_manager.get_properties(id_state.id, 0));
+        self.change_block_logic(chunk, chunk_block, &old_block, &self.blocks_manager.get_properties(id_state));
     }
 
     pub fn destroy_block(&self, chunk: &Chunk, chunk_block: Vec3i, particles_manager: &mut ParticlesManager) {
         let old_block = chunk.data.change_block(chunk_block, BlockIdState::AIR);
 
-        self.change_block_logic(chunk, chunk_block, &old_block, &self.blocks_manager.get_properties(0, 0));
+        self.change_block_logic(chunk, chunk_block, &old_block, &self.blocks_manager.get_properties(BlockIdState::AIR));
 
         particles_manager.spawn(ParticlesSpawnArgs::BlockDestroy(
-            &old_block,
+            old_block.base_properties.get_id_state(),
             (chunk.position * Chunk::CHUNK_SIZE + chunk_block).as_vec3()
         ));
     }

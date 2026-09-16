@@ -1,10 +1,17 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::math::{Vec3, Vec4};
-use crate::render::{GlobalRenderer, Material, Mesh, OUTLINE_CUBE_INDICES, OUTLINE_CUBE_VERTICES};
-use crate::render::core::raw_buffer::BufferFlags;
-use crate::world::player::RaycastingResult;
+use crate::{
+    math::{Vec3, Vec4},
+    render::{
+        GlobalRenderer,
+        Material,
+        Mesh,
+        vertices_data::{OUTLINE_CUBE_VERTICES, OUTLINE_CUBE_INDICES},
+        core::raw_buffer::BufferFlags,
+    },
+    world::player::RaycastingResult,
+};
 
 
 pub struct BlockSelection {

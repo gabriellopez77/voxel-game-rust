@@ -1,11 +1,11 @@
-use crate::{world::{blocks::{BlockFunctions, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
+use crate::{world::{blocks::{BlockBehaviors, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
 
 
 pub struct DeadBush {
     properties: BlockProperties
 }
 
-impl BlockFunctions for DeadBush {
+impl BlockBehaviors for DeadBush {
     fn get_properties(&self, state: u8) -> &BlockProperties {
         &self.properties
     }

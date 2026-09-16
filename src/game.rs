@@ -1,14 +1,35 @@
 use std::collections::VecDeque;
 use std::{rc::Rc, cell::RefCell};
-use crate::render::{GlobalRenderer, core::VulkanApp};
-use crate::ui::ui_manager::ScreensId;
-use crate::world::World;
-use crate::inputs::{self, Inputs};
-use crate::resources::ResourceManager;
-use crate::ui::UiManager;
-use crate::window::Window;
-use crate::world::world::WorldUpdateArgs;
 
+use crate::{
+    window::Window,
+    inputs::{self, Inputs},
+    resources::ResourceManager,
+    render::{GlobalRenderer, core::VulkanApp},
+    world::{
+        World,
+        world::WorldUpdateArgs,
+    },
+    ui::{ui_manager::ScreensId, UiManager},
+};
+
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum Directions {
+    Up,
+    Down,
+    North,
+    South,
+    West,
+    East,
+    Nothing,
+}
+
+impl Directions {
+    pub fn is_vertical(self) -> bool {
+        self == Self::Up || self == Self::Down
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum GameStates {

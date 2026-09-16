@@ -2,8 +2,23 @@ use std::{array, cell::RefCell, collections::HashMap, rc::Rc, sync::{Arc, RwLock
 
 use ash::vk;
 
-use crate::{math::Vec3i, render::{ChunkVertices, GlobalRenderer, Material, MultiMesh, core::{RawBuffer, raw_buffer::{BufferFlags, BufferResizeMode}}, multi_mesh::MultiMeshInfo}, resources::{ResourceManager, ThreadWorkerValue}, utils::NullSafePtr, world::{Chunk, blocks::BlocksManager, chunk::{chunk_data::ChunkData, NeighborsChunksData}}};
-use crate::utils::ObjectPool;
+use crate::{
+    math::Vec3i,
+    render::{
+        core::{RawBuffer, raw_buffer::{BufferFlags, BufferResizeMode}},
+        GlobalRenderer, Material, MultiMesh,
+        multi_mesh::MultiMeshInfo,
+        vertices_data::ChunkVertices,
+
+    },
+    world::{
+        Chunk,
+        blocks::BlocksManager,
+        chunk::{chunk_data::ChunkData, NeighborsChunksData}
+    },
+    resources::{ResourceManager, ThreadWorkerValue},
+    utils::{ObjectPool, NullSafePtr},
+};
 
 
 #[repr(C)]
@@ -52,8 +67,6 @@ pub struct ChunksRenderer {
     instance_buffer: RawBuffer,
     instances_data: [Vec<ChunkInstanceData>; ChunkRendererType::RENDERS_COUNT],
 
-    //generated_mesh: HashMap<Vec3i, ChunkMeshResult>,
-
     mesh_gen_worker: ThreadWorkerValue<ChunkMeshResult, 1>,
 
     chunk_mesh_vertices_pool: ObjectPool<Vec<ChunkVertices>>,
@@ -71,7 +84,6 @@ impl ChunksRenderer {
 
             instance_buffer: RawBuffer::new(),
             instances_data: array::from_fn(|_| Vec::new()),
-            //generated_mesh: HashMap::new(),
 
             mesh_gen_worker: ThreadWorkerValue::new(),
 
@@ -182,14 +194,6 @@ impl ChunksRenderer {
 
     pub fn process_mesh_gen(&mut self) {
         self.mesh_gen_worker.process_tasks();
-
-        //while let Some(mesh_result) = self.mesh_gen_worker.get_finalized_task() {
-        //    if let Some(old_mesh) = self.generated_mesh.remove(&mesh_result.chunk_pos) {
-        //        self.restore_mesh_result(old_mesh);
-        //    }
-
-        //    self.generated_mesh.insert(mesh_result.chunk_pos, mesh_result);
-        //}
     }
 
     pub fn clean_worker(&mut self) {
@@ -199,16 +203,6 @@ impl ChunksRenderer {
     pub fn get_generated_mesh(&mut self) -> Option<ChunkMeshResult> {
         self.mesh_gen_worker.get_finalized_task()
     }
-
-    //pub fn get_generated_mesh(&mut self, chunk_pos: Vec3i) -> Option<ChunkMeshResult> {
-    //    self.generated_mesh.remove(&chunk_pos)
-    //}
-
-    //pub fn dispose_generated_mesh(&mut self, chunk_pos: Vec3i) {
-    //    if let Some(mesh_result) = self.generated_mesh.remove(&chunk_pos) {
-    //        self.restore_mesh_result(mesh_result);
-    //    }
-    //}
 
     pub fn gen_mesh(&mut self,
         chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>,

@@ -7,7 +7,7 @@ pub struct Air {
     properties: BlockProperties
 }
 
-impl BlockFunctions for Air {
+impl BlockBehaviors for Air {
     fn get_properties(&self, state: u8) -> &BlockProperties {
         &self.properties
     }

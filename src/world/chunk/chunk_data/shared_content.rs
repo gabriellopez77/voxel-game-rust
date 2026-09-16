@@ -1,6 +1,17 @@
 use std::sync::atomic::Ordering;
 
-use crate::{math::Vec3i, utils::SafePtr, world::{Chunk, blocks::{BlockIdState, BlockProperties}, chunk::chunk_data::{ChunkBlockInfo, ChunkData, ChunkDataContent}, light_engine::{self, LightSectionLevel, LightType}}};
+use crate::{
+    math::Vec3i,
+    utils::SafePtr,
+    world::{
+        chunk::{
+            Chunk,
+            chunk_data::{ChunkBlockInfo, ChunkData, ChunkDataContent},
+        },
+        blocks::{BlockIdState, BlockProperties},
+        light_engine::{self, LightSectionLevel, LightType},
+    }
+};
 
 
 pub struct ChunkDataSharedContent {

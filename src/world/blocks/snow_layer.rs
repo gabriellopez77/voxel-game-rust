@@ -1,11 +1,11 @@
-use crate::world::{blocks::{BlockFunctions, BlockProperties, BlockTypes}, items::{ItemCreation, ItemCreationArgs}};
+use crate::world::{blocks::{BlockBehaviors, BlockProperties, BlockTypes}, items::{ItemCreation, ItemCreationArgs}};
 
 
 pub struct SnowLayer {
     properties: BlockProperties
 }
 
-impl BlockFunctions for SnowLayer {
+impl BlockBehaviors for SnowLayer {
     fn get_properties(&self, state: u8) -> &BlockProperties {
         &self.properties
     }

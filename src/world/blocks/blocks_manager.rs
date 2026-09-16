@@ -12,7 +12,7 @@ use crate::world::player::PlayerInventory;
 
 #[derive(Default)]
 pub struct BlocksManager {
-    blocks: Vec<Box<dyn BlockFunctions>>,
+    blocks: Vec<Box<dyn BlockBehaviors>>,
 
     pub air: BlockIdState,
     pub dirt: BlockIdState,
@@ -37,7 +37,7 @@ pub struct BlocksManager {
 
 impl BlocksManager {
     pub fn new(resources: &ResourceManager, inventory: &mut PlayerInventory) -> Self {
-        let mut blocks: Vec<Box<dyn BlockFunctions>> = Vec::new();
+        let mut blocks: Vec<Box<dyn BlockBehaviors>> = Vec::new();
 
         Self {
             air: Self::add::<Air>("air", "AIR", &mut blocks, resources, inventory),
@@ -64,36 +64,36 @@ impl BlocksManager {
         }
     }
 
-    pub fn get_from_id(&self, id: u16) -> &Box<dyn BlockFunctions> {
+    pub fn get_from_id(&self, id: u16) -> &Box<dyn BlockBehaviors> {
         &self.blocks[id as usize]
     }
 
-    pub fn get_from_block_info(&self, block_info: ChunkBlockInfo) -> &Box<dyn BlockFunctions> {
+    pub fn get_from_block_info(&self, block_info: ChunkBlockInfo) -> &Box<dyn BlockBehaviors> {
         &self.blocks[block_info.id as usize]
     }
 
-    pub fn get_from_item_base(&self, item_base: &Arc<ItemBaseProperties>) -> &Box<dyn BlockFunctions> {
+    pub fn get_from_item_base(&self, item_base: &Arc<ItemBaseProperties>) -> &Box<dyn BlockBehaviors> {
         &self.blocks[item_base.parent_index as usize]
     }
 
 
     pub fn get_properties_from_block_info(&self, block_info: ChunkBlockInfo) -> SafePtr<BlockProperties> {
-        self.get_properties(block_info.id, 0)
+        self.get_properties(BlockIdState { id: block_info.id, state: 0 })
     }
 
     pub fn get_properties_from_item_base(&self, item_base: &Arc<ItemBaseProperties>) -> SafePtr<BlockProperties> {
-        self.get_properties(item_base.id, item_base.state)
+        self.get_properties(BlockIdState { id: item_base.id, state: item_base.state })
     }
 
-    pub fn get_properties(&self, id: u16, state: u8) -> SafePtr<BlockProperties> {
-        SafePtr::new(self.blocks[id as usize].get_properties(state))
+    pub fn get_properties(&self, id_stete: BlockIdState) -> SafePtr<BlockProperties> {
+        SafePtr::new(self.blocks[id_stete.id as usize].get_properties(id_stete.state))
     }
 
 
-    fn add<T>(internal_name: &'static str, name: &'static str, blocks: &mut Vec<Box<dyn BlockFunctions>>,
+    fn add<T>(internal_name: &'static str, name: &'static str, blocks: &mut Vec<Box<dyn BlockBehaviors>>,
               resources: &ResourceManager, inventory: &mut PlayerInventory) -> BlockIdState
     where
-        T: ItemCreation<ItemType: BlockFunctions>,
+        T: ItemCreation<ItemType: BlockBehaviors>,
         for<'a> T::ItemType: 'a,
     {
         let parent_id = blocks.len();

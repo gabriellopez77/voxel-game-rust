@@ -2,12 +2,18 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use rand::RngExt;
-use crate::math;
-use crate::math::{KeyFrame, Matrix4, Vec3, Vec4};
-use crate::render::core::raw_buffer::BufferFlags;
-use crate::render::{CENTER_SPRITES_VERTICES, GlobalRenderer, Material, Mesh, SPRITES_INDICES, SkyBodiesVertices};
-use crate::resources::{ResourceManager, TexCoords};
-use crate::world::sky::Sky;
+use crate::{
+    math::{self, Matrix4, Vec3, Vec4, KeyFrame},
+    render::{
+        Mesh,
+        Material,
+        GlobalRenderer,
+        vertices_data::{SPRITES_INDICES, CENTER_SPRITES_VERTICES, SkyBodiesVertices},
+        core::raw_buffer::{BufferFlags},
+    },
+    world::sky::Sky,
+    resources::{TexCoords, ResourceManager},
+};
 
 
 pub struct SkyBodies {
@@ -55,17 +61,6 @@ impl SkyBodies {
 
         let texture = &resources.sky_bodies_texture;
 
-        //let stars_tex = texture.get_coords("stars").denormalized(texture.get_size());
-
-        // all stars_textures
-        //let stars_textures = [
-        //    stars_tex.get_sub_tex(00.0, 0.0, 8.0, 8.0).normalized(texture.get_size()),
-        //    stars_tex.get_sub_tex(08.0, 0.0, 8.0, 8.0).normalized(texture.get_size()),
-        //    stars_tex.get_sub_tex(16.0, 0.0, 8.0, 8.0).normalized(texture.get_size()),
-        //    stars_tex.get_sub_tex(24.0, 0.0, 8.0, 8.0).normalized(texture.get_size()),
-        //    stars_tex.get_sub_tex(32.0, 0.0, 8.0, 8.0).normalized(texture.get_size()),
-        //];
-
         let mut stars_buffer: [SkyBodiesVertices; Self::STARS_COUNT] = [
             SkyBodiesVertices {
                 matrix: Matrix4::ZERO,
@@ -80,11 +75,11 @@ impl SkyBodies {
 
         // configure stars
         for i in 0..Self::STARS_COUNT {
-            let dir = Vec3 {
-                x: rand.random_range(-Self::STARS_MAX_DEGREES..=Self::STARS_MAX_DEGREES),
-                y: rand.random_range(-Self::STARS_MAX_DEGREES..=Self::STARS_MAX_DEGREES),
-                z: rand.random_range(-Self::STARS_MAX_DEGREES..=Self::STARS_MAX_DEGREES),
-            };
+            let dir = Vec3::new(
+               rand.random_range(-Self::STARS_MAX_DEGREES..=Self::STARS_MAX_DEGREES),
+               rand.random_range(-Self::STARS_MAX_DEGREES..=Self::STARS_MAX_DEGREES),
+               rand.random_range(-Self::STARS_MAX_DEGREES..=Self::STARS_MAX_DEGREES),
+            );
 
             let mut matrix = Matrix4::IDENTITY;
             matrix.translatev(dir.normalized() * Self::RADIUS);
@@ -140,7 +135,7 @@ impl SkyBodies {
         self.stars_transparency_gradient.set_frames(vec![
             (00.0 * Sky::MINUTES_SCALE + 00.0, 1.0),
             (04.0 * Sky::MINUTES_SCALE + 00.0, 1.0),
-            (05.0 * Sky::MINUTES_SCALE + 00.0, 0.0),
+            (05.0 * Sky::MINUTES_SCALE + 30.0, 0.0),
             (18.0 * Sky::MINUTES_SCALE + 00.0, 0.0),
             (18.0 * Sky::MINUTES_SCALE + 40.0, 1.0),
             (24.0 * Sky::MINUTES_SCALE + 00.0, 1.0)
@@ -166,7 +161,6 @@ impl SkyBodies {
         self.matrix = model_matrix;
     }
 
-
     pub fn draw(&mut self, global_renderer: &mut GlobalRenderer) {
         if self.stars_alpha > 0.0 {
             global_renderer.set_push_constant(0, &self.matrix);
@@ -177,9 +171,8 @@ impl SkyBodies {
         }
 
         global_renderer.set_push_constant(0, &self.matrix);
-        global_renderer.set_push_constant(size_of::<Matrix4>(), &self.stars_alpha);
 
         let renderer = self.sun_moon_renderer.as_mut().unwrap();
-        global_renderer.draw_instanced(&renderer.0, &mut renderer.1.borrow_mut(), Self::STARS_COUNT);
+        global_renderer.draw_instanced(&renderer.0, &mut renderer.1.borrow_mut(), 2);
     }
 }

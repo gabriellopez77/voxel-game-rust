@@ -1,6 +1,22 @@
 use std::{collections::{HashMap, VecDeque}, sync::{Arc, Mutex, RwLock}};
-use crate::{math::Vec3i, world::{Chunk, blocks::BlockProperties, chunk::{NeighborsChunksData, chunk::Directions, chunk_data::{ChunkData, ChunkDataFlags, ChunkDataReadBehavior, ChunkDataReadGuard}}}};
 
+use crate::{
+    math::Vec3i,
+    game::Directions,
+    world::{
+        chunk::{
+            Chunk,
+            NeighborsChunksData,
+            chunk_data::{
+                ChunkData,
+                ChunkDataFlags,
+                ChunkDataReadBehavior,
+                ChunkDataReadGuard,
+            }
+        },
+        blocks::BlockProperties
+    },
+};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum LightType {
@@ -156,48 +172,49 @@ pub fn update_light_in_border_neighbors(
         };
 
 
-        {
-            let data = chunk_data.read_guard();
-            chunk_pos = data.get_position();
 
-            if light_type == LightType::Block && !data.flag_contains(ChunkDataFlags::CONTAINS_EMISSIVE_BLOCKS_FLAG) {
-                restore_queue(add_queue);
+        let data = chunk_data.read_guard();
+        chunk_pos = data.get_position();
 
-                return;
-            }
+        if light_type == LightType::Block && !data.flag_contains(ChunkDataFlags::CONTAINS_EMISSIVE_BLOCKS_FLAG) {
+            restore_queue(add_queue);
 
-            if face == Directions::Nothing {
-                for y in 0..Chunk::CHUNK_SIZE.y {
-                    for x in 0..Chunk::CHUNK_SIZE.x {
-                        add_light_border_in_queue(&data, Vec3i::new(x, y, 0));
-                        add_light_border_in_queue(&data, Vec3i::new(x, y, Chunk::CHUNK_SIZE_MINUS_ONE.z));
-                    }
+            return;
+        }
 
-                    for z in 0..Chunk::CHUNK_SIZE.z {
-                        add_light_border_in_queue(&data, Vec3i::new(0, y, z));
-                        add_light_border_in_queue(&data, Vec3i::new(Chunk::CHUNK_SIZE_MINUS_ONE.x, y, z));
-                    }
+        if face == Directions::Nothing {
+            for y in 0..Chunk::CHUNK_SIZE.y {
+                for x in 0..Chunk::CHUNK_SIZE.x {
+                    add_light_border_in_queue(&data, Vec3i::new(x, y, 0));
+                    add_light_border_in_queue(&data, Vec3i::new(x, y, Chunk::CHUNK_SIZE_MINUS_ONE.z));
+                }
+
+                for z in 0..Chunk::CHUNK_SIZE.z {
+                    add_light_border_in_queue(&data, Vec3i::new(0, y, z));
+                    add_light_border_in_queue(&data, Vec3i::new(Chunk::CHUNK_SIZE_MINUS_ONE.x, y, z));
                 }
             }
-            else {
-                for i in 0..Chunk::CHUNK_SIZE.x {
-                    for y in 0..Chunk::CHUNK_SIZE.y {
-                        if face == Directions::North {
-                            add_light_border_in_queue(&data, Vec3i::new(i, y, 0));
-                        }
-                        else if face == Directions::South {
-                            add_light_border_in_queue(&data, Vec3i::new(i, y, Chunk::CHUNK_SIZE_MINUS_ONE.z));
-                        }
-                        else if face == Directions::West {
-                            add_light_border_in_queue(&data, Vec3i::new(0, y, i));
-                        }
-                        else if face == Directions::East {
-                            add_light_border_in_queue(&data, Vec3i::new(Chunk::CHUNK_SIZE_MINUS_ONE.x, y, i));
-                        }
+        }
+        else {
+            for i in 0..Chunk::CHUNK_SIZE.x {
+                for y in 0..Chunk::CHUNK_SIZE.y {
+                    if face == Directions::North {
+                        add_light_border_in_queue(&data, Vec3i::new(i, y, 0));
+                    }
+                    else if face == Directions::South {
+                        add_light_border_in_queue(&data, Vec3i::new(i, y, Chunk::CHUNK_SIZE_MINUS_ONE.z));
+                    }
+                    else if face == Directions::West {
+                        add_light_border_in_queue(&data, Vec3i::new(0, y, i));
+                    }
+                    else if face == Directions::East {
+                        add_light_border_in_queue(&data, Vec3i::new(Chunk::CHUNK_SIZE_MINUS_ONE.x, y, i));
                     }
                 }
             }
         }
+
+        std::mem::drop(data);
 
         let mut neighbors_data = NeighborsChunksData::new_from_map(chunks_map.clone(), chunk_pos, false);
 
@@ -240,48 +257,49 @@ pub fn compute_light_value(chunk_data: Arc<ChunkData>) {
     let mut add_sky_queue = get_queue();
     let mut add_block_queue = get_queue();
 
-    {
-        let mut data = chunk_data.write_guard();
-        //compute_sections(&mut data);
 
-        for x in 0..Chunk::CHUNK_SIZE.x {
-        for z in 0..Chunk::CHUNK_SIZE.z {
-            let mut current_level = MAX_LEVEL;
+    let mut data = chunk_data.write_guard();
+    //compute_sections(&mut data);
 
-            for y in (0..=Chunk::CHUNK_SIZE_MINUS_ONE.y).rev() {
-                //let sub_chunk = (y as f32 / Chunk::SUB_CHUNK_SIZE.y as f32).floor() as usize;
-                //if data.light_sections[sub_chunk] == LightSectionLevel::Two {
-                //    continue;
-                //}
+    for x in 0..Chunk::CHUNK_SIZE.x {
+    for z in 0..Chunk::CHUNK_SIZE.z {
+        let mut current_level = MAX_LEVEL;
 
-                let chunk_block = Vec3i::new(x, y, z);
-                let block = data.get_block_properties(chunk_block);
+        for y in (0..Chunk::CHUNK_SIZE.y).rev() {
+            //let sub_chunk = (y as f32 / Chunk::SUB_CHUNK_SIZE.y as f32).floor() as usize;
+            //if data.light_sections[sub_chunk] == LightSectionLevel::Two {
+            //    continue;
+            //}
 
-                if block.light_emission > MIN_LEVEL {
-                    data.turn_on_flag(ChunkDataFlags::CONTAINS_EMISSIVE_BLOCKS_FLAG);
+            let chunk_block = Vec3i::new(x, y, z);
+            let block = data.get_block_properties(chunk_block);
 
-                    data.set_light(chunk_block, block.light_emission, LightType::Block);
-                    add_block_queue.push_back(LightQueueData::new(chunk_data.clone(), chunk_block, block.light_emission, MIN_LEVEL));
+            if block.light_emission > MIN_LEVEL {
+                data.turn_on_flag(ChunkDataFlags::CONTAINS_EMISSIVE_BLOCKS_FLAG);
+
+                data.set_light(chunk_block, block.light_emission, LightType::Block);
+                add_block_queue.push_back(LightQueueData::new(chunk_data.clone(), chunk_block, block.light_emission, MIN_LEVEL));
+            }
+
+            current_level = current_level.wrapping_sub(block.light_filter);
+
+            // a underflow occurred, then, current_level does have a value > MAX_LEVEL
+            if current_level > MAX_LEVEL {
+                current_level = MIN_LEVEL;
+            }
+
+            if current_level > MIN_LEVEL {
+                if block.light_filter < MAX_LEVEL {
+                    add_sky_queue.push_back(LightQueueData::new(chunk_data.clone(), chunk_block, current_level, MIN_LEVEL));
                 }
 
-                current_level = current_level.wrapping_sub(block.light_filter);
-
-                // a underflow occurred, then, current_level does have a value > MAX_LEVEL
-                if current_level > MAX_LEVEL {
-                    current_level = MIN_LEVEL;
-                }
-
-                if current_level > MIN_LEVEL {
-                    if block.light_filter < MAX_LEVEL {
-                        add_sky_queue.push_back(LightQueueData::new(chunk_data.clone(), chunk_block, current_level, MIN_LEVEL));
-                    }
-
-                    data.set_light(chunk_block, current_level, LightType::Sky);
-                }
+                data.set_light(chunk_block, current_level, LightType::Sky);
             }
         }
-        }
     }
+    }
+
+    std::mem::drop(data);
 
     process_add_queue(None, LightType::Sky, &mut add_sky_queue, &mut NeighborsChunksData::EMPTY);
     process_add_queue(None, LightType::Block, &mut add_block_queue, &mut NeighborsChunksData::EMPTY);

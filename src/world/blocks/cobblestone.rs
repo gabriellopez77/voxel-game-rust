@@ -1,11 +1,11 @@
-use crate::{world::{blocks::{BlockFunctions, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
+use crate::{world::{blocks::{BlockBehaviors, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
 
 
 pub struct Cobblestone {
     properties: BlockProperties
 }
 
-impl BlockFunctions for Cobblestone {
+impl BlockBehaviors for Cobblestone {
     fn get_properties(&self, state: u8) -> &BlockProperties {
         &self.properties
     }

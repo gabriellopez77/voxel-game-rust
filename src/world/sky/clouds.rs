@@ -1,11 +1,18 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::math::{Color4b, Vec2, Vec2i, Vec3};
-use crate::render::{CUBE_INDICES, CLOUDS_VERTICES, CloudsVertices, GlobalRenderer, Material, Mesh};
-use crate::render::core::raw_buffer::{BufferFlags, BufferResizeMode};
-use crate::resources::ResourceManager;
-use crate::world::Chunk;
+use crate::{
+    math::{Color4b, Vec2, Vec2i, Vec3},
+    render::{
+        Mesh,
+        Material,
+        GlobalRenderer,
+        vertices_data::{CUBE_INDICES, CLOUDS_VERTICES, CloudsVertices},
+        core::raw_buffer::{BufferFlags, BufferResizeMode},
+    },
+    resources::ResourceManager,
+    world::Chunk,
+};
 
 
 pub struct Clouds {

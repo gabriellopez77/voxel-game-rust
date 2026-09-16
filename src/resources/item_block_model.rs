@@ -1,8 +1,14 @@
 use std::collections::HashMap;
 use serde::Deserialize;
-use crate::{render::BlockItemVertices, resources::TexCoords};
-use crate::math::{Matrix4, Vec2, Vec3, Vec4};
-use crate::render::Texture;
+
+use crate::{
+    math::{Matrix4, Vec2, Vec3, Vec4},
+    render::{
+        vertices_data::BlockItemVertices,
+        Texture
+    },
+    resources::TexCoords,
+};
 
 
 const SCALE: f32 = 1.0 / 16.0;

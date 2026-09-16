@@ -1,12 +1,23 @@
 use std::{collections::HashMap, sync::{Arc, Mutex}};
 use std::sync::RwLock;
-use crate::{math::{self, Vec3i}, resources::{ThreadWorker, ThreadWorkerValue}, world::{Chunk, chunk::{NeighborsChunksData, chunk_data::ChunkDataFlags}, player::Camera}};
-use crate::render::ChunksRenderer;
-use crate::utils::{NullSafePtr, ObjectPool, SafePtr};
-use crate::world::blocks::BlocksManager;
-use crate::world::chunk::chunk_data::ChunkData;
-use crate::world::light_engine;
-use crate::world::world_gen::WorldGen;
+
+use crate::{
+    math::{self, Vec3i},
+    render::ChunksRenderer,
+    utils::{NullSafePtr, ObjectPool, SafePtr},
+    resources::{ThreadWorker, ThreadWorkerValue},
+    world::{
+        chunk::{
+            Chunk,
+            NeighborsChunksData,
+            chunk_data::{ChunkData, ChunkDataFlags},
+        },
+        world_gen::WorldGen,
+        light_engine,
+        blocks::BlocksManager,
+        player::Camera,
+    }
+};
 
 
 pub struct ChunksManager {
@@ -25,7 +36,7 @@ pub struct ChunksManager {
     update_change_chunk_logic: bool,
     need_ordering_chunks: bool,
 
-    pub chunks_gen_worker: ThreadWorkerValue<Box<Chunk>, 1>,
+    pub chunks_gen_worker: ThreadWorkerValue<Box<Chunk>, 5>,
     pub chunks_background_worker: ThreadWorker<1>,
 
     pub chunk_data_pool: ObjectPool<Arc<ChunkData>>,
@@ -107,12 +118,6 @@ impl ChunksManager {
         self.update_change_chunk_logic = true;
     }
 
-    pub fn draw_chunks(&self, dt: f32, camera: &Camera, chunks_renderer: &mut ChunksRenderer) {
-        for ch in &self.ordered_chunks {
-            ch.draw(self.chunks.clone(), camera, chunks_renderer, dt);
-        }
-    }
-
     pub fn update(&mut self, player_chunk_pos: Vec3i) {
         if self.last_player_chunk != player_chunk_pos || self.update_change_chunk_logic {
         //if self.update_change_chunk_logic {
@@ -135,11 +140,15 @@ impl ChunksManager {
         }
     }
 
+    pub fn draw_chunks(&self, dt: f32, camera: &Camera, chunks_renderer: &mut ChunksRenderer) {
+        for ch in &self.ordered_chunks {
+            ch.draw(self.chunks.clone(), camera, chunks_renderer, dt);
+        }
+    }
+
     pub fn dispose_chunks_renderers(&mut self, chunks_renderer: &mut ChunksRenderer) {
         for ch in &self.dispose_chunks_renderers_list {
             ch.content.borrow_mut().renderer.dispose(chunks_renderer);
-
-            //chunks_renderer.dispose_generated_mesh(chu.position);
         }
 
         self.dispose_chunks_renderers_list.clear();

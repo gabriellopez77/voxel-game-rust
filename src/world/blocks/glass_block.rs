@@ -1,11 +1,11 @@
-use crate::{world::{blocks::{BlockFunctions, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
+use crate::{world::{blocks::{BlockBehaviors, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
 
 
 pub struct GlassBlock {
     properties: BlockProperties
 }
 
-impl BlockFunctions for GlassBlock {
+impl BlockBehaviors for GlassBlock {
     fn get_properties(&self, state: u8) -> &BlockProperties {
         &self.properties
     }

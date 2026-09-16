@@ -1,9 +1,15 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::render::core::raw_buffer::BufferResizeMode;
-use crate::render::{GlobalRenderer, Material, Mesh, SPRITES_INDICES, SPRITES_VERTICES, SpritesVertices, TextVertices};
-use super::core::raw_buffer::BufferFlags;
+use crate::{
+    render::{
+        core::raw_buffer::{BufferResizeMode, BufferFlags},
+        GlobalRenderer, Material, Mesh,
+        vertices_data::{
+            SPRITES_INDICES, SPRITES_VERTICES, SpritesVertices, TextVertices,
+        }
+    }
+};
 
 
 pub struct UiRenderer {

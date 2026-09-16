@@ -1,11 +1,11 @@
-use crate::world::{blocks::{BlockFunctions, BlockProperties}, items::{ItemCreation, ItemCreationArgs}};
+use crate::world::{blocks::{BlockBehaviors, BlockProperties}, items::{ItemCreation, ItemCreationArgs}};
 
 
 pub struct Sandstone {
     properties: BlockProperties
 }
 
-impl BlockFunctions for Sandstone {
+impl BlockBehaviors for Sandstone {
     fn get_properties(&self, state: u8) -> &BlockProperties {
         &self.properties
     }

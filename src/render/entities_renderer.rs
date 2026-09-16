@@ -1,7 +1,14 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::render::{CUBE_INDICES, ENTITIES_CUBES_VERTICES, EntitiesCubesVertices, GlobalRenderer, Material, Mesh, core::raw_buffer::{BufferFlags, BufferResizeMode}};
-
+use crate::{
+    render::{
+        GlobalRenderer, Material, Mesh,
+        core::raw_buffer::{BufferFlags, BufferResizeMode},
+        vertices_data::{
+            CUBE_INDICES, ENTITIES_CUBES_VERTICES, EntitiesCubesVertices
+        }
+    }
+};
 
 pub struct EntitiesRenderer {
     renderer: Option<(Mesh, Rc<RefCell<Material>>)>,

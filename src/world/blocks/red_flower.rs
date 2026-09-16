@@ -1,11 +1,11 @@
-use crate::{world::{blocks::{BlockFunctions, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
+use crate::{world::{blocks::{BlockBehaviors, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
 
 
 pub struct RedFlower {
     properties: BlockProperties
 }
 
-impl BlockFunctions for RedFlower {
+impl BlockBehaviors for RedFlower {
     fn get_properties(&self, state: u8) -> &BlockProperties {
         &self.properties
     }
