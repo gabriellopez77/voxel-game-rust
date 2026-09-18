@@ -1,4 +1,6 @@
-use std::{sync::{RwLock, RwLockReadGuard, RwLockWriteGuard, atomic::{AtomicU16, Ordering}}};
+use std::sync::atomic::{AtomicU16, Ordering};
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+
 
 use crate::{
     math::Vec3i,
@@ -56,7 +58,7 @@ unsafe impl Sync for ChunkData {}
 impl<'a> InternalReadBehavior<'a, RwLockReadGuard<'a, ChunkDataSharedContent>> for ChunkData {
     fn get_content(&self) -> &ChunkDataContent { &self.content }
     fn get_shared_content(&self) -> RwLockReadGuard<'_, ChunkDataSharedContent> {
-        self.shared_content.read().unwrap()
+        self.shared_content.read()
     }
 }
 
@@ -87,13 +89,13 @@ impl ChunkData {
     pub fn read_guard(&self) -> ChunkDataReadGuard<'_> {
         ChunkDataReadGuard {
             content: &self.content,
-            shared_content_lock: self.shared_content.read().unwrap()
+            shared_content_lock: self.shared_content.read()
         }
     }
     pub fn write_guard(&self) -> ChunkDataWriteGuard<'_> {
         ChunkDataWriteGuard {
             content: &self.content,
-            shared_content_lock: self.shared_content.write().unwrap()
+            shared_content_lock: self.shared_content.write()
         }
     }
 
@@ -102,15 +104,15 @@ impl ChunkData {
 
     // change the block in chunk_block by the id_state and return the old block
     pub fn change_block(&self, chunk_block: Vec3i, id_state: BlockIdState) -> SafePtr<BlockProperties> {
-        self.shared_content.write().unwrap().change_block(chunk_block, id_state, &self.content)
+        self.shared_content.write().change_block(chunk_block, id_state, &self.content)
     }
 
     pub fn set_block(&self, chunk_block: Vec3i, id_state: BlockIdState) {
-        self.shared_content.write().unwrap().set_block(chunk_block, id_state, &self.content);
+        self.shared_content.write().set_block(chunk_block, id_state, &self.content);
     }
 
     pub fn set_light(&self, chunk_block: Vec3i, value: u8, light_type: LightType) {
-        self.shared_content.write().unwrap().set_light(chunk_block, value, light_type, &self.content);
+        self.shared_content.write().set_light(chunk_block, value, light_type, &self.content);
     }
 }
 

@@ -1,5 +1,5 @@
-use std::{array, cell::RefCell, collections::HashMap, rc::Rc, sync::{Arc, RwLock}};
-
+use std::{array, cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
+use parking_lot::RwLock;
 use ash::vk;
 
 use crate::{

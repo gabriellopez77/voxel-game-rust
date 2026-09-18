@@ -1,6 +1,8 @@
 ﻿use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
+
 
 use crate::{
    math::{self, Vec3, Vec3i},

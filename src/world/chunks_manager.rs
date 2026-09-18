@@ -1,5 +1,5 @@
 use std::{collections::HashMap, sync::{Arc, Mutex}};
-use std::sync::RwLock;
+use parking_lot::RwLock;
 
 use crate::{
     math::{self, Vec3i},
@@ -36,7 +36,7 @@ pub struct ChunksManager {
     update_change_chunk_logic: bool,
     need_ordering_chunks: bool,
 
-    pub chunks_gen_worker: ThreadWorkerValue<Box<Chunk>, 5>,
+    pub chunks_gen_worker: ThreadWorkerValue<Box<Chunk>, 4>,
     pub chunks_background_worker: ThreadWorker<1>,
 
     pub chunk_data_pool: ObjectPool<Arc<ChunkData>>,
@@ -74,7 +74,7 @@ impl ChunksManager {
     }
 
     pub fn get_chunk(&self, pos: Vec3i) -> Option<Arc<Chunk>> {
-        if let Some(chunk) = self.chunks.read().unwrap().get(&pos) {
+        if let Some(chunk) = self.chunks.read().get(&pos) {
             return chunk.clone();
         }
 
@@ -91,13 +91,13 @@ impl ChunksManager {
     }
 
     pub fn cleanup(&mut self, chunks_renderer: &mut ChunksRenderer) {
-        for (_, chunk) in &mut *self.chunks.write().unwrap() {
+        for (_, chunk) in &mut *self.chunks.write() {
             if let Some(chunk) = chunk {
                 chunk.content.borrow_mut().renderer.dispose(chunks_renderer);
             }
         }
 
-        self.chunks.write().unwrap().clear();
+        self.chunks.write().clear();
 
         self.ordered_chunks.clear();
         self.remove_chunks_list.clear();
@@ -169,7 +169,7 @@ impl ChunksManager {
         self.update_change_chunk_logic = false;
         self.need_ordering_chunks = true;
 
-        let mut chunks = self.chunks.write().unwrap();
+        let mut chunks = self.chunks.write();
 
         // add distant chunks to remove list
         for (pos, ch) in &*chunks {
@@ -252,7 +252,7 @@ impl ChunksManager {
         }
     }
 
-    fn process_chunks_gen(&mut self,) {
+    fn process_chunks_gen(&mut self) {
         self.chunks_gen_worker.process_tasks();
 
         while let Some(chunk_result) = self.chunks_gen_worker.get_finalized_task() {
@@ -267,9 +267,8 @@ impl ChunksManager {
             let neighbors_data = NeighborsChunksData::new(self, chunk_pos, false);
             self.regen_neighbor_chunks(&neighbors_data);
 
-            *self.chunks.write().unwrap().get_mut(&chunk_pos).unwrap() = Some(chunk_arc.clone());
+            *self.chunks.write().get_mut(&chunk_pos).unwrap() = Some(chunk_arc.clone());
 
-            //chunk_arc.read().unwrap().data.read().unwrap().light_gen_stage.store(false, Ordering::Relaxed);
             let chunk_data = chunk_arc.data.clone();
             let chunks_map = self.chunks.clone();
 

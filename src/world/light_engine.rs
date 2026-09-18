@@ -1,4 +1,5 @@
-use std::{collections::{HashMap, VecDeque}, sync::{Arc, Mutex, RwLock}};
+use std::{collections::{HashMap, VecDeque}, sync::Arc};
+use parking_lot::{RwLock, Mutex};
 
 use crate::{
     math::Vec3i,
@@ -85,7 +86,7 @@ impl LightQueueData {
 static QUEUE_DATA_POOL: Mutex<Vec<VecDeque<LightQueueData>>> = Mutex::new(Vec::new());
 
 fn get_queue() -> VecDeque<LightQueueData> {
-    if let Some(mut queue) = QUEUE_DATA_POOL.lock().unwrap().pop() {
+    if let Some(mut queue) = QUEUE_DATA_POOL.lock().pop() {
         queue.clear();
 
         return queue;
@@ -94,7 +95,7 @@ fn get_queue() -> VecDeque<LightQueueData> {
     return VecDeque::new();
 }
 
-fn restore_queue(queue: VecDeque<LightQueueData>) { QUEUE_DATA_POOL.lock().unwrap().push(queue); }
+fn restore_queue(queue: VecDeque<LightQueueData>) { QUEUE_DATA_POOL.lock().push(queue); }
 
 pub fn update_light(
     chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>,

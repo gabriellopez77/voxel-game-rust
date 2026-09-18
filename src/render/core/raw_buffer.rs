@@ -260,7 +260,7 @@ impl RawBuffer {
     pub fn resize(&mut self, app: &mut VulkanApp, new_size: usize, resize_mode: BufferResizeMode) {
         assert!(new_size > self.size, "invalid new size");
 
-        println!("Buffer Resized! {} -> {}", self.size, new_size);
+        //println!("Buffer Resized! {} -> {}", self.size, new_size);
 
         if resize_mode == BufferResizeMode::Preserve {
             app.resize_buffer_preserve_content(self, new_size);

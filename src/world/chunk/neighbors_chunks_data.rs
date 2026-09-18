@@ -1,7 +1,16 @@
-use std::{collections::HashMap, sync::{Arc, RwLock}};
+use std::{collections::HashMap, sync::Arc};
+use parking_lot::RwLock;
 
-use crate::{math::Vec3i, world::{Chunk, chunk::chunk_data::ChunkData}};
-use crate::world::ChunksManager;
+use crate::{
+    math::Vec3i,
+    world::{
+        chunk::{
+            Chunk,
+            chunk_data::ChunkData,
+        },
+        ChunksManager,
+    }
+};
 
 
 pub struct NeighborsChunksData {
@@ -97,7 +106,7 @@ impl NeighborsChunksData {
     }
 
     fn set_data(chunks_map: &Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>, x: i32, y: i32, z: i32) -> Option<Arc<ChunkData>> {
-        if let Some(chunk1) = chunks_map.read().unwrap().get(&Vec3i::new(x, y, z)) && let Some(chunk2) = chunk1 {
+        if let Some(chunk1) = chunks_map.read().get(&Vec3i::new(x, y, z)) && let Some(chunk2) = chunk1 {
             return Some(chunk2.data.clone());
         }
 
