@@ -1,7 +1,15 @@
+use std::os::raw::c_void;
+
+use windows::Win32::Foundation::HWND;
+use windows::Win32::Graphics::Dwm::{DWMWA_USE_IMMERSIVE_DARK_MODE, DwmSetWindowAttribute};
+
 use glfw::WindowEvent;
-use crate::inputs::Inputs;
-use crate::game::Game;
-use crate::render::core::{VulkanApp, vulkan_app};
+
+use crate::{
+    inputs::Inputs,
+    game::Game,
+    render::core::VulkanApp,
+};
 
 
 pub struct Window {
@@ -30,6 +38,10 @@ impl Window {
         window.set_framebuffer_size_polling(true);
         window.set_cursor_pos_polling(true);
         window.set_scroll_polling(true);
+
+        if std::env::consts::OS == "windows" {
+            Self::set_windows_attributes(window.get_win32_window());
+        }
 
         Self {
             glfw_instance,
@@ -115,5 +127,21 @@ impl Window {
 
     pub fn set_cursor(&mut self, cursor: glfw::CursorMode) {
         self.window.set_cursor_mode(cursor);
+    }
+
+    fn set_windows_attributes(hwnd: *mut c_void) {
+        let window_hwnd = HWND(hwnd);
+
+        // set window title bar to dark mode
+        unsafe {
+            let usar_dark: i32 = 1;
+
+            let _ = DwmSetWindowAttribute(
+                window_hwnd,
+                DWMWA_USE_IMMERSIVE_DARK_MODE,
+                &usar_dark as *const i32 as *const _,
+                size_of::<i32>() as u32
+            );
+        }
     }
 }

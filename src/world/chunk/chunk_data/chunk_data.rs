@@ -4,9 +4,8 @@ use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
     math::Vec3i,
-    utils::SafePtr,
     world::{
-        blocks::{BlockIdState, BlockProperties, BlocksManager},
+        blocks::{BlockIdState, BlockProperties},
         chunk::{
             chunk_data::{
                 ChunkDataReadBehavior,
@@ -19,11 +18,6 @@ use crate::{
     }
 };
 
-
-#[derive(Clone, Copy)]
-pub struct ChunkBlockInfo {
-    pub id: u16,
-}
 
 #[derive(Clone, Copy)]
 pub struct ChunkDataFlags(pub(super) u16);
@@ -43,8 +37,6 @@ pub struct ChunkDataContent {
     pub position: Vec3i,
 
     pub flags: AtomicU16,
-
-    pub blocks_manager: SafePtr<BlocksManager>,
 }
 
 
@@ -70,12 +62,11 @@ impl ChunkData {
         ((y * Chunk::CHUNK_SIZE.x * Chunk::CHUNK_SIZE.z) + (x * Chunk::CHUNK_SIZE.z) + z) as usize
     }
 
-    pub fn new(position: Vec3i, blocks_manager: SafePtr<BlocksManager>) -> Self {
+    pub fn new(position: Vec3i) -> Self {
         Self {
             content: ChunkDataContent {
                 position,
                 flags: (AtomicU16::new(ChunkDataFlags::default())),
-                blocks_manager
             },
             shared_content: RwLock::new(ChunkDataSharedContent {
                 blocks_id: [0; Chunk::CHUNK_DATA_SIZE],
@@ -103,7 +94,7 @@ impl ChunkData {
     pub fn turn_off_flag(&self, flag: ChunkDataFlags) { self.content.flags.fetch_and(!flag.0, Ordering::Relaxed); }
 
     // change the block in chunk_block by the id_state and return the old block
-    pub fn change_block(&self, chunk_block: Vec3i, id_state: BlockIdState) -> SafePtr<BlockProperties> {
+    pub fn change_block(&self, chunk_block: Vec3i, id_state: BlockIdState) -> &BlockProperties {
         self.shared_content.write().change_block(chunk_block, id_state, &self.content)
     }
 
@@ -145,7 +136,7 @@ impl<'a> InternalReadBehavior<'a, &'a ChunkDataSharedContent> for ChunkDataWrite
 impl<'a> ChunkDataReadBehavior<'a, &'a ChunkDataSharedContent> for ChunkDataWriteGuard<'a> {}
 
 impl<'a> ChunkDataWriteGuard<'a> {
-    pub fn change_block(&mut self, chunk_block: Vec3i, id_state: BlockIdState) -> SafePtr<BlockProperties> {
+    pub fn change_block(&mut self, chunk_block: Vec3i, id_state: BlockIdState) -> &BlockProperties {
         self.shared_content_lock.change_block(chunk_block, id_state, &self.content)
     }
 

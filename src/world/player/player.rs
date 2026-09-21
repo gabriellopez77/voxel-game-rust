@@ -1,21 +1,26 @@
-﻿use crate::game::{GameEvents, PlayerStates};
-use crate::render::vertices_data::EntitiesCubesVertices;
-use crate::render::{EntitiesRenderer, GlobalRenderer};
-use crate::resources::ResourceManager;
-use crate::ui::ui_manager::ScreensId;
-use crate::utils::SafePtr;
-use crate::world::blocks::BlockProperties;
-use crate::world::chunk::chunk_data::ChunkDataReadBehavior;
-use crate::world::light_engine::{self, LightType};
-use crate::world::particles::ParticlesManager;
-use crate::world::world::WorldUpdateArgs;
-use crate::{inputs, math};
-use crate::inputs::Inputs;
-use crate::math::{Matrix4, Vec3};
-use crate::world::{Aabb, Planet};
-use crate::world::player::camera::{Camera, PerspectiveMode};
-use crate::world::player::{FirstPerson, PlayerInventory, BlockSelection};
-
+﻿use crate::{
+    game::{GameEvents, PlayerStates},
+    inputs::{self, Inputs},
+    math::{self, Matrix4, Vec3},
+    render::{
+        vertices_data::EntitiesCubesVertices,
+        EntitiesRenderer, GlobalRenderer,
+    },
+    resources::ResourceManager,
+    ui::ui_manager::ScreensId,
+    world::{
+        Aabb, Planet,
+        blocks::{BlockIdState, block_registry},
+        chunk::chunk_data::ChunkDataReadBehavior,
+        light_engine::{self, LightType},
+        particles::ParticlesManager,
+        player::{
+            BlockSelection, FirstPerson, PlayerInventory,
+            camera::{Camera, PerspectiveMode},
+        },
+        world::WorldUpdateArgs,
+    }
+};
 
 const GRAVITY: f32 = 32.0;
 const JUMP_FORCE: f32 = 8.8;
@@ -29,7 +34,7 @@ const SWIM_SPEED_UP: f32 = 10.0;
 pub struct RaycastingResult {
     pub block_pos: Vec3,
     pub hit_normal: Vec3,
-    pub block_properties: SafePtr<BlockProperties>,
+    pub block_id_state: BlockIdState,
     pub block_selection_box: Aabb,
 }
 
@@ -181,8 +186,8 @@ impl Player {
         self.process_collision(args.dt, planet, args.inputs);
 
         self.in_water = false;
-        planet.iterate_over_blocks_cube(&self.aabb, |stop, _, blocks_manager, _, _, _, block_properties| {
-            if *block_properties == blocks_manager.water_block {
+        planet.iterate_over_blocks_cube(&self.aabb, |stop, _, _, _, block_properties| {
+            if *block_properties == block_registry::get().water_block.get_id_state() {
                 self.in_water = true;
                 *stop = true;
             }
@@ -214,9 +219,10 @@ impl Player {
 
             if let Some(result) = ray_result {
                 let slot = self.inventory.get_hand_slot();
+                let block_properties = block_registry::get().get_properties(result.block_id_state);
 
                 if args.inputs.mouse_pressed(inputs::MouseButton::Right) && let Some(item) = slot.get_item() && item.is_block() {
-                    let keep_same_block = result.block_properties.can_replace && item.id != result.block_properties.base_properties.id;
+                    let keep_same_block = block_properties.can_replace && item.get_id_state() != block_properties.base_properties.get_id_state();
                     let place_block = if keep_same_block { result.block_pos } else { result.block_pos + result.hit_normal };
 
                     let chunk_pos = math::get_chunk_pos(place_block);
@@ -334,7 +340,7 @@ impl Player {
                     result = Some(RaycastingResult {
                         block_pos: it.global_block,
                         hit_normal: aabb.get_ray_hit_normal(hit),
-                        block_properties: it.block_properties.clone(),
+                        block_id_state: it.block_properties.base_properties.get_id_state(),
                         block_selection_box: aabb,
                     });
 

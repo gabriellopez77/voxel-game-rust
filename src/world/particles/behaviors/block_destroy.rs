@@ -3,7 +3,7 @@ use rand::RngExt;
 use crate::{
     math::{self, Vec2, Vec3},
     world::{
-        Chunk, blocks::BlockIdState,
+        Chunk, blocks::{BlockIdState, block_registry},
         particles::{
             ParticlesBehavior,
             ParticlesBehaviorStartArgs,
@@ -17,7 +17,7 @@ pub struct BlockDestroyBehavior;
 
 impl BlockDestroyBehavior {
     pub fn start(args: &mut ParticlesBehaviorStartArgs, block_id_state: BlockIdState, block_pos: Vec3) {
-        let block_properties = args.blocks_manager.get_properties(block_id_state);
+        let block_properties = block_registry::get().get_properties(block_id_state);
         let world_tex_size = args.resources.world_texture.get_size();
         let particle_tex = block_properties.base_properties.model.particle_coords.denormalized(world_tex_size);
         let tex_size = args.resources.world_texture.get_atlas_tex_size(block_properties.base_properties.internal_name);

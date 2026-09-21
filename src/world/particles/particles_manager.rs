@@ -19,7 +19,7 @@ use crate::{
     world::{
         Chunk,
         Planet,
-        blocks::{BlockIdState, BlocksManager},
+        blocks::{BlockIdState},
         chunk::{ChunkGetter, chunk_data::ChunkDataReadBehavior},
         light_engine::{self, LightType},
         particles::{
@@ -38,7 +38,6 @@ pub enum ParticlesSpawnArgs {
 
 pub struct ParticlesBehaviorStartArgs<'a> {
     pub resources: &'a ResourceManager,
-    pub blocks_manager: &'a BlocksManager,
     pub rand: &'a mut ThreadRng,
 
     behavior: Rc<dyn ParticlesBehavior>,
@@ -93,12 +92,11 @@ impl ParticlesManager {
     pub fn update(&mut self,
         dt: f32,
         resources: &ResourceManager,
-        blocks_manager: &BlocksManager,
         planet: &Planet
     ) {
         //let now = std::time::Instant::now();
 
-        self.process_particles_spawn(resources, blocks_manager);
+        self.process_particles_spawn(resources);
 
         // sort particles by chunk position
         self.particles_info.sort_by_key(|p| {
@@ -172,10 +170,9 @@ impl ParticlesManager {
         self.spawn_list.push(args);
     }
 
-    fn process_particles_spawn(&mut self, resources: &ResourceManager, blocks_manager: &BlocksManager) {
+    fn process_particles_spawn(&mut self, resources: &ResourceManager) {
         let mut start_args = ParticlesBehaviorStartArgs {
             resources,
-            blocks_manager,
             rand: &mut self.rand,
             behavior: self.destroy_behavior.clone(),
             particles_info: &mut self.particles_info,

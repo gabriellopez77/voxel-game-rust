@@ -9,6 +9,12 @@ impl BlockBehaviors for YellowFlower {
     fn get_properties(&self, state: u8) -> &BlockProperties {
         &self.properties
     }
+
+    fn is_opaque(&self) -> bool { return false }
+
+    fn causes_ambient_occlusion(&self) -> bool {
+        return false;
+    }
 }
 
 impl ItemCreation for YellowFlower {
@@ -19,7 +25,6 @@ impl ItemCreation for YellowFlower {
         args.inventory.register_item(properties.base_properties.clone());
 
         properties.can_replace = false;
-        properties.is_transparent = true;
         properties.light_emission = 0;
         properties.light_filter = 0;
         properties.collision_box = None;

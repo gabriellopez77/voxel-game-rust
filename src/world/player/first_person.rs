@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{math::{Matrix4, Vec2, Vec3, math}, render::{GlobalRenderer, Material, Mesh}, resources::{AnimationFrame, ItemBlockModel, ResourceManager, animation_frame::{AnimationKeyFrameValue, AnimationRunMode, AnimationStatus}}, world::{player::ItemStack, world::WorldUpdateArgs}};
+use crate::{math::{Matrix4, Vec2, Vec3, math}, render::{GlobalRenderer, Material, Mesh}, resources::{AnimationFrame, ItemBlockModel, ResourceManager, animation_frame::{AnimationKeyFrameValue, AnimationRunMode, AnimationStatus}}, world::{blocks::BlockIdState, player::ItemStack, world::WorldUpdateArgs}};
 
 
 pub struct FirstPerson {
@@ -28,7 +28,7 @@ pub struct FirstPerson {
     camera_translate: Vec3,
     idle_translate: Vec3,
 
-    last_item_id: u16,
+    last_id_state: BlockIdState,
 
     //pub test_pos: Vec3,
 }
@@ -60,7 +60,7 @@ impl FirstPerson {
             camera_translate: Vec3::ZERO,
             idle_translate: Vec3::ZERO,
 
-            last_item_id: 0,
+            last_id_state: BlockIdState::AIR,
 
             //test_pos: Vec3::new(0.325, 0.6, 0.05),
         }
@@ -112,16 +112,16 @@ impl FirstPerson {
         self.swap_up_anim_result = AnimationKeyFrameValue::default();
         self.interact_anim_result = AnimationKeyFrameValue::default();
 
-        let mut item_id: u16 = 0;
+        let mut item_id_state = BlockIdState::AIR;
 
         if let Some(item) = hand_item.get_item() {
-            item_id = item.id;
+            item_id_state = item.get_id_state();
         }
 
-        if self.last_item_id != item_id {
+        if self.last_id_state != item_id_state {
             self.swap_down_anim.play();
         }
-        self.last_item_id = item_id;
+        self.last_id_state = item_id_state;
 
 
         if let Some((result, status)) = self.swap_down_anim.update(args.dt) {

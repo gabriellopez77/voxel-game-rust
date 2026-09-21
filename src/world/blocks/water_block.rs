@@ -1,4 +1,11 @@
-use crate::{render::chunks_renderer::ChunkRendererType, world::{blocks::{BlockBehaviors, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
+use crate::{
+    game::Directions,
+    render::chunks_renderer::ChunkRendererType,
+    world::{
+        blocks::{BlockBehaviors, BlockProperties, BlockTypes},
+        items::{ItemCreation, ItemCreationArgs}
+    }
+};
 
 
 pub struct WaterBlock {
@@ -8,6 +15,24 @@ pub struct WaterBlock {
 impl BlockBehaviors for WaterBlock {
     fn get_properties(&self, state: u8) -> &BlockProperties {
         &self.properties
+    }
+
+    fn is_opaque(&self) -> bool { return false }
+
+    fn get_type(&self) -> BlockTypes { BlockTypes::Fluid }
+
+    fn causes_ambient_occlusion(&self) -> bool { return false }
+
+    fn affected_by_ambient_occlusion(&self) -> bool { return true }
+
+    fn should_render_face_twin(&self, dir: Directions) -> bool { return false }
+
+    fn should_render_face(&self, dir: Directions, around: &dyn BlockBehaviors) -> bool {
+        if dir != Directions::Up && around.is_opaque()  {
+            return false;
+        }
+
+        return true;
     }
 }
 
@@ -19,10 +44,8 @@ impl ItemCreation for WaterBlock {
         args.inventory.register_item(properties.base_properties.clone());
 
         properties.can_replace = true;
-        properties.is_transparent = true;
         properties.light_filter = 1;
         properties.renderer_type = ChunkRendererType::Alpha;
-        properties.block_type = super::BlockTypes::Water;
         properties.collision_box = None;
         properties.selection_box = None;
 

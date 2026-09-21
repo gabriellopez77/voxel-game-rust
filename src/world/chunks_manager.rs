@@ -4,7 +4,7 @@ use parking_lot::RwLock;
 use crate::{
     math::{self, Vec3i},
     render::ChunksRenderer,
-    utils::{NullSafePtr, ObjectPool, SafePtr},
+    utils::ObjectPool,
     resources::{ThreadWorker, ThreadWorkerValue},
     world::{
         chunk::{
@@ -14,7 +14,6 @@ use crate::{
         },
         world_gen::WorldGen,
         light_engine,
-        blocks::BlocksManager,
         player::Camera,
     }
 };
@@ -23,7 +22,6 @@ use crate::{
 pub struct ChunksManager {
     pub chunks: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>,
     world_gen: Arc<Mutex<WorldGen>>,
-    blocks_manager: NullSafePtr<BlocksManager>,
 
     render_distance: i32,
     pendings_chunks_count: i32,
@@ -36,7 +34,7 @@ pub struct ChunksManager {
     update_change_chunk_logic: bool,
     need_ordering_chunks: bool,
 
-    pub chunks_gen_worker: ThreadWorkerValue<Box<Chunk>, 4>,
+    pub chunks_gen_worker: ThreadWorkerValue<Arc<Chunk>, 4>,
     pub chunks_background_worker: ThreadWorker<1>,
 
     pub chunk_data_pool: ObjectPool<Arc<ChunkData>>,
@@ -47,7 +45,6 @@ impl ChunksManager {
         Self {
             chunks: Arc::new(RwLock::new(HashMap::new())),
             world_gen: Arc::new(Mutex::new(WorldGen::new())),
-            blocks_manager: NullSafePtr::null(),
 
             render_distance: 0,
             pendings_chunks_count: 0,
@@ -81,10 +78,8 @@ impl ChunksManager {
         return None;
     }
 
-    pub fn start(&mut self, blocks_manager: &BlocksManager) {
-        self.blocks_manager = NullSafePtr::new(blocks_manager);
-
-        self.world_gen.lock().unwrap().start(blocks_manager);
+    pub fn start(&mut self) {
+        self.world_gen.lock().unwrap().start();
 
         self.chunks_gen_worker.start();
         self.chunks_background_worker.start();
@@ -210,13 +205,12 @@ impl ChunksManager {
                 continue
             }
 
-            // SAFETY: blocks_manager reference is valid for all game time
-            let blocks_manager = self.blocks_manager.clone();
-
             let world_gen = self.world_gen.clone();
+
             let new_chunk_data = self.chunk_data_pool.get_from_fn(|value| {
                 if let Some(data) = Arc::get_mut(value) {
-                    *data = ChunkData::new(new_chunk_pos, SafePtr::from_ptr(NullSafePtr::get_raw(&blocks_manager)));
+                    // resets chunk data to avoid corrupted values
+                    *data = ChunkData::new(new_chunk_pos);
 
                     return true;
                 }
@@ -227,23 +221,14 @@ impl ChunksManager {
 
             // create chunk async
             self.chunks_gen_worker.add_task(move || {
-                // resets chunk data to avoid corrupted values
-                //if let Some(ref chunk_data) = new_chunk_data {
-                //    chunk_data.clear(new_chunk_pos);
-                //}
-
-                let mut new_chunk = Chunk::new(
-                    new_chunk_pos,
-                    new_chunk_data,
-                    SafePtr::from_ptr(NullSafePtr::get_raw(&blocks_manager))
-                );
-                new_chunk.start(&mut world_gen.lock().unwrap(), &blocks_manager);
+                let mut new_chunk = Chunk::new(new_chunk_pos, new_chunk_data);
+                new_chunk.start(&mut world_gen.lock().unwrap());
 
                 //let now = std::time::Instant::now();
                 light_engine::compute_light_value(new_chunk.data.clone());
                 //println!("{}", now.elapsed().as_micros());
 
-                return Box::new(new_chunk);
+                return Arc::new(new_chunk);
             });
 
             self.pendings_chunks_count += 1;
@@ -255,21 +240,18 @@ impl ChunksManager {
     fn process_chunks_gen(&mut self) {
         self.chunks_gen_worker.process_tasks();
 
-        while let Some(chunk_result) = self.chunks_gen_worker.get_finalized_task() {
-            let chunk_pos = chunk_result.position;
-            let chunk_arc: Arc<Chunk> = Arc::from(chunk_result);
-
+        while let Some(new_chunk) = self.chunks_gen_worker.get_finalized_task() {
             self.need_ordering_chunks = true;
-            self.ordered_chunks.push(chunk_arc.clone());
+            self.ordered_chunks.push(new_chunk.clone());
             self.pendings_chunks_count -= 1;
 
             // fix visual glitch
-            let neighbors_data = NeighborsChunksData::new(self, chunk_pos, false);
+            let neighbors_data = NeighborsChunksData::new(self.chunks.clone(), new_chunk.position, false);
             self.regen_neighbor_chunks(&neighbors_data);
 
-            *self.chunks.write().get_mut(&chunk_pos).unwrap() = Some(chunk_arc.clone());
+            *self.chunks.write().get_mut(&new_chunk.position).unwrap() = Some(new_chunk.clone());
 
-            let chunk_data = chunk_arc.data.clone();
+            let chunk_data = new_chunk.data.clone();
             let chunks_map = self.chunks.clone();
 
             self.chunks_background_worker.add_task(move || {

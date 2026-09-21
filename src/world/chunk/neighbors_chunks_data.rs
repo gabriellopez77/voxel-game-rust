@@ -44,11 +44,7 @@ impl NeighborsChunksData {
         first_time: true,
     };
 
-    pub fn new(chunks_manager: &ChunksManager, pos: Vec3i, corners: bool) -> Self {
-        Self::new_from_map(chunks_manager.chunks.clone(), pos, corners)
-    }
-
-    pub fn new_from_map(chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>, pos: Vec3i, corners: bool) -> Self {
+    pub fn new(chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>, pos: Vec3i, corners: bool) -> Self {
         let mut data_northwest: Option<Arc<ChunkData>> = None;
         let mut data_northeast: Option<Arc<ChunkData>> = None;
         let mut data_southwest: Option<Arc<ChunkData>> = None;
@@ -77,7 +73,7 @@ impl NeighborsChunksData {
         }
     }
 
-    pub fn change_from_map(&mut self,
+    pub fn change(&mut self,
         chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>,
         pos: Vec3i,
         corners: bool
@@ -99,10 +95,6 @@ impl NeighborsChunksData {
         }
 
         self.chunk_pos = pos;
-    }
-
-    pub fn change(&mut self, chunks_manager: &ChunksManager, pos: Vec3i, corners: bool) {
-        self.change_from_map(chunks_manager.chunks.clone(), pos, corners);
     }
 
     fn set_data(chunks_map: &Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>, x: i32, y: i32, z: i32) -> Option<Arc<ChunkData>> {

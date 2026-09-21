@@ -99,7 +99,7 @@ impl Sky {
                 return Color3b::new(r as u8, g as u8, b as u8);
             }),
 
-            time: Self::MINUTES_SCALE * 4.0 + 00.0,
+            time: Self::MINUTES_SCALE * 5.0 + 00.0,
 
             update_delay: Self::UPDATE_DELAY + 0.1,
 

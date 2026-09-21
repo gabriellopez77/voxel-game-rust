@@ -2,13 +2,12 @@ use std::sync::atomic::Ordering;
 
 use crate::{
     math::Vec3i,
-    utils::SafePtr,
     world::{
+        blocks::{BlockIdState, BlockProperties, block_registry},
         chunk::{
             Chunk,
-            chunk_data::{ChunkBlockInfo, ChunkData, ChunkDataContent},
+            chunk_data::{ChunkData, ChunkDataContent},
         },
-        blocks::{BlockIdState, BlockProperties},
         light_engine::{self, LightSectionLevel, LightType},
     }
 };
@@ -22,18 +21,16 @@ pub struct ChunkDataSharedContent {
 }
 
 impl ChunkDataSharedContent {
-    pub fn get_block_properties(&self,
-        chunk_block: Vec3i,
-        content: &ChunkDataContent
-    ) -> SafePtr<BlockProperties> {
-        content.blocks_manager.get_properties_from_block_info(self.get_block_info(chunk_block))
+    pub fn get_block_properties<'a>(&self, chunk_block: Vec3i) -> &'a BlockProperties {
+        block_registry::get().get_properties(self.get_block_id_state(chunk_block))
     }
 
-    pub fn get_block_info(&self, chunk_block: Vec3i) -> ChunkBlockInfo {
+    pub fn get_block_id_state(&self, chunk_block: Vec3i) -> BlockIdState {
         let index = ChunkData::get_index(chunk_block.x, chunk_block.y, chunk_block.z);
 
-        return ChunkBlockInfo {
+        return BlockIdState {
             id: self.blocks_id[index],
+            state: 0,
         };
     }
 
@@ -45,12 +42,12 @@ impl ChunkDataSharedContent {
         return light_engine::get_level(value, light_type);
     }
 
-    pub fn change_block(&mut self,
+    pub fn change_block<'a>(&mut self,
         chunk_block: Vec3i,
         id_state: BlockIdState,
-        content: &ChunkDataContent
-    ) -> SafePtr<BlockProperties> {
-        let old = self.get_block_properties(chunk_block, content);
+        content: &'a ChunkDataContent
+    ) -> &'a BlockProperties {
+        let old = self.get_block_properties(chunk_block);
         self.set_block(chunk_block, id_state, content);
 
         old

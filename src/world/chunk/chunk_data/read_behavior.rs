@@ -3,11 +3,9 @@ use std::ops::Deref;
 
 use crate::{
     math::Vec3i,
-    utils::SafePtr,
     world::{
-        blocks::BlockProperties,
+        blocks::{BlockBehaviors, BlockIdState, BlockProperties, block_registry},
         chunk::chunk_data::{
-            ChunkBlockInfo,
             ChunkDataContent,
             ChunkDataFlags,
             ChunkDataSharedContent,
@@ -25,12 +23,16 @@ pub(super) trait InternalReadBehavior<'a, T: Deref<Target = ChunkDataSharedConte
 #[allow(private_bounds)]
 pub trait ChunkDataReadBehavior<'a, T> : InternalReadBehavior<'a, T>
 where T: Deref<Target = ChunkDataSharedContent> {
-    fn get_block_properties(&'a self, chunk_block: Vec3i) -> SafePtr<BlockProperties> {
-        self.get_shared_content().get_block_properties(chunk_block, self.get_content())
+    fn get_block_properties(&'a self, chunk_block: Vec3i) -> &'a BlockProperties {
+        self.get_shared_content().get_block_properties(chunk_block)
     }
 
-    fn get_block_info(&'a self, chunk_block: Vec3i) -> ChunkBlockInfo {
-        self.get_shared_content().get_block_info(chunk_block)
+    fn get_block_behaviors(&'a self, chunk_block: Vec3i) -> &'a dyn BlockBehaviors {
+        block_registry::get().get(self.get_shared_content().get_block_id_state(chunk_block))
+    }
+
+    fn get_block_id_state(&'a self, chunk_block: Vec3i) -> BlockIdState {
+        self.get_shared_content().get_block_id_state(chunk_block)
     }
 
     fn get_light(&'a self, chunk_block: Vec3i, light_type: LightType) -> u8 {

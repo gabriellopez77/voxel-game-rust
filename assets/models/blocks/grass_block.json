@@ -2,6 +2,7 @@
 	"format_version": "1.21.6",
 	"credit": "Made with Blockbench",
 	"parent": "blocks/parents/cube",
+	"itemIcon": "blocks/grass_block_side",
 	"textures": {
 		"particle": "blocks/dirt",
 		"up": "blocks/grass_block_top",

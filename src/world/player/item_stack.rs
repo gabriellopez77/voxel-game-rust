@@ -33,9 +33,11 @@ impl ItemStack {
     }
 
     pub fn is_same(&self, other: &ItemStack) -> bool {
-        if self.is_empty() || other.is_empty() { return false; }
+        if let Some(ref this) = self.item && let Some(ref other) = other.item {
+            return this.get_id_state().id ==  other.get_id_state().id
+        }
 
-        return self.item.as_ref().unwrap().id == other.item.as_ref().unwrap().id;
+        return false;
     }
 
     pub fn increment_from(&mut self, other: &mut ItemStack) {

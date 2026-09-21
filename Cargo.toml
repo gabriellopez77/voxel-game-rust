@@ -4,7 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+#window
 glfw = { version = "0.62.0", features = ["vulkan"] }
+windows = { version = "0.58", features = ["Win32_Graphics_Dwm", "Win32_Foundation"] }
+ash-window = "0.13.0"
+raw-window-handle = "0.6.2"
 
 image = "0.25.10"
 
@@ -20,8 +24,6 @@ serde_json = "1.0.149"
 ash = "0.38.0"
 vk-mem = "0.5.0"
 shaderc = "0.10.1"
-ash-window = "0.13.0"
-raw-window-handle = "0.6.2"
 
 # modified time metadata files manipulation
 filetime = "0.2"

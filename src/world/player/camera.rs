@@ -1,9 +1,14 @@
 ﻿use std::f32;
 
-use crate::math::{self, Matrix4, Vec2, Vec3, Vec3i};
+use crate::{
+    math::{self, Matrix4, Vec2, Vec3, Vec3i},
 
-use crate::world::chunk::chunk_data::ChunkDataReadBehavior;
-use crate::world::{Aabb, Chunk, Planet};
+    world::{
+        blocks::block_registry,
+        chunk::chunk_data::ChunkDataReadBehavior,
+        Aabb, Chunk, Planet
+    },
+};
 
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -103,7 +108,7 @@ impl Camera {
 
         // check if camera is on water
         self.is_underwater = if let Some(chunk) = planet.chunks_manager.get_chunk(self.chunk_pos) {
-            *chunk.data.get_block_properties(self.chunk_block) == planet.blocks_manager.water_block
+            *chunk.data.get_block_properties(self.chunk_block) == block_registry::get().water_block.get_id_state()
         } else { false };
 
 

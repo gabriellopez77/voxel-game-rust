@@ -1,6 +1,7 @@
 {
 	"format_version": "1.21.6",
 	"credit": "Made with Blockbench",
+	"itemIcon": "blocks/snow_layer_side",
 	"textures": {
 		"0": "blocks/snow_block",
 		"1": "blocks/snow_layer_side",

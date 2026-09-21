@@ -1,4 +1,9 @@
-use crate::{world::{blocks::{BlockBehaviors, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
+use crate::{
+    world::{
+        blocks::{BlockBehaviors, BlockProperties},
+        items::{ItemCreation, ItemCreationArgs}
+    }
+};
 
 
 pub struct DeadBush {
@@ -9,6 +14,10 @@ impl BlockBehaviors for DeadBush {
     fn get_properties(&self, state: u8) -> &BlockProperties {
         &self.properties
     }
+
+    fn is_opaque(&self) -> bool { return false }
+
+    fn causes_ambient_occlusion(&self) -> bool { return false }
 }
 
 impl ItemCreation for DeadBush {
@@ -19,7 +28,6 @@ impl ItemCreation for DeadBush {
         args.inventory.register_item(properties.base_properties.clone());
 
         properties.can_replace = false;
-        properties.is_transparent = true;
         properties.light_filter = 0;
         properties.collision_box = None;
         properties.set_selection_box(2, 0, 2, 11, 12, 11);

@@ -1,9 +1,9 @@
-use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::render::chunks_renderer::ChunkRendererType;
-use crate::resources::ItemBlockModel;
-use crate::world::{Aabb, items::*};
+use crate::{
+    render::chunks_renderer::ChunkRendererType,
+    world::{Aabb, items::*}
+};
 
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -11,20 +11,8 @@ pub enum BlockTypes {
     Default,
     Glass,
     Slab,
-    Water,
+    Fluid,
     SnowLayer,
-}
-
-pub trait BlockBehaviors {
-    fn get_properties(&self, state: u8) -> &BlockProperties;
-
-    fn get_base(&self) -> &ItemBaseProperties { &self.get_properties(0).base_properties }
-
-    fn get_id_state(&self) -> BlockIdState {
-        let base = self.get_base();
-
-        return BlockIdState { id: base.id, state: base.state };
-    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
@@ -46,10 +34,8 @@ impl BlockIdState {
 
 pub struct BlockProperties {
     pub can_replace: bool,
-    pub is_transparent: bool,
     pub light_filter: u8,
     pub light_emission: u8,
-    pub block_type: BlockTypes,
     pub renderer_type: ChunkRendererType,
     pub collision_box: Option<Aabb>,
     pub selection_box: Option<Aabb>,
@@ -59,15 +45,13 @@ pub struct BlockProperties {
 
 impl PartialEq for BlockProperties {
     fn eq(&self, other: &Self) -> bool {
-        self.base_properties.id == other.base_properties.id &&
-        self.base_properties.state == other.base_properties.state
+        self.base_properties.get_id_state() == other.base_properties.get_id_state()
     }
 }
 
-impl PartialEq<BlockIdState> for BlockProperties {
+impl PartialEq<BlockIdState> for BlockProperties{
     fn eq(&self, id_state: &BlockIdState) -> bool {
-        self.base_properties.id == id_state.id &&
-        self.base_properties.state == id_state.state
+        self.base_properties.get_id_state() == *id_state
     }
 }
 
@@ -75,10 +59,8 @@ impl BlockProperties {
     pub fn new(args: &ItemCreationArgs, state: u8) -> Self {
         Self {
             can_replace: false,
-            is_transparent: false,
             light_filter: 0,
             light_emission: 0,
-            block_type: BlockTypes::Default,
             renderer_type: ChunkRendererType::Opaque,
             collision_box: Some(Aabb::CUBE),
             selection_box: Some(Aabb::CUBE),
@@ -91,31 +73,6 @@ impl BlockProperties {
                 state,
                 ItemBaseType::Block
             )),
-        }
-    }
-
-    //pub fn get_id_state(&self) -> BlockIdState {
-    //    return BlockIdState { id: self.base_properties.id, state: self.base_properties.state };
-    //}
-
-    pub fn copy(&self,
-        internal_name: &'static str,
-        name: &'static str,
-        model: Rc<ItemBlockModel>,
-        index: usize,
-        state: u8
-    ) -> Self {
-        Self {
-            can_replace: self.can_replace,
-            is_transparent: self.is_transparent,
-            light_filter: self.light_filter,
-            light_emission: self.light_emission,
-            block_type: self.block_type,
-            renderer_type: self.renderer_type,
-            collision_box: self.collision_box,
-            selection_box: self.selection_box,
-
-            base_properties: Arc::new(self.base_properties.copy(internal_name, name, model, index, state, ItemBaseType::Block))
         }
     }
 

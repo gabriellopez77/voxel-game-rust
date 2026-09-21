@@ -1,4 +1,9 @@
-use crate::{world::{blocks::{BlockBehaviors, BlockProperties}, items::{ItemCreation, ItemCreationArgs}}};
+use crate::{
+    world::{
+        blocks::{BlockBehaviors, BlockProperties},
+        items::{ItemCreation, ItemCreationArgs}
+    }
+};
 
 
 pub struct Torch {
@@ -8,6 +13,12 @@ pub struct Torch {
 impl BlockBehaviors for Torch {
     fn get_properties(&self, state: u8) -> &BlockProperties {
         &self.properties
+    }
+
+    fn is_opaque(&self) -> bool { return false }
+
+    fn causes_ambient_occlusion(&self) -> bool {
+        return false;
     }
 }
 
@@ -19,7 +30,6 @@ impl ItemCreation for Torch {
         args.inventory.register_item(properties.base_properties.clone());
 
         properties.can_replace = false;
-        properties.is_transparent = true;
         properties.light_emission = 14;
         properties.light_filter = 0;
         properties.collision_box = None;

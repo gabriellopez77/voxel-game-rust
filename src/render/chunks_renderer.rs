@@ -13,11 +13,10 @@ use crate::{
     },
     world::{
         Chunk,
-        blocks::BlocksManager,
         chunk::{chunk_data::ChunkData, NeighborsChunksData}
     },
     resources::{ResourceManager, ThreadWorkerValue},
-    utils::{ObjectPool, NullSafePtr},
+    utils::ObjectPool,
 };
 
 
@@ -71,8 +70,6 @@ pub struct ChunksRenderer {
 
     chunk_mesh_vertices_pool: ObjectPool<Vec<ChunkVertices>>,
     chunk_mesh_indices_pool: ObjectPool<Vec<u32>>,
-
-    blocks_manager: NullSafePtr<BlocksManager>,
 }
 
 impl ChunksRenderer {
@@ -89,12 +86,10 @@ impl ChunksRenderer {
 
             chunk_mesh_vertices_pool: ObjectPool::new(),
             chunk_mesh_indices_pool: ObjectPool::new(),
-
-            blocks_manager: NullSafePtr::null(),
         }
     }
 
-    pub fn start(&mut self, blocks_manager: &BlocksManager, global_renderer: &mut GlobalRenderer) {
+    pub fn start(&mut self, global_renderer: &mut GlobalRenderer) {
         let mut multi_mesh =  global_renderer.create_multi_mesh(size_of::<ChunkVertices>());
         multi_mesh.start(BufferFlags::VRAM | BufferFlags::RARE_UPDATE);
         multi_mesh.create_profile(BufferFlags::RAM);
@@ -114,8 +109,6 @@ impl ChunksRenderer {
         );
 
         self.mesh_gen_worker.start();
-
-        self.blocks_manager = NullSafePtr::new(blocks_manager);
     }
 
     pub fn cleanup(&mut self, global_renderer: &mut GlobalRenderer) {
@@ -209,16 +202,13 @@ impl ChunksRenderer {
         chunk_data: Arc<ChunkData>,
         chunk_pos: Vec3i
     ) {
-        // SAFETY: blocks_manager reference is valid for all game time
-        let blocks_manager = self.blocks_manager.clone();
-
         let vertices = array::from_fn(|_| self.chunk_mesh_vertices_pool.get_or(|| Vec::new()));
         let indices = array::from_fn(|_| self.chunk_mesh_indices_pool.get_or(|| Vec::new()));
 
         // create chunk mesh async
         self.mesh_gen_worker.add_task(move || {
             let mut mesh_result = ChunkMeshResult {
-                neighbors_data: NeighborsChunksData::new_from_map(chunks_map, chunk_pos, true),
+                neighbors_data: NeighborsChunksData::new(chunks_map, chunk_pos, true),
                 chunk_data,
 
                 vertices,
@@ -227,7 +217,7 @@ impl ChunksRenderer {
                 chunk_pos,
             };
 
-            Chunk::gen_mesh(&mut mesh_result, &blocks_manager);
+            Chunk::gen_mesh(&mut mesh_result);
             mesh_result.gen_indices();
 
             return mesh_result;

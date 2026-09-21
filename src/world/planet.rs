@@ -3,29 +3,26 @@
 use crate::{
     math::{self, Vec3, Vec3i},
     render::ChunksRenderer,
-    utils::{NullSafePtr, SafePtr},
     world::{
-        chunk::{
-            chunk_data::{ChunkDataFlags, ChunkDataReadBehavior},
-            Chunk,
-            ChunkGetter,
-            NeighborsChunks,
-        },
-        blocks::{BlockIdState, BlockProperties, BlocksManager},
-        particles::{ParticlesManager, ParticlesSpawnArgs},
-        player::Camera,
         Aabb,
         ChunksManager,
+        blocks::{BlockIdState, BlockProperties, block_registry},
+        chunk::{
+            Chunk, ChunkGetter, NeighborsChunks,
+            chunk_data::{ChunkDataFlags, ChunkDataReadBehavior},
+        },
         light_engine,
+        particles::{ParticlesManager, ParticlesSpawnArgs},
+        player::Camera,
     }
 };
 
 
-pub struct BlockIteraterInfo {
+pub struct BlockIteraterInfo<'a> {
     pub global_block: Vec3,
     pub chunk_block: Vec3i,
     pub chunk: Arc<Chunk>,
-    pub block_properties: SafePtr<BlockProperties>,
+    pub block_properties: &'a BlockProperties,
 }
 
 pub struct Planet {
@@ -34,27 +31,21 @@ pub struct Planet {
     pub render_distance: i32,
 
     blocks_aabb_list: Vec<Aabb>,
-
-    pub blocks_manager: NullSafePtr<BlocksManager>,
 }
 
 impl Planet {
     pub fn new() -> Self {
         Self {
-            blocks_manager: NullSafePtr::null(),
-
             chunks_manager: ChunksManager::new(),
 
-            render_distance: 10,
+            render_distance: 4,
 
             blocks_aabb_list: Vec::new(),
         }
     }
 
-    pub fn start(&mut self, blocks_manager: &BlocksManager) {
-        self.blocks_manager = NullSafePtr::new(blocks_manager);
-
-        self.chunks_manager.start(blocks_manager);
+    pub fn start(&mut self) {
+        self.chunks_manager.start();
         self.chunks_manager.set_render_distance(self.render_distance);
     }
 
@@ -89,13 +80,13 @@ impl Planet {
     pub fn place_block(&self, chunk: &Chunk, chunk_block: Vec3i, id_state: BlockIdState) {
         let old_block = chunk.data.change_block(chunk_block, id_state);
 
-        self.change_block_logic(chunk, chunk_block, &old_block, &self.blocks_manager.get_properties(id_state));
+        self.change_block_logic(chunk, chunk_block, &old_block, block_registry::get().get_properties(id_state));
     }
 
     pub fn destroy_block(&self, chunk: &Chunk, chunk_block: Vec3i, particles_manager: &mut ParticlesManager) {
         let old_block = chunk.data.change_block(chunk_block, BlockIdState::AIR);
 
-        self.change_block_logic(chunk, chunk_block, &old_block, &self.blocks_manager.get_properties(BlockIdState::AIR));
+        self.change_block_logic(chunk, chunk_block, &old_block, block_registry::get().get_properties(BlockIdState::AIR));
 
         particles_manager.spawn(ParticlesSpawnArgs::BlockDestroy(
             old_block.base_properties.get_id_state(),
@@ -104,13 +95,17 @@ impl Planet {
     }
 
     pub fn get_blocks_hitboxes(&mut self, aabb: &Aabb) -> &Vec<Aabb> {
-        self.blocks_aabb_list.clear();
+        let mut aabb_list = std::mem::take(&mut self.blocks_aabb_list);
 
-        self.iterate_over_blocks_cube(aabb, |_, planet, _, x, y, z, properties|
+        aabb_list.clear();
+
+        self.iterate_over_blocks_cube(aabb, |_, x, y, z, properties|
             if let Some(ref collision_box) = properties.collision_box {
-                planet.blocks_aabb_list.push(collision_box.clone_move(x as f32, y as f32, z as f32));
+                aabb_list.push(collision_box.clone_move(x as f32, y as f32, z as f32));
             }
         );
+
+        self.blocks_aabb_list = aabb_list;
 
         return &self.blocks_aabb_list;
     }
@@ -119,10 +114,8 @@ impl Planet {
         aabb: &Aabb,
         mut func: impl FnMut(
             &mut bool,
-            &mut Planet,
-            SafePtr<BlocksManager>,
             i32, i32, i32,
-            SafePtr<BlockProperties>
+            &BlockProperties
         )
     ) {
         let x0 = aabb.x0.floor() as i32;
@@ -133,7 +126,6 @@ impl Planet {
         let z1 = (aabb.z1 + 1.0).floor() as i32;
 
         let mut chunk_getter = ChunkGetter::new();
-        let blocks_manager = SafePtr::from_ptr(NullSafePtr::get_raw(&self.blocks_manager));
 
         for x in x0..x1 {
         for y in y0..y1 {
@@ -149,7 +141,7 @@ impl Planet {
                 let block_properties = ch.data.get_block_properties(chunk_block);
 
                 let mut stop = false;
-                func(&mut stop, self, blocks_manager.clone(), x, y, z, block_properties.clone());
+                func(&mut stop, x, y, z, block_properties);
                 if stop { return }
 
             }

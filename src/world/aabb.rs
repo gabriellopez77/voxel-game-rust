@@ -63,17 +63,8 @@ impl Aabb {
         )
     }
 
-    /// clone this aabb and move the clone
-    pub fn clone_movev(&self, value: Vec3) -> Self {
-        Self::new(
-            self.x0 + value.x,
-            self.y0 + value.y,
-            self.z0 + value.z,
-            self.x1 + value.x,
-            self.y1 + value.y,
-            self.z1 + value.z
-        )
-    }
+    /// clone this aabb and move the clone using Vec3
+    pub fn clone_movev(&self, value: Vec3) -> Self { self.clone_move(value.x, value.y, value.z) }
 
     pub fn expand(&self, xa: f32, ya: f32, za: f32) -> Self {
         let mut x0 = self.x0;
@@ -93,6 +84,10 @@ impl Aabb {
         if za > 0.0 { z1 += za };
 
         return Aabb::new(x0, y0, z0, x1, y1, z1);
+    }
+
+    pub fn expandv(&self, value: Vec3) -> Self {
+        self.expand(value.x, value.y, value.z)
     }
 
     pub fn grow(&mut self, xa: f32, ya: f32, za: f32) {

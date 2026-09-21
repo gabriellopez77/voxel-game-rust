@@ -5,7 +5,7 @@ use rand::rngs::ThreadRng;
 use crate::math::Vec3i;
 use crate::world::world_gen::biomes::*;
 use crate::world::Chunk;
-use crate::world::blocks::BlocksManager;
+use crate::world::blocks::{block_registry};
 use crate::world::chunk::chunk_data::ChunkData;
 
 
@@ -64,20 +64,22 @@ impl WorldGen {
         }
     }
 
-    pub fn start(&mut self, blocks_manager: &BlocksManager) {
-        self.plains_biome.start(blocks_manager);
-        self.desert_biome.start(blocks_manager);
-        self.mountains_biome.start(blocks_manager);
-        self.ocean_biome.start(blocks_manager);
-        self.beach_biome.start(blocks_manager);
-        self.snow_mountains_biome.start(blocks_manager);
+    pub fn start(&mut self) {
+        self.plains_biome.start();
+        self.desert_biome.start();
+        self.mountains_biome.start();
+        self.ocean_biome.start();
+        self.beach_biome.start();
+        self.snow_mountains_biome.start();
     }
 
-    pub fn gen_data(&mut self, chunk_pos: Vec3i, chunk_data: &ChunkData, blocks_manager: &BlocksManager) {
+    pub fn gen_data(&mut self, chunk_pos: Vec3i, chunk_data: &ChunkData) {
         let mut data = chunk_data.write_guard();
 
         let start_x = chunk_pos.x * Chunk::CHUNK_SIZE.x;
         let start_z = chunk_pos.z * Chunk::CHUNK_SIZE.z;
+
+        let blocks_manager = block_registry::get();
 
         //return;
         const SURFACE_HEIGHT:i32 = 40;
@@ -125,25 +127,25 @@ impl WorldGen {
                         //        data.set_block(current_block, bLOCKS_manager::LILY_PAD);
                         //}
                         //else
-                            data.set_block(current_block, blocks_manager.water_block)
+                            data.set_block(current_block, blocks_manager.water_block.get_id_state())
                     }
 
                     if y == surface_height + 1 {
                         if y >= 100 {
-                            data.set_block(current_block, blocks_manager.snow_layer)
+                            data.set_block(current_block, blocks_manager.snow_layer.get_id_state())
                         }
                         else if y >= WATER_HEIGHT + 3 && y <= 81 {
                             if self.chance(0, 100) < 20 {
-                                data.set_block(current_block, blocks_manager.short_grass)
+                                data.set_block(current_block, blocks_manager.short_grass.get_id_state())
                             }
                             //else if self.chance(0, 100) < 1 {
                             //    data.set_block(current_block, blocks_manager.MUSHROOM_BLUE_GROUP), 0;
                             //}
                             else if self.chance(0, 1000) < 12 {
-                                data.set_block(current_block, blocks_manager.red_flower)
+                                data.set_block(current_block, blocks_manager.red_flower.get_id_state())
                             }
                             else if self.chance(0, 1000) < 12 {
-                                data.set_block(current_block, blocks_manager.yellow_flower)
+                                data.set_block(current_block, blocks_manager.yellow_flower.get_id_state())
                             }
 
                             //else if self.chance(0, 1000) < 50 {
@@ -153,7 +155,7 @@ impl WorldGen {
                         else {
                             if y >= WATER_HEIGHT && y <= WATER_HEIGHT + 3 {
                                 if self.chance(0, 100) < 2 {
-                                    data.set_block(current_block, blocks_manager.dead_bush)
+                                    data.set_block(current_block, blocks_manager.dead_bush.get_id_state())
                                 }
                             }
                         }
@@ -165,31 +167,31 @@ impl WorldGen {
                     if surface_height > 80 {
                         if (y == surface_height || y == surface_height - 1 || y == surface_height - 2) && y > 100 {
                             if self.chance(0, 100) < 2 {
-                                data.set_block(current_block, blocks_manager.ice_block)
+                                data.set_block(current_block, blocks_manager.ice_block.get_id_state())
                             }
-                            else { data.set_block(current_block, blocks_manager.snow_block) }
+                            else { data.set_block(current_block, blocks_manager.snow_block.get_id_state()) }
                         }
                         else if self.chance(0, 100) < 20 {
-                            data.set_block(current_block, blocks_manager.cobblestone)
+                            data.set_block(current_block, blocks_manager.cobblestone.get_id_state())
                         }
-                        else { data.set_block(current_block, blocks_manager.stone) }
+                        else { data.set_block(current_block, blocks_manager.stone.get_id_state()) }
                     }
 
                     else if y == surface_height {
                         if surface_height <= WATER_HEIGHT + 1 {
-                            data.set_block(current_block, blocks_manager.sand)
+                            data.set_block(current_block, blocks_manager.sand.get_id_state())
                         }
-                        else { data.set_block(current_block, blocks_manager.grass_block) }
+                        else { data.set_block(current_block, blocks_manager.grass_block.get_id_state()) }
                     }
 
                     else if y <= WATER_HEIGHT && (y == surface_height - 1 || y == surface_height - 2 || y == surface_height - 3) {
-                        data.set_block(current_block, blocks_manager.sand)
+                        data.set_block(current_block, blocks_manager.sand.get_id_state())
                     }
                     else if y == surface_height - 1 || y == surface_height - 2 || y == surface_height - 3 {
-                        data.set_block(current_block, blocks_manager.dirt)
+                        data.set_block(current_block, blocks_manager.dirt.get_id_state())
                     }
                     else {
-                        data.set_block(current_block, blocks_manager.stone)
+                        data.set_block(current_block, blocks_manager.stone.get_id_state())
                     }
                 }
 
@@ -200,7 +202,7 @@ impl WorldGen {
         // set bedrock
         for x in 0..Chunk::CHUNK_SIZE.x {
             for z in 0..Chunk::CHUNK_SIZE.z {
-                data.set_block(Vec3i::new(x, 0, z), blocks_manager.bedrock);
+                data.set_block(Vec3i::new(x, 0, z), blocks_manager.bedrock.get_id_state());
             }
         }
     }

@@ -36,7 +36,7 @@ const ERROR_MODEL: &'static str =
 	]
 }";
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ItemBlockModel {
     pub nothing_vertices: Vec<BlockItemVertices>,
     pub up_vertices: Vec<BlockItemVertices>,
@@ -83,6 +83,46 @@ impl ItemBlockModel {
         }
     }
 
+    pub fn rotate_clone(&self, origin: Vec3, angles: Vec3) -> Self {
+        let mut clone = self.clone();
+
+        let mut rotate_matrix = Matrix4::IDENTITY;
+        rotate_matrix.rotatev_xyz(angles);
+
+        let rotate_func = |vertices: &mut Vec<BlockItemVertices>| {
+            for i in (0..vertices.len()).step_by(4) {
+                let mut vert1 = vertices[i + 0].vertices;
+                let mut vert2 = vertices[i + 1].vertices;
+                let mut vert3 = vertices[i + 2].vertices;
+                let mut vert4 = vertices[i + 3].vertices;
+
+                Self::rotate_face(
+                    &mut vert1,
+                    &mut vert2,
+                    &mut vert3,
+                    &mut vert4,
+                    origin,
+                    &rotate_matrix
+                );
+
+                vertices[i + 0].vertices = vert1;
+                vertices[i + 1].vertices = vert2;
+                vertices[i + 2].vertices = vert3;
+                vertices[i + 3].vertices = vert4;
+            }
+        };
+
+        rotate_func(&mut clone.nothing_vertices);
+        rotate_func(&mut clone.up_vertices);
+        rotate_func(&mut clone.down_vertices);
+        rotate_func(&mut clone.south_vertices);
+        rotate_func(&mut clone.north_vertices);
+        rotate_func(&mut clone.west_vertices);
+        rotate_func(&mut clone.east_vertices);
+
+        return clone;
+    }
+
     fn read(&mut self, models_path: &str, content: &str, texture: &Texture) -> Result<(), String> {
         let model_info: ModelInfo = match serde_json::from_str(content) {
             Ok(info) => info,
@@ -125,17 +165,18 @@ impl ItemBlockModel {
             };
 
             if let Some(ref elements) = parent.elements {
-                self.create_mesh(&elements, &used_textures, texture.get_size());
+                self.load_mesh(&elements, &used_textures, texture.get_size());
             }
 
             parent_info = Some(parent);
         }
         else {
             if let Some(ref elements) = model_info.elements {
-                self.create_mesh(&elements, &used_textures, texture.get_size());
+                self.load_mesh(&elements, &used_textures, texture.get_size());
             }
         }
 
+        // read ambient occlusion value
         self.ambient_occlusion = true;
 
         if let Some(ref parent) = parent_info && let Some(value) = parent.ambient_occlusion {
@@ -146,25 +187,32 @@ impl ItemBlockModel {
             self.ambient_occlusion = value;
         }
 
+        // read item icon value
+        self.icon_coords = self.particle_coords;
+
+        if let Some(ref icon) = model_info.item_icon {
+            self.icon_coords = texture.get_coords(Self::remove_unnecessary_path(icon));
+        }
+
         return Ok(());
     }
 
-    fn create_mesh(&mut self,
+    fn load_mesh(&mut self,
         elements_info: &Vec<ElementInfo>,
         used_textures: &HashMap<String, TexCoords>,
         texture_size: Vec2
     ) {
         for element in elements_info {
-            let from = Vec3::new(element.from[0], element.from[1], element.from[2]) * SCALE;
-            let to = Vec3::new(element.to[0], element.to[1], element.to[2]) * SCALE;
+            let from = Vec3::from_arr(element.from) * SCALE;
+            let to = Vec3::from_arr(element.to) * SCALE;
 
-            let shade = element.shade.unwrap_or_else(|| true);
-
-            self.create_cube(texture_size,
+            self.create_cube(
+                texture_size,
                 used_textures,
                 &element.faces,
                 &element.rotation,
-                from, to, shade
+                from, to,
+                element.shade.unwrap_or_else(|| true)
             );
         }
     }
@@ -187,12 +235,12 @@ impl ItemBlockModel {
         if let Some(info) = rotate_info && info.angle != 0.0 {
             angle = info.angle;
 
-            origin = Vec3::new(info.origin[0],info.origin[1],info.origin[2]) * SCALE;
+            origin = Vec3::from_arr(info.origin) * SCALE;
 
             match info.axis {
                 'x' => rotate_matrix.rotate(angle, 1.0, 0.0, 0.0),
                 'y' => rotate_matrix.rotate(angle, 0.0, 1.0, 0.0),
-                _ => rotate_matrix.rotate(angle, 0.0, 0.0, 1.0),
+                _ => rotate_matrix.rotate(-angle, 0.0, 0.0, 1.0),
             }
         }
 
@@ -368,17 +416,6 @@ impl ItemBlockModel {
         textures_info: &HashMap<String, String>,
         texture: &Texture
     ) {
-        fn remove_unnecessary_path(path: &String) -> &str {
-            if path.starts_with("blocks/") {
-                return &path["blocks/".len()..];
-            }
-            else if path.starts_with("items/") {
-                return &path["items/".len()..];
-            }
-
-            panic!("invalid model texture path: {path}");
-        }
-
         // add missing (error texture)
         used_textures.insert("#missing".into(), texture.get_coords("error_404"));
 
@@ -386,7 +423,7 @@ impl ItemBlockModel {
         self.particle_coords = texture.get_coords("error_404");
 
         for (tex_alias, tex_path) in textures_info {
-            let coords = texture.get_coords(remove_unnecessary_path(&tex_path));
+            let coords = texture.get_coords(Self::remove_unnecessary_path(&tex_path));
 
             // load particle texture
             if tex_alias == "particle" {
@@ -413,32 +450,17 @@ impl ItemBlockModel {
     }
 
     fn read_display_info(&mut self, display_info: &Option<DisplayInfo>) {
-        if display_info.is_none() {
-            self.first_person_display_pos = Vec3::new(0.325, 0.6, 0.05);
-            self.first_person_display_rot = Vec3::new(0.0, 0.0, 0.0);
-            self.first_person_display_scale = Vec3::new(0.35, 0.35, 0.35);
-            return
-        }
+        // default values
+        self.first_person_display_pos = Vec3::new(0.325, 0.6, 0.05);
+        self.first_person_display_rot = Vec3::new(0.0, 0.0, 0.0);
+        self.first_person_display_scale = Vec3::new(0.35, 0.35, 0.35);
 
-
-        let info = display_info.as_ref().unwrap();
-
-        if let Some(ref first_person) = info.first_person {
-            //match first_person {
-                //DisplayTypesInfo::Preset(preset) => {
-                //    match preset.as_str() {
-                //        "block" => self.first_person_display = block_preset,
-                //        "item" => self.first_person_display = Matrix4::ZERO,
-                //        _ => self.first_person_display = block_preset,
-                //    }
-                //}
-                //DisplayTypesInfo::CustomSet(value) => {
-                //DisplayTypesInfo::CustomSet(value) => {
-                    self.first_person_display_pos = Vec3::from_arr(first_person.position);
-                    self.first_person_display_rot = Vec3::from_arr(first_person.rotation);
-                    self.first_person_display_scale = Vec3::from_arr(first_person.scale);
-                //}
-                //}
+        if let Some(infos) = display_info {
+            if let Some(ref first_person) = infos.first_person {
+                self.first_person_display_pos = Vec3::from_arr(first_person.position);
+                self.first_person_display_rot = Vec3::from_arr(first_person.rotation);
+                self.first_person_display_scale = Vec3::from_arr(first_person.scale);
+            }
         }
     }
 
@@ -484,6 +506,16 @@ impl ItemBlockModel {
         *vert4 = Vec3::from4(Vec4::from3(*vert4 - origin, 1.0) * *rotate_matrix) + origin;
     }
 
+    fn remove_unnecessary_path(path: &String) -> &str {
+        if path.starts_with("blocks/") {
+            return &path["blocks/".len()..];
+        }
+        else if path.starts_with("items/") {
+            return &path["items/".len()..];
+        }
+
+        panic!("invalid model texture path: {path}");
+    }
 }
 
 #[derive(Deserialize)]

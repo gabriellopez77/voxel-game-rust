@@ -1,7 +1,20 @@
 use std::collections::VecDeque;
 
-use crate::{game::{GameEvents, PlayerStates}, inputs::Inputs, render::{ChunksRenderer, EntitiesRenderer, GlobalRenderer}, resources::ResourceManager, ui::ui_manager::ScreensId, world::{Planet, Player, blocks::BlocksManager, particles::ParticlesManager, sky::Sky}};
-use crate::game::{GameFlags, GameStates};
+use crate::{
+    game::{GameEvents, PlayerStates, GameFlags, GameStates},
+    inputs::Inputs,
+    resources::ResourceManager,
+    render::{ChunksRenderer, EntitiesRenderer, GlobalRenderer},
+    ui::ui_manager::ScreensId,
+    world::{
+        Planet,
+        Player,
+        blocks::block_registry,
+        particles::ParticlesManager,
+        sky::Sky,
+    }
+};
+
 
 pub struct WorldUpdateArgs<'a> {
     pub events_queue: &'a mut VecDeque<GameEvents>,
@@ -21,8 +34,6 @@ pub struct World {
     pub sky: Sky,
     pub particles_manager: ParticlesManager,
 
-    pub blocks_manager: BlocksManager,
-
     pub chunks_renderer: ChunksRenderer,
     pub entities_renderer: EntitiesRenderer,
 }
@@ -36,24 +47,22 @@ impl World {
             sky: Sky::new(),
             particles_manager: ParticlesManager::new(),
 
-            blocks_manager: BlocksManager::default(),
-
             chunks_renderer: ChunksRenderer::new(),
             entities_renderer: EntitiesRenderer::new(),
         }
     }
 
     pub fn start(&mut self, resources: &mut ResourceManager, global_renderer: &mut GlobalRenderer) {
-        self.blocks_manager = BlocksManager::new(resources, &mut self.player.inventory);
+        block_registry::init(resources, &mut self.player.inventory);
 
         self.player.start(resources, global_renderer);
-        self.planet.start(&self.blocks_manager);
+        self.planet.start();
 
         self.sky.start(resources, global_renderer);
         self.particles_manager.start(global_renderer);
 
 
-        self.chunks_renderer.start(&self.blocks_manager, global_renderer);
+        self.chunks_renderer.start(global_renderer);
         self.entities_renderer.start(global_renderer);
     }
 
@@ -82,7 +91,7 @@ impl World {
 
         self.planet.update(self.player.get_pos());
 
-        self.particles_manager.update(args.dt, args.resources, &self.blocks_manager, &self.planet);
+        self.particles_manager.update(args.dt, args.resources, &self.planet);
     }
 
     pub fn draw(&mut self, dt: f32, global_renderer: &mut GlobalRenderer) {

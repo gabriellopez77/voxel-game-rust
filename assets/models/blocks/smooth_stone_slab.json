@@ -1,5 +1,6 @@
 {
     "parent": "blocks/parents/slab",
+    "itemIcon": "blocks/smooth_stone_slab_side",
     "textures": {
         "particle": "blocks/smooth_stone_slab_top",
         "up": "blocks/smooth_stone_slab_top",

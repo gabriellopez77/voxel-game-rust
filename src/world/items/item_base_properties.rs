@@ -1,5 +1,12 @@
 use std::rc::Rc;
-use crate::{resources::{ItemBlockModel, ResourceManager, TexCoords}, world::{blocks::BlockIdState, player::PlayerInventory}};
+
+use crate::{
+    resources::{ItemBlockModel, ResourceManager, TexCoords},
+    world::{
+        blocks::BlockIdState,
+        player::PlayerInventory
+    }
+};
 
 
 pub struct ItemCreationArgs<'a> {
@@ -22,16 +29,17 @@ pub enum ItemBaseType {
     Block
 }
 
+#[derive(Clone)]
 pub struct ItemBaseProperties {
-    pub id: u16,
+    id: u16,
+    state: u8,
     pub internal_name: &'static str,
     pub name: &'static str,
     pub icon: TexCoords,
     pub model: Rc<ItemBlockModel>,
 
-    pub state: u8,
-    pub parent_index: u32,
-    pub base_type: ItemBaseType,
+    parent_index: u32,
+    base_type: ItemBaseType,
 }
 
 impl ItemBaseProperties {
@@ -57,7 +65,7 @@ impl ItemBaseProperties {
             id: new_id,
             name,
             internal_name,
-            icon: model.particle_coords,
+            icon: model.icon_coords,
 
             state,
             parent_index: parent_index as u32,
@@ -69,28 +77,6 @@ impl ItemBaseProperties {
 
     pub fn get_id_state(&self) -> BlockIdState {
         return BlockIdState { id: self.id, state: self.state };
-    }
-
-    pub fn copy(&self,
-        internal_name: &'static str,
-        name: &'static str,
-        mesh: Rc<ItemBlockModel>,
-        parent_index: usize,
-        state: u8,
-        item_base_type: ItemBaseType
-    ) -> Self {
-        Self {
-            id: self.id,
-            internal_name,
-            name,
-            icon: mesh.icon_coords,
-            model: mesh,
-
-            state,
-            parent_index: parent_index as u32,
-            base_type: item_base_type,
-
-        }
     }
 
     pub fn is_block(&self) -> bool { self.base_type == ItemBaseType::Block }

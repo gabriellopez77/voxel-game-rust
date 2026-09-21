@@ -141,7 +141,7 @@ pub fn update_light(
 
     chunk_data.set_light(chunk_block, new_value, LightType::Sky);
 
-    let mut neighbors = NeighborsChunksData::new_from_map(chunks_map.clone(), chunk_data.get_position(), false);
+    let mut neighbors = NeighborsChunksData::new(chunks_map.clone(), chunk_data.get_position(), false);
 
     process_remove_queue(Some(&chunks_map), LightType::Sky, &mut add_sky_queue, &mut remove_queue, &mut neighbors);
     process_add_queue(Some(&chunks_map), LightType::Sky, &mut add_sky_queue, &mut neighbors);
@@ -217,7 +217,7 @@ pub fn update_light_in_border_neighbors(
 
         std::mem::drop(data);
 
-        let mut neighbors_data = NeighborsChunksData::new_from_map(chunks_map.clone(), chunk_pos, false);
+        let mut neighbors_data = NeighborsChunksData::new(chunks_map.clone(), chunk_pos, false);
 
         process_add_queue(Some(&chunks_map), light_type, &mut add_queue, &mut neighbors_data);
         restore_queue(add_queue);
@@ -273,16 +273,17 @@ pub fn compute_light_value(chunk_data: Arc<ChunkData>) {
             //}
 
             let chunk_block = Vec3i::new(x, y, z);
-            let block = data.get_block_properties(chunk_block);
+            let light_emission = data.get_block_properties(chunk_block).light_emission;
+            let light_filter = data.get_block_properties(chunk_block).light_filter;
 
-            if block.light_emission > MIN_LEVEL {
+            if light_emission > MIN_LEVEL {
                 data.turn_on_flag(ChunkDataFlags::CONTAINS_EMISSIVE_BLOCKS_FLAG);
 
-                data.set_light(chunk_block, block.light_emission, LightType::Block);
-                add_block_queue.push_back(LightQueueData::new(chunk_data.clone(), chunk_block, block.light_emission, MIN_LEVEL));
+                data.set_light(chunk_block, light_emission, LightType::Block);
+                add_block_queue.push_back(LightQueueData::new(chunk_data.clone(), chunk_block, light_emission, MIN_LEVEL));
             }
 
-            current_level = current_level.wrapping_sub(block.light_filter);
+            current_level = current_level.wrapping_sub(light_filter);
 
             // a underflow occurred, then, current_level does have a value > MAX_LEVEL
             if current_level > MAX_LEVEL {
@@ -290,7 +291,7 @@ pub fn compute_light_value(chunk_data: Arc<ChunkData>) {
             }
 
             if current_level > MIN_LEVEL {
-                if block.light_filter < MAX_LEVEL {
+                if light_filter < MAX_LEVEL {
                     add_sky_queue.push_back(LightQueueData::new(chunk_data.clone(), chunk_block, current_level, MIN_LEVEL));
                 }
 
@@ -352,7 +353,7 @@ fn add_block_light_source(
 
     add_queue.push_back(LightQueueData::new(chunk_data.clone(), chunk_block, new_value, MIN_LEVEL));
 
-    let mut neighbors = NeighborsChunksData::new_from_map(chunks_map.clone(), chunk_data.get_position(), false);
+    let mut neighbors = NeighborsChunksData::new(chunks_map.clone(), chunk_data.get_position(), false);
 
     process_add_queue(Some(&chunks_map), LightType::Block, &mut add_queue, &mut neighbors);
     restore_queue(add_queue);
@@ -371,7 +372,7 @@ fn remove_block_light_source(
 
     chunk_data.set_light(chunk_block, MIN_LEVEL, LightType::Block);
 
-    let mut neighbors = NeighborsChunksData::new_from_map(chunks_map.clone(), chunk_data.get_position(), false);
+    let mut neighbors = NeighborsChunksData::new(chunks_map.clone(), chunk_data.get_position(), false);
 
     process_remove_queue(Some(&chunks_map), LightType::Block, &mut add_queue, &mut remove_queue, &mut neighbors);
 
@@ -433,7 +434,7 @@ fn process_light_logic(
     let old_value = light_data.old_value;
 
     if let Some(chunks_map) = chunks_map {
-        neighbor_chunks.change_from_map(chunks_map.clone(), light_data.chunk_data.get_position(), false);
+        neighbor_chunks.change(chunks_map.clone(), light_data.chunk_data.get_position(), false);
     }
 
     let x = light_data.chunk_block.x;
