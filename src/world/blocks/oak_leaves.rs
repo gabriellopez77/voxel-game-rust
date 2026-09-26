@@ -1,9 +1,6 @@
-use crate::{
-    world::{
-        blocks::{BlockBehaviors, BlockProperties},
-        items::{ItemCreation, ItemCreationArgs}
-    }
-};
+use crate::world::{
+        blocks::{BlockBehaviors, BlockIdState, BlockProperties}, items::{ItemCreation, ItemCreationArgs}
+    };
 
 
 pub struct OakLeaves {
@@ -11,19 +8,17 @@ pub struct OakLeaves {
 }
 
 impl BlockBehaviors for OakLeaves {
-    fn get_properties(&self, state: u8) -> &BlockProperties {
-        &self.properties
-    }
+    fn get_properties(&self) -> &BlockProperties { &self.properties }
 
-    fn is_opaque(&self) -> bool { return false }
+    fn is_opaque(&self) -> bool { false }
 }
 
 impl ItemCreation for OakLeaves {
     type ItemType = Self;
 
     fn new(args: &mut ItemCreationArgs) -> Self {
-        let mut properties = BlockProperties::new(args, 0);
-        args.inventory.register_item(properties.base_properties.clone());
+        let mut properties = BlockProperties::new(args);
+        args.inventory.register_block(BlockIdState::new(properties.id, 0));
 
         properties.can_replace = false;
         properties.light_filter = 1;

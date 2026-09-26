@@ -1,7 +1,6 @@
 use crate::{
     game::Directions, world::{
-        blocks::{BlockBehaviors, BlockProperties},
-        items::{ItemCreation, ItemCreationArgs}
+        blocks::{BlockBehaviors, BlockIdState, BlockProperties, BlockTypes}, items::{ItemCreation, ItemCreationArgs}
     }
 };
 
@@ -11,9 +10,11 @@ pub struct GlassBlock {
 }
 
 impl BlockBehaviors for GlassBlock {
-    fn get_properties(&self, state: u8) -> &BlockProperties {
+    fn get_properties(&self) -> &BlockProperties {
         &self.properties
     }
+
+    fn get_type(&self) -> BlockTypes { BlockTypes::Glass }
 
     fn is_opaque(&self) -> bool { return false }
 
@@ -30,8 +31,8 @@ impl ItemCreation for GlassBlock {
     type ItemType = Self;
 
     fn new(args: &mut ItemCreationArgs) -> Self {
-        let mut properties = BlockProperties::new(args, 0);
-        args.inventory.register_item(properties.base_properties.clone());
+        let mut properties = BlockProperties::new(args);
+        args.inventory.register_block(BlockIdState::new(properties.id, 0));
 
         properties.can_replace = false;
         properties.light_filter = 0;

@@ -70,6 +70,7 @@ impl ChunkData {
             },
             shared_content: RwLock::new(ChunkDataSharedContent {
                 blocks_id: [0; Chunk::CHUNK_DATA_SIZE],
+                blocks_states: [0; Chunk::CHUNK_DATA_SIZE],
                 light_levels: [0; Chunk::CHUNK_DATA_SIZE],
 
                 light_sections: [LightSectionLevel::Two; Chunk::SUB_CHUNK_COUNT],
@@ -94,7 +95,7 @@ impl ChunkData {
     pub fn turn_off_flag(&self, flag: ChunkDataFlags) { self.content.flags.fetch_and(!flag.0, Ordering::Relaxed); }
 
     // change the block in chunk_block by the id_state and return the old block
-    pub fn change_block(&self, chunk_block: Vec3i, id_state: BlockIdState) -> &BlockProperties {
+    pub fn change_block(&self, chunk_block: Vec3i, id_state: BlockIdState) -> BlockIdState {
         self.shared_content.write().change_block(chunk_block, id_state, &self.content)
     }
 
@@ -136,7 +137,7 @@ impl<'a> InternalReadBehavior<'a, &'a ChunkDataSharedContent> for ChunkDataWrite
 impl<'a> ChunkDataReadBehavior<'a, &'a ChunkDataSharedContent> for ChunkDataWriteGuard<'a> {}
 
 impl<'a> ChunkDataWriteGuard<'a> {
-    pub fn change_block(&mut self, chunk_block: Vec3i, id_state: BlockIdState) -> &BlockProperties {
+    pub fn change_block(&mut self, chunk_block: Vec3i, id_state: BlockIdState) -> BlockIdState {
         self.shared_content_lock.change_block(chunk_block, id_state, &self.content)
     }
 

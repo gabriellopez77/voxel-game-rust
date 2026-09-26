@@ -15,6 +15,7 @@ use crate::{
 
 pub struct ChunkDataSharedContent {
     pub blocks_id: [u16; Chunk::CHUNK_DATA_SIZE],
+    pub blocks_states: [u8; Chunk::CHUNK_DATA_SIZE],
     pub light_levels: [u8; Chunk::CHUNK_DATA_SIZE],
 
     pub light_sections: [LightSectionLevel; Chunk::SUB_CHUNK_COUNT],
@@ -28,10 +29,7 @@ impl ChunkDataSharedContent {
     pub fn get_block_id_state(&self, chunk_block: Vec3i) -> BlockIdState {
         let index = ChunkData::get_index(chunk_block.x, chunk_block.y, chunk_block.z);
 
-        return BlockIdState {
-            id: self.blocks_id[index],
-            state: 0,
-        };
+        return BlockIdState::new(self.blocks_id[index], self.blocks_states[index]);
     }
 
     pub fn get_light(&self, chunk_block: Vec3i, light_type: LightType) -> u8 {
@@ -46,8 +44,8 @@ impl ChunkDataSharedContent {
         chunk_block: Vec3i,
         id_state: BlockIdState,
         content: &'a ChunkDataContent
-    ) -> &'a BlockProperties {
-        let old = self.get_block_properties(chunk_block);
+    ) -> BlockIdState {
+        let old = self.get_block_id_state(chunk_block);
         self.set_block(chunk_block, id_state, content);
 
         old
@@ -61,10 +59,13 @@ impl ChunkDataSharedContent {
         let index = ChunkData::get_index(chunk_block.x, chunk_block.y, chunk_block.z);
 
         let current_id = &mut self.blocks_id[index];
+        let current_state = &mut self.blocks_states[index];
 
-        content.flags.fetch_or((*current_id != id_state.id) as u16, Ordering::Relaxed);
+        let flag = *current_id != id_state.id || *current_state != id_state.state;
+        content.flags.fetch_or(flag as u16, Ordering::Relaxed);
 
         *current_id = id_state.id;
+        *current_state = id_state.state;
     }
 
     pub fn set_light(&mut self,

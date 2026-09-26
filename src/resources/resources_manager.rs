@@ -1,4 +1,5 @@
 ﻿use std::cell::RefCell;
+use std::sync::Arc;
 use std::{
     path::PathBuf,
     collections::HashMap,
@@ -35,7 +36,7 @@ pub struct ResourceManager {
     pub sky_bodies_texture: Texture,
 
     fonts: HashMap<&'static str, Rc<FontInfo>>,
-    models: HashMap<String, Rc<ItemBlockModel>>,
+    models: HashMap<String, Arc<ItemBlockModel>>,
     models_mesh: HashMap<String, Rc<RefCell<Mesh>>>,
 
     pub ui_buttons_styles: ButtonsStyles,
@@ -121,12 +122,12 @@ impl ResourceManager {
         panic!("Resource not found: {}", name);
     }
 
-    pub fn get_model(&self, name: &str) -> Rc<ItemBlockModel> {
+    pub fn get_model(&self, name: &str) -> Arc<ItemBlockModel> {
         if let Some(model) = self.models.get(name) {
             return model.clone();
         }
 
-        // is guaranteed that contains the 'error_404' texture coords
+        // is guaranteed that contains the 'error_404' model
         return self.models.get("error_404").unwrap().clone();
     }
 
@@ -171,11 +172,11 @@ impl ResourceManager {
         let hand_path = format!(r"{}\misc\hand.json", self.models_path);
 
         // load error model
-        let error_model = Rc::new(ItemBlockModel::read_error_model(&self.world_texture));
+        let error_model = Arc::new(ItemBlockModel::read_error_model(&self.world_texture));
         self.models.insert("error_404".to_string(), error_model.clone());
 
         let hand_model = match ItemBlockModel::new(&self.models_path, &hand_path, &self.world_texture) {
-            Ok(model) => Rc::new(model),
+            Ok(model) => Arc::new(model),
             Err(err) => {
                 println!("{err}");
                 error_model.clone()
@@ -190,7 +191,7 @@ impl ResourceManager {
                 let name = path.file_stem().unwrap().to_str().unwrap().to_string();
 
                 let model = match ItemBlockModel::new(&self.models_path, &path.to_str().unwrap(), &self.world_texture) {
-                    Ok(model) => Rc::new(model),
+                    Ok(model) => Arc::new(model),
                     Err(err) => {
                         println!("{err}");
                         error_model.clone()

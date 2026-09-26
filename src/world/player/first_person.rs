@@ -1,13 +1,26 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, sync::Arc};
 
-use crate::{math::{Matrix4, Vec2, Vec3, math}, render::{GlobalRenderer, Material, Mesh}, resources::{AnimationFrame, ItemBlockModel, ResourceManager, animation_frame::{AnimationKeyFrameValue, AnimationRunMode, AnimationStatus}}, world::{blocks::BlockIdState, player::ItemStack, world::WorldUpdateArgs}};
+use crate::{
+    math::{Matrix4, Vec2, Vec3, math}, render::{GlobalRenderer, Material, Mesh}, resources::{
+        AnimationFrame,
+        ItemBlockModel,
+        ResourceManager,
+        animation_frame::{
+            AnimationKeyFrameValue,
+            AnimationRunMode,
+            AnimationStatus,
+        },
+    }, world::{
+        blocks::{BlockIdState, block_registry}, player::{ItemStack, player_inventory::ItemType}, world::WorldUpdateArgs
+    }
+};
 
 
 pub struct FirstPerson {
     light_levels: u8,
 
-    item_model_info: Option<(Rc<ItemBlockModel>, Rc<RefCell<Mesh>>)>,
-    hand_model_info: Option<(Rc<ItemBlockModel>, Rc<RefCell<Mesh>>)>,
+    item_model_info: Option<(BlockIdState, Rc<RefCell<Mesh>>)>,
+    hand_model_info: Option<(Arc<ItemBlockModel>, Rc<RefCell<Mesh>>)>,
 
     material: Option<Rc<RefCell<Material>>>,
 
@@ -28,7 +41,7 @@ pub struct FirstPerson {
     camera_translate: Vec3,
     idle_translate: Vec3,
 
-    last_id_state: BlockIdState,
+    last_item: ItemType,
 
     //pub test_pos: Vec3,
 }
@@ -60,7 +73,7 @@ impl FirstPerson {
             camera_translate: Vec3::ZERO,
             idle_translate: Vec3::ZERO,
 
-            last_id_state: BlockIdState::AIR,
+            last_item: ItemType::Item(0),
 
             //test_pos: Vec3::new(0.325, 0.6, 0.05),
         }
@@ -112,23 +125,29 @@ impl FirstPerson {
         self.swap_up_anim_result = AnimationKeyFrameValue::default();
         self.interact_anim_result = AnimationKeyFrameValue::default();
 
-        let mut item_id_state = BlockIdState::AIR;
+        let mut new_item = ItemType::Item(0);
 
-        if let Some(item) = hand_item.get_item() {
-            item_id_state = item.get_id_state();
+        if let Some(item) = hand_item.get_item_type() {
+            new_item = item;
         }
 
-        if self.last_id_state != item_id_state {
+        if self.last_item != new_item {
             self.swap_down_anim.play();
         }
-        self.last_id_state = item_id_state;
+        self.last_item = new_item;
 
 
         if let Some((result, status)) = self.swap_down_anim.update(args.dt) {
             if status == AnimationStatus::Finished {
-                if let Some(item) = hand_item.get_item() {
-                    let item_model = item.model.clone();
-                    self.item_model_info = Some((item_model.clone(), args.resources.get_or_load_model_mesh(item.internal_name, &item_model)));
+                if let Some((item, _)) = hand_item.get_as_block() {
+                    let item_model = item.get_model(item.get_default_state());
+                    self.item_model_info = Some((
+                        BlockIdState::new(item.get_properties().id, item.get_default_state()),
+                        args.resources.get_or_load_model_mesh(
+                            item.get_properties().internal_name,
+                            &item_model
+                        )
+                    ));
                 }
                 else {
                     self.item_model_info = None;
@@ -256,7 +275,10 @@ impl FirstPerson {
             global_renderer.set_push_constant(size_of::<Matrix4>(), &light_levels);
             global_renderer.draw(&mesh.borrow(), &mut self.material.as_mut().unwrap().borrow_mut());
 
-            if let Some((item_model, mesh)) = &self.item_model_info {
+            if let Some((id_state, mesh)) = &self.item_model_info {
+                let behaviors = block_registry::get().get(*id_state);
+                let item_model = behaviors.get_model(behaviors.get_default_state());
+
                 let mut item_mat = Matrix4::IDENTITY;
                 hand_mat.translatev(item_model.first_person_display_pos);
 

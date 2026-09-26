@@ -16,11 +16,11 @@ use crate::{
 pub struct BlockDestroyBehavior;
 
 impl BlockDestroyBehavior {
-    pub fn start(args: &mut ParticlesBehaviorStartArgs, block_id_state: BlockIdState, block_pos: Vec3) {
-        let block_properties = block_registry::get().get_properties(block_id_state);
+    pub fn start(args: &mut ParticlesBehaviorStartArgs, id_state: BlockIdState, block_pos: Vec3) {
+        let block_behaviors = block_registry::get().get(id_state);
         let world_tex_size = args.resources.world_texture.get_size();
-        let particle_tex = block_properties.base_properties.model.particle_coords.denormalized(world_tex_size);
-        let tex_size = args.resources.world_texture.get_atlas_tex_size(block_properties.base_properties.internal_name);
+        let particle_tex = block_behaviors.get_model(id_state.state).particle_coords.denormalized(world_tex_size);
+        let tex_size = args.resources.world_texture.get_atlas_tex_size(block_behaviors.get_properties().internal_name);
 
         const SCALE: f32 = 4.0;
 

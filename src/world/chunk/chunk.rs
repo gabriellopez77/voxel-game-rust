@@ -120,8 +120,8 @@ impl Chunk {
             if id_state.id == 0 { continue }
 
             let behaviors = blocks_manager.get(id_state);
-            let properties = behaviors.get_properties(0);
-            let mesh = &properties.base_properties.model;
+            let properties = behaviors.get_properties();
+            let mesh = &behaviors.get_model(id_state.state);
 
             let chunk_block = Vec3::new(x as f32, y as f32, z as f32);
             let mut vertices = &mut mesh_result.vertices[properties.renderer_type as usize];
@@ -257,8 +257,8 @@ impl Chunk {
     }
 
     fn draw_face(current: &dyn BlockBehaviors, other: &dyn BlockBehaviors, dir: Directions) -> bool {
-        let current_prop = current.get_properties(0);
-        let other_prop = other.get_properties(0);
+        let current_prop = current.get_properties();
+        let other_prop = other.get_properties();
 
         // both blocks is opaque, then current face should not be rendered
         if current.is_opaque() && other.is_opaque() {

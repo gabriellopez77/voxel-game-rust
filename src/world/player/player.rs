@@ -3,16 +3,14 @@
     inputs::{self, Inputs},
     math::{self, Matrix4, Vec3},
     render::{
-        vertices_data::EntitiesCubesVertices,
-        EntitiesRenderer, GlobalRenderer,
+        EntitiesRenderer, GlobalRenderer, vertices_data::EntitiesCubesVertices,
     },
     resources::ResourceManager,
     ui::ui_manager::ScreensId,
     world::{
         Aabb, Planet,
-        blocks::{BlockIdState, block_registry},
-        chunk::chunk_data::ChunkDataReadBehavior,
-        light_engine::{self, LightType},
+        blocks::{BlockIdState, block_behaviors::PlaceBlockArgs, block_registry},
+        chunk::chunk_data::ChunkDataReadBehavior, light_engine::{self, LightType},
         particles::ParticlesManager,
         player::{
             BlockSelection, FirstPerson, PlayerInventory,
@@ -186,8 +184,8 @@ impl Player {
         self.process_collision(args.dt, planet, args.inputs);
 
         self.in_water = false;
-        planet.iterate_over_blocks_cube(&self.aabb, |stop, _, _, _, block_properties| {
-            if *block_properties == block_registry::get().water_block.get_id_state() {
+        planet.iterate_over_blocks_cube(&self.aabb, |stop, _, _, _, id_state| {
+            if *block_registry::get().get_properties(id_state) == *block_registry::get().water_block.get_properties() {
                 self.in_water = true;
                 *stop = true;
             }
@@ -221,8 +219,8 @@ impl Player {
                 let slot = self.inventory.get_hand_slot();
                 let block_properties = block_registry::get().get_properties(result.block_id_state);
 
-                if args.inputs.mouse_pressed(inputs::MouseButton::Right) && let Some(item) = slot.get_item() && item.is_block() {
-                    let keep_same_block = block_properties.can_replace && item.get_id_state() != block_properties.base_properties.get_id_state();
+                if args.inputs.mouse_pressed(inputs::MouseButton::Right) && let Some((item, id_state)) = slot.get_as_block() {
+                    let keep_same_block = block_properties.can_replace && item.get_properties() != block_properties;
                     let place_block = if keep_same_block { result.block_pos } else { result.block_pos + result.hit_normal };
 
                     let chunk_pos = math::get_chunk_pos(place_block);
@@ -234,7 +232,11 @@ impl Player {
                         if block_properties.can_replace {
                             action = true;
 
-                            planet.place_block(&chunk, chunk_block, item.get_id_state());
+                            let args = PlaceBlockArgs {
+                                hit_normal: result.hit_normal,
+                            };
+
+                            planet.place_block(&chunk, chunk_block, id_state, args);
                         }
                     }
                 }
@@ -328,7 +330,7 @@ impl Player {
         let ray_dir = self.camera.get_dir();
 
         planet.iterate_over_blocks_raycast(ray_pos, ray_dir, RAY_LENGHT, |stop, it| {
-            if let Some(ref selection_box) = it.block_properties.selection_box {
+            if let Some(ref selection_box) = block_registry::get().get(it.id_state).get_selection_box(it.id_state.state) {
                 let aabb = selection_box.clone_movev(it.global_block);
 
                 if let Some(hit) = aabb.ray_intersect(ray_pos, ray_dir) {
@@ -340,7 +342,7 @@ impl Player {
                     result = Some(RaycastingResult {
                         block_pos: it.global_block,
                         hit_normal: aabb.get_ray_hit_normal(hit),
-                        block_id_state: it.block_properties.base_properties.get_id_state(),
+                        block_id_state: it.id_state,
                         block_selection_box: aabb,
                     });
 

@@ -1,6 +1,6 @@
-use std::{array, sync::Arc};
+use std::{array, process::id, sync::Arc};
 
-use crate::world::{items::ItemBaseProperties, player::ItemStack};
+use crate::world::{blocks::{BlockIdState, BlockProperties}, player::ItemStack};
 
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -8,6 +8,12 @@ pub enum SlotType {
     Inventory,
     Creative,
     FlyingItem,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum ItemType {
+    Block(BlockIdState),
+    Item(u8),
 }
 
 pub struct PlayerInventory {
@@ -67,8 +73,8 @@ impl PlayerInventory {
     }
 
     /// used for register item in creative inventory
-    pub fn register_item(&mut self, item: Arc<ItemBaseProperties>) {
-        self.creative_inventory.push(ItemStack::new(item, 1));
+    pub fn register_block(&mut self, id_state: BlockIdState) {
+        self.creative_inventory.push(ItemStack::new(ItemType::Block(id_state), 1));
     }
 
 

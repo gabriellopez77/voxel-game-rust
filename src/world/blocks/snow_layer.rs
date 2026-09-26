@@ -1,8 +1,6 @@
 use crate::{
-    game::Directions,
-    world::{
-        blocks::{BlockBehaviors, BlockProperties, BlockTypes},
-        items::{ItemCreation, ItemCreationArgs}
+    game::Directions, world::{
+        Aabb, blocks::{BlockBehaviors, BlockIdState, BlockProperties, BlockTypes}, items::{ItemCreation, ItemCreationArgs}
     }
 };
 
@@ -12,7 +10,7 @@ pub struct SnowLayer {
 }
 
 impl BlockBehaviors for SnowLayer {
-    fn get_properties(&self, state: u8) -> &BlockProperties {
+    fn get_properties(&self) -> &BlockProperties {
         &self.properties
     }
 
@@ -35,19 +33,20 @@ impl BlockBehaviors for SnowLayer {
 
         return true;
     }
+
+    fn get_collision_box(&self, state: u8) -> Option<Aabb> { return None }
+    fn get_selection_box(&self, state: u8) -> Option<Aabb> { Some(Aabb::new_cube(0, 0, 0, 16, 2, 16)) }
 }
 
 impl ItemCreation for SnowLayer {
     type ItemType = Self;
 
     fn new(args: &mut ItemCreationArgs) -> Self {
-        let mut properties = BlockProperties::new(args, 0);
-        args.inventory.register_item(properties.base_properties.clone());
+        let mut properties = BlockProperties::new(args);
+        args.inventory.register_block(BlockIdState::new(properties.id, 0));
 
         properties.can_replace = true;
         properties.light_filter = 0;
-        properties.collision_box = None;
-        properties.set_selection_box(0, 0, 0, 16, 2, 16);
 
         Self {
             properties: properties,

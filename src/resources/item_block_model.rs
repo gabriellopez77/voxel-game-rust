@@ -36,6 +36,27 @@ const ERROR_MODEL: &'static str =
 	]
 }";
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RotateAxis { X, Y, Z }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RotateDegrees { Neg270, Neg180, Neg90, Zero, Pos60, Pos90, Pos180, Pos270 }
+
+impl RotateDegrees {
+    pub fn to_degrees(self) -> f32 {
+        return match self {
+            RotateDegrees::Neg270 => -2700.0,
+            RotateDegrees::Neg180 => -180.0,
+            RotateDegrees::Neg90 => -90.0,
+            RotateDegrees::Zero => 0.0,
+            RotateDegrees::Pos60 => 60.0,
+            RotateDegrees::Pos90 => 90.0,
+            RotateDegrees::Pos180 => 180.0,
+            RotateDegrees::Pos270 => 270.0,
+        }
+    }
+}
+
 #[derive(Default, Clone)]
 pub struct ItemBlockModel {
     pub nothing_vertices: Vec<BlockItemVertices>,
@@ -83,11 +104,17 @@ impl ItemBlockModel {
         }
     }
 
-    pub fn rotate_clone(&self, origin: Vec3, angles: Vec3) -> Self {
+    pub fn rotate_clone(&self, origin: Vec3, axis: RotateAxis, angle: RotateDegrees) -> Self {
+        let origin = origin * SCALE;
+
         let mut clone = self.clone();
 
         let mut rotate_matrix = Matrix4::IDENTITY;
-        rotate_matrix.rotatev_xyz(angles);
+        match axis {
+            RotateAxis::X => rotate_matrix.rotate_x(angle.to_degrees()),
+            RotateAxis::Y => rotate_matrix.rotate_y(angle.to_degrees()),
+            RotateAxis::Z => rotate_matrix.rotate_z(angle.to_degrees()),
+        }
 
         let rotate_func = |vertices: &mut Vec<BlockItemVertices>| {
             for i in (0..vertices.len()).step_by(4) {
@@ -96,11 +123,14 @@ impl ItemBlockModel {
                 let mut vert3 = vertices[i + 2].vertices;
                 let mut vert4 = vertices[i + 3].vertices;
 
+                let mut normal1 = vertices[i + 0].normal;
+                let mut normal2 = vertices[i + 1].normal;
+                let mut normal3 = vertices[i + 2].normal;
+                let mut normal4 = vertices[i + 3].normal;
+
                 Self::rotate_face(
-                    &mut vert1,
-                    &mut vert2,
-                    &mut vert3,
-                    &mut vert4,
+                    &mut vert1, &mut vert2, &mut vert3, &mut vert4,
+                    &mut normal1, &mut normal2, &mut normal3, &mut normal4,
                     origin,
                     &rotate_matrix
                 );
@@ -109,6 +139,11 @@ impl ItemBlockModel {
                 vertices[i + 1].vertices = vert2;
                 vertices[i + 2].vertices = vert3;
                 vertices[i + 3].vertices = vert4;
+
+                vertices[i + 0].normal = normal1;
+                vertices[i + 1].normal = normal2;
+                vertices[i + 2].normal = normal3;
+                vertices[i + 3].normal = normal4;
             }
         };
 
@@ -119,6 +154,29 @@ impl ItemBlockModel {
         rotate_func(&mut clone.north_vertices);
         rotate_func(&mut clone.west_vertices);
         rotate_func(&mut clone.east_vertices);
+
+        //let is_neg = angle.to_degrees() < 0.0;
+
+
+        for _ in 0..(angle.to_degrees() / 90.0) as i32 {
+            match axis {
+                RotateAxis::X => {
+                    std::mem::swap(&mut clone.up_vertices, &mut clone.south_vertices);
+                    std::mem::swap(&mut clone.down_vertices, &mut clone.south_vertices);
+                    std::mem::swap(&mut clone.north_vertices, &mut clone.down_vertices);
+                }
+                RotateAxis::Y => {
+                    std::mem::swap(&mut clone.east_vertices, &mut clone.south_vertices);
+                    std::mem::swap(&mut clone.north_vertices, &mut clone.east_vertices);
+                    std::mem::swap(&mut clone.west_vertices, &mut clone.north_vertices);
+                }
+                RotateAxis::Z => {
+                    std::mem::swap(&mut clone.up_vertices, &mut clone.west_vertices);
+                    std::mem::swap(&mut clone.down_vertices, &mut clone.west_vertices);
+                    std::mem::swap(&mut clone.east_vertices, &mut clone.down_vertices);
+                }
+            }
+        }
 
         return clone;
     }
@@ -252,15 +310,26 @@ impl ItemBlockModel {
             let mut vert3 = Vec3::new(1.0, 1.0, 0.0) * size + from;
             let mut vert4 = Vec3::new(0.0, 1.0, 0.0) * size + from;
 
-            let normal1 = Vec3::new(0.0, 1.0, 0.0);
-            let normal2 = Vec3::new(0.0, 1.0, 0.0);
-            let normal3 = Vec3::new(0.0, 1.0, 0.0);
-            let normal4 = Vec3::new(0.0, 1.0, 0.0);
+            let mut normal1 = Vec3::new(0.0, 1.0, 0.0);
+            let mut normal2 = Vec3::new(0.0, 1.0, 0.0);
+            let mut normal3 = Vec3::new(0.0, 1.0, 0.0);
+            let mut normal4 = Vec3::new(0.0, 1.0, 0.0);
 
             let (tex1, tex2, tex3, tex4) = Self::get_tex_coords(used_textures, &face, texture_size);
 
             if angle != 0.0 {
-                Self::rotate_face(&mut vert1, &mut vert2, &mut vert3, &mut vert4, origin, &rotate_matrix)
+                Self::rotate_face(
+                    &mut vert1,
+                    &mut vert2,
+                    &mut vert3,
+                    &mut vert4,
+                    &mut normal1,
+                    &mut normal2,
+                    &mut normal3,
+                    &mut normal4,
+                    origin,
+                    &rotate_matrix
+                );
             }
 
             vertices.push(BlockItemVertices { vertices: vert1, normal: normal1, uv: tex1, shade });
@@ -277,15 +346,26 @@ impl ItemBlockModel {
             let mut vert3 = Vec3::new(0.0, 0.0, 0.0) * size + from;
             let mut vert4 = Vec3::new(1.0, 0.0, 0.0) * size + from;
 
-            let normal1 = Vec3::new(0.0, -1.0, 0.0);
-            let normal2 = Vec3::new(0.0, -1.0, 0.0);
-            let normal3 = Vec3::new(0.0, -1.0, 0.0);
-            let normal4 = Vec3::new(0.0, -1.0, 0.0);
+            let mut normal1 = Vec3::new(0.0, -1.0, 0.0);
+            let mut normal2 = Vec3::new(0.0, -1.0, 0.0);
+            let mut normal3 = Vec3::new(0.0, -1.0, 0.0);
+            let mut normal4 = Vec3::new(0.0, -1.0, 0.0);
 
             let (tex1, tex2, tex3, tex4) = Self::get_tex_coords(used_textures, &face, texture_size);
 
             if angle != 0.0 {
-                Self::rotate_face(&mut vert1, &mut vert2, &mut vert3, &mut vert4, origin, &rotate_matrix)
+                Self::rotate_face(
+                    &mut vert1,
+                    &mut vert2,
+                    &mut vert3,
+                    &mut vert4,
+                    &mut normal1,
+                    &mut normal2,
+                    &mut normal3,
+                    &mut normal4,
+                    origin,
+                    &rotate_matrix
+                );
             }
 
             vertices.push(BlockItemVertices { vertices: vert1, normal: normal1, uv: tex1, shade });
@@ -302,15 +382,26 @@ impl ItemBlockModel {
             let mut vert3 = Vec3::new(0.0, 0.0, 0.0) * size + from;
             let mut vert4 = Vec3::new(0.0, 1.0, 0.0) * size + from;
 
-            let normal1 = Vec3::new(0.0, 0.0, -1.0);
-            let normal2 = Vec3::new(0.0, 0.0, -1.0);
-            let normal3 = Vec3::new(0.0, 0.0, -1.0);
-            let normal4 = Vec3::new(0.0, 0.0, -1.0);
+            let mut normal1 = Vec3::new(0.0, 0.0, -1.0);
+            let mut normal2 = Vec3::new(0.0, 0.0, -1.0);
+            let mut normal3 = Vec3::new(0.0, 0.0, -1.0);
+            let mut normal4 = Vec3::new(0.0, 0.0, -1.0);
 
             let (tex1, tex2, tex3, tex4) = Self::get_tex_coords(used_textures, &face, texture_size);
 
             if angle != 0.0 {
-                Self::rotate_face(&mut vert1, &mut vert2, &mut vert3, &mut vert4, origin, &rotate_matrix)
+                Self::rotate_face(
+                    &mut vert1,
+                    &mut vert2,
+                    &mut vert3,
+                    &mut vert4,
+                    &mut normal1,
+                    &mut normal2,
+                    &mut normal3,
+                    &mut normal4,
+                    origin,
+                    &rotate_matrix
+                );
             }
 
             vertices.push(BlockItemVertices { vertices: vert1, normal: normal1, uv: tex1, shade });
@@ -327,15 +418,26 @@ impl ItemBlockModel {
             let mut vert3 = Vec3::new(1.0, 0.0, 1.0) * size + from;
             let mut vert4 = Vec3::new(1.0, 1.0, 1.0) * size + from;
 
-            let normal1 = Vec3::new(0.0, 0.0, 1.0);
-            let normal2 = Vec3::new(0.0, 0.0, 1.0);
-            let normal3 = Vec3::new(0.0, 0.0, 1.0);
-            let normal4 = Vec3::new(0.0, 0.0, 1.0);
+            let mut normal1 = Vec3::new(0.0, 0.0, 1.0);
+            let mut normal2 = Vec3::new(0.0, 0.0, 1.0);
+            let mut normal3 = Vec3::new(0.0, 0.0, 1.0);
+            let mut normal4 = Vec3::new(0.0, 0.0, 1.0);
 
             let (tex1, tex2, tex3, tex4) = Self::get_tex_coords(used_textures, &face, texture_size);
 
             if angle != 0.0 {
-                Self::rotate_face(&mut vert1, &mut vert2, &mut vert3, &mut vert4, origin, &rotate_matrix)
+                Self::rotate_face(
+                    &mut vert1,
+                    &mut vert2,
+                    &mut vert3,
+                    &mut vert4,
+                    &mut normal1,
+                    &mut normal2,
+                    &mut normal3,
+                    &mut normal4,
+                    origin,
+                    &rotate_matrix
+                );
             }
 
             vertices.push(BlockItemVertices { vertices: vert1, normal: normal1, uv: tex1, shade });
@@ -352,15 +454,26 @@ impl ItemBlockModel {
             let mut vert3 = Vec3::new(0.0, 0.0, 1.0) * size + from;
             let mut vert4 = Vec3::new(0.0, 1.0, 1.0) * size + from;
 
-            let normal1 = Vec3::new(-1.0, 0.0, 0.0);
-            let normal2 = Vec3::new(-1.0, 0.0, 0.0);
-            let normal3 = Vec3::new(-1.0, 0.0, 0.0);
-            let normal4 = Vec3::new(-1.0, 0.0, 0.0);
+            let mut normal1 = Vec3::new(-1.0, 0.0, 0.0);
+            let mut normal2 = Vec3::new(-1.0, 0.0, 0.0);
+            let mut normal3 = Vec3::new(-1.0, 0.0, 0.0);
+            let mut normal4 = Vec3::new(-1.0, 0.0, 0.0);
 
             let (tex1, tex2, tex3, tex4) = Self::get_tex_coords(used_textures, &face, texture_size);
 
             if angle != 0.0 {
-                Self::rotate_face(&mut vert1, &mut vert2, &mut vert3, &mut vert4, origin, &rotate_matrix)
+                Self::rotate_face(
+                    &mut vert1,
+                    &mut vert2,
+                    &mut vert3,
+                    &mut vert4,
+                    &mut normal1,
+                    &mut normal2,
+                    &mut normal3,
+                    &mut normal4,
+                    origin,
+                    &rotate_matrix
+                );
             }
 
             vertices.push(BlockItemVertices { vertices: vert1, normal: normal1, uv: tex1, shade });
@@ -377,15 +490,26 @@ impl ItemBlockModel {
             let mut vert3 = Vec3::new(1.0, 0.0, 0.0) * size + from;
             let mut vert4 = Vec3::new(1.0, 1.0, 0.0) * size + from;
 
-            let normal1 = Vec3::new(1.0, 0.0, 0.0);
-            let normal2 = Vec3::new(1.0, 0.0, 0.0);
-            let normal3 = Vec3::new(1.0, 0.0, 0.0);
-            let normal4 = Vec3::new(1.0, 0.0, 0.0);
+            let mut normal1 = Vec3::new(1.0, 0.0, 0.0);
+            let mut normal2 = Vec3::new(1.0, 0.0, 0.0);
+            let mut normal3 = Vec3::new(1.0, 0.0, 0.0);
+            let mut normal4 = Vec3::new(1.0, 0.0, 0.0);
 
             let (tex1, tex2, tex3, tex4) = Self::get_tex_coords(used_textures, &face, texture_size);
 
             if angle != 0.0 {
-                Self::rotate_face(&mut vert1, &mut vert2, &mut vert3, &mut vert4, origin, &rotate_matrix)
+                Self::rotate_face(
+                    &mut vert1,
+                    &mut vert2,
+                    &mut vert3,
+                    &mut vert4,
+                    &mut normal1,
+                    &mut normal2,
+                    &mut normal3,
+                    &mut normal4,
+                    origin,
+                    &rotate_matrix
+                );
             }
 
             vertices.push(BlockItemVertices { vertices: vert1, normal: normal1, uv: tex1, shade });
@@ -498,12 +622,21 @@ impl ItemBlockModel {
         vert2: &mut Vec3,
         vert3: &mut Vec3,
         vert4: &mut Vec3,
+        normal1: &mut Vec3,
+        normal2: &mut Vec3,
+        normal3: &mut Vec3,
+        normal4: &mut Vec3,
         origin: Vec3, rotate_matrix: &Matrix4
     ) {
         *vert1 = Vec3::from4(Vec4::from3(*vert1 - origin, 1.0) * *rotate_matrix) + origin;
         *vert2 = Vec3::from4(Vec4::from3(*vert2 - origin, 1.0) * *rotate_matrix) + origin;
         *vert3 = Vec3::from4(Vec4::from3(*vert3 - origin, 1.0) * *rotate_matrix) + origin;
         *vert4 = Vec3::from4(Vec4::from3(*vert4 - origin, 1.0) * *rotate_matrix) + origin;
+
+        *normal1 = (Vec3::from4(Vec4::from3(*normal1, 1.0) * *rotate_matrix)).normalized();
+        *normal2 = (Vec3::from4(Vec4::from3(*normal2, 1.0) * *rotate_matrix)).normalized();
+        *normal3 = (Vec3::from4(Vec4::from3(*normal3, 1.0) * *rotate_matrix)).normalized();
+        *normal4 = (Vec3::from4(Vec4::from3(*normal4, 1.0) * *rotate_matrix)).normalized();
     }
 
     fn remove_unnecessary_path(path: &String) -> &str {

@@ -122,12 +122,7 @@ impl WorldGen {
                 // surface features
                 if y > surface_height {
                     if y < WATER_HEIGHT {
-                        //if (y == 49) {
-                        //    if (chance(0..100) < 2)
-                        //        data.set_block(current_block, bLOCKS_manager::LILY_PAD);
-                        //}
-                        //else
-                            data.set_block(current_block, blocks_manager.water_block.get_id_state())
+                        data.set_block(current_block, blocks_manager.water_block.get_id_state())
                     }
 
                     if y == surface_height + 1 {
@@ -138,19 +133,12 @@ impl WorldGen {
                             if self.chance(0, 100) < 20 {
                                 data.set_block(current_block, blocks_manager.short_grass.get_id_state())
                             }
-                            //else if self.chance(0, 100) < 1 {
-                            //    data.set_block(current_block, blocks_manager.MUSHROOM_BLUE_GROUP), 0;
-                            //}
                             else if self.chance(0, 1000) < 12 {
                                 data.set_block(current_block, blocks_manager.red_flower.get_id_state())
                             }
                             else if self.chance(0, 1000) < 12 {
                                 data.set_block(current_block, blocks_manager.yellow_flower.get_id_state())
                             }
-
-                            //else if self.chance(0, 1000) < 50 {
-                            //    treesPos.Add(currentBlock);
-                            //}
                         }
                         else {
                             if y >= WATER_HEIGHT && y <= WATER_HEIGHT + 3 {
@@ -161,7 +149,7 @@ impl WorldGen {
                         }
                     }
                 }
-//
+
                 // Ground
                 else {
                     if surface_height > 80 {

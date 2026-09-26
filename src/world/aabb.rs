@@ -1,4 +1,4 @@
-use crate::math::{self, Vec3};
+use crate::{math::{self, Matrix4, Vec3, Vec4}, resources::item_block_model::{RotateAxis, RotateDegrees}};
 
 
 #[derive(Clone, Copy)]
@@ -12,6 +12,8 @@ pub struct Aabb {
 }
 
 impl Aabb {
+    const CUBE_SCALE: f32 = 16.0;
+
     pub const CUBE: Self = Self {
         x0: 0.0,
         y0: 0.0,
@@ -23,6 +25,17 @@ impl Aabb {
 
     pub fn new(x0: f32, y0: f32, z0: f32, x1: f32, y1: f32, z1: f32) -> Self {
         Self { x0, y0, z0, x1, y1, z1}
+    }
+
+    pub fn new_cube(x: i32, y: i32, z: i32, sx: i32, sy: i32, sz: i32) -> Self {
+        Aabb::new(
+            x as f32 / Self::CUBE_SCALE,
+            y as f32 / Self::CUBE_SCALE,
+            z as f32 / Self::CUBE_SCALE,
+            (x + sx) as f32 / Self::CUBE_SCALE,
+            (y + sy) as f32 / Self::CUBE_SCALE,
+            (z + sz) as f32 / Self::CUBE_SCALE,
+        )
     }
 
     pub fn new_from_ray(pos: Vec3, dir: Vec3, length: f32) -> Self {
@@ -63,8 +76,36 @@ impl Aabb {
         )
     }
 
+
     /// clone this aabb and move the clone using Vec3
     pub fn clone_movev(&self, value: Vec3) -> Self { self.clone_move(value.x, value.y, value.z) }
+
+    /// clone this aab and rotate it by angles
+    pub fn clone_rotate(&self, origin: Vec3, axis: RotateAxis, angle: RotateDegrees) -> Self {
+        let origin = origin * (1.0 / Self::CUBE_SCALE);
+
+        let mut min = Vec3::new(self.x0, self.y0, self.z0);
+        let mut max = Vec3::new(self.x1, self.y1, self.z1);
+
+        let mut rotate_matrix = Matrix4::IDENTITY;
+        match axis {
+            RotateAxis::X => rotate_matrix.rotate_x(angle.to_degrees()),
+            RotateAxis::Y => rotate_matrix.rotate_y(angle.to_degrees()),
+            RotateAxis::Z => rotate_matrix.rotate_z(angle.to_degrees()),
+        }
+
+        min = Vec3::from4(Vec4::from3(min - origin, 1.0) * rotate_matrix) + origin;
+        max = Vec3::from4(Vec4::from3(max - origin, 1.0) * rotate_matrix) + origin;
+
+        Self::new(
+            min.x.min(max.x),
+            min.y.min(max.y),
+            min.z.min(max.z),
+            min.x.max(max.x),
+            min.y.max(max.y),
+            min.z.max(max.z)
+        )
+    }
 
     pub fn expand(&self, xa: f32, ya: f32, za: f32) -> Self {
         let mut x0 = self.x0;
@@ -183,14 +224,14 @@ impl Aabb {
         let aabb_min = self.get_min();
         let aabb_max = self.get_max();
 
-        if (hit.x - aabb_min.x).abs() < math::EPSILON { return Vec3::new(-1.0, 0.0, 0.0) };
-        if (hit.x - aabb_max.x).abs() < math::EPSILON { return Vec3::new(1.0, 0.0, 0.0) };
+        if (hit.x - aabb_min.x).abs() < math::EPSILON { return Vec3::new(-1.0, 0.0, 0.0) }
+        if (hit.x - aabb_max.x).abs() < math::EPSILON { return Vec3::new(1.0, 0.0, 0.0) }
 
-        if (hit.y - aabb_min.y).abs() < math::EPSILON { return Vec3::new(0.0, -1.0, 0.0) };
-        if (hit.y - aabb_max.y).abs() < math::EPSILON { return Vec3::new(0.0, 1.0, 0.0) };
+        if (hit.y - aabb_min.y).abs() < math::EPSILON { return Vec3::new(0.0, -1.0, 0.0) }
+        if (hit.y - aabb_max.y).abs() < math::EPSILON { return Vec3::new(0.0, 1.0, 0.0) }
 
-        if (hit.z - aabb_min.z).abs() < math::EPSILON { return Vec3::new(0.0, 0.0, -1.0) };
-        if (hit.z - aabb_max.z).abs() < math::EPSILON { return Vec3::new(0.0, 0.0, 1.0) };
+        if (hit.z - aabb_min.z).abs() < math::EPSILON { return Vec3::new(0.0, 0.0, -1.0) }
+        if (hit.z - aabb_max.z).abs() < math::EPSILON { return Vec3::new(0.0, 0.0, 1.0) }
 
         unreachable!(); // should not happen
     }

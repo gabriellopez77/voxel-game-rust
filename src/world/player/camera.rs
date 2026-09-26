@@ -108,7 +108,7 @@ impl Camera {
 
         // check if camera is on water
         self.is_underwater = if let Some(chunk) = planet.chunks_manager.get_chunk(self.chunk_pos) {
-            *chunk.data.get_block_properties(self.chunk_block) == block_registry::get().water_block.get_id_state()
+            *chunk.data.get_block_properties(self.chunk_block) == *block_registry::get().water_block.get_properties()
         } else { false };
 
 
@@ -235,7 +235,7 @@ impl Camera {
         let mut pos = Option::<Vec3>::None;
 
         planet.iterate_over_blocks_raycast(ray_origin, ray_dir, DISTANCE, |stop, it| {
-            if let Some(selection_box) = it.block_properties.selection_box {
+            if let Some(selection_box) = block_registry::get().get(it.id_state).get_collision_box(it.id_state.state) {
                 let aabb = selection_box.clone_movev(it.global_block);
 
                 if let Some(hit) = aabb.ray_intersect(ray_origin, ray_dir) {

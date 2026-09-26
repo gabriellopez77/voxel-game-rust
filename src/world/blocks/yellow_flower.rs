@@ -1,4 +1,4 @@
-use crate::world::{blocks::{BlockBehaviors, BlockProperties}, items::{ItemCreation, ItemCreationArgs}};
+use crate::world::{Aabb, blocks::{BlockBehaviors, BlockIdState, BlockProperties}, items::{ItemCreation, ItemCreationArgs}};
 
 
 pub struct YellowFlower {
@@ -6,7 +6,7 @@ pub struct YellowFlower {
 }
 
 impl BlockBehaviors for YellowFlower {
-    fn get_properties(&self, state: u8) -> &BlockProperties {
+    fn get_properties(&self) -> &BlockProperties {
         &self.properties
     }
 
@@ -15,20 +15,21 @@ impl BlockBehaviors for YellowFlower {
     fn causes_ambient_occlusion(&self) -> bool {
         return false;
     }
+
+    fn get_collision_box(&self, state: u8) -> Option<Aabb> { return None }
+    fn get_selection_box(&self, state: u8) -> Option<Aabb> { Some(Aabb::new_cube(5, 0, 5, 6, 10, 6)) }
 }
 
 impl ItemCreation for YellowFlower {
     type ItemType = Self;
 
     fn new(args: &mut ItemCreationArgs) -> Self {
-        let mut properties = BlockProperties::new(args, 0);
-        args.inventory.register_item(properties.base_properties.clone());
+        let mut properties = BlockProperties::new(args);
+        args.inventory.register_block(BlockIdState::new(properties.id, 0));
 
         properties.can_replace = false;
         properties.light_emission = 0;
         properties.light_filter = 0;
-        properties.collision_box = None;
-        properties.set_selection_box(5, 0, 5, 6, 10, 6);
 
         Self {
             properties: properties,

@@ -100,6 +100,10 @@ impl Text {
         self.update_mesh();
     }
 
+    pub fn clear_text(&mut self) {
+        self.text = TextTypes::Str("");
+    }
+
     pub fn set_text_string(&mut self, func: impl Fn(&mut String) -> Result<(), std::fmt::Error>) {
         if !matches!(self.text, TextTypes::String(_)) {
             self.text = TextTypes::String(String::new());

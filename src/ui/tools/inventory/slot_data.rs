@@ -1,13 +1,13 @@
 use std::fmt::Write;
 use std::rc::Rc;
-use crate::math::Vec2;
-use crate::render::{GlobalRenderer, UiRenderer};
-use crate::resources::FontInfo;
-use crate::ui::tools::{Sprite, Text, UiElement};
-use crate::world::player::player_inventory::SlotType;
-use crate::world::player::PlayerInventory;
 
-
+use crate::{
+    math::Vec2,
+    resources::FontInfo,
+    render::{GlobalRenderer, UiRenderer},
+    ui::tools::{Sprite, Text, UiElement},
+    world::player::{player_inventory::SlotType, PlayerInventory},
+};
 
 
 pub struct SlotData {
@@ -86,7 +86,9 @@ impl SlotData {
         }
 
 
-        self.icon.set_texture_from_coords(GlobalRenderer::WORLD_TEXTURE_IDX, slot.get_item().unwrap().icon);
+        let (behaviors, id_state) = slot.get_as_block().unwrap();
+
+        self.icon.set_texture_from_coords(GlobalRenderer::WORLD_TEXTURE_IDX, behaviors.get_icon(id_state.state));
 
         self.last_count = slot.get_count();
     }

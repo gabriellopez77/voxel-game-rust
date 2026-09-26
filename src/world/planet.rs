@@ -1,28 +1,20 @@
 ﻿use std::sync::Arc;
 
 use crate::{
-    math::{self, Vec3, Vec3i},
-    render::ChunksRenderer,
-    world::{
-        Aabb,
-        ChunksManager,
-        blocks::{BlockIdState, BlockProperties, block_registry},
-        chunk::{
+    math::{self, Vec3, Vec3i}, render::ChunksRenderer, world::{
+        Aabb, ChunksManager, blocks::{BlockIdState, BlockProperties, block_behaviors::PlaceBlockArgs, block_registry}, chunk::{
             Chunk, ChunkGetter, NeighborsChunks,
             chunk_data::{ChunkDataFlags, ChunkDataReadBehavior},
-        },
-        light_engine,
-        particles::{ParticlesManager, ParticlesSpawnArgs},
-        player::Camera,
+        }, light_engine, particles::{ParticlesManager, ParticlesSpawnArgs}, player::Camera,
     }
 };
 
 
-pub struct BlockIteraterInfo<'a> {
+pub struct BlockIteraterInfo {
     pub global_block: Vec3,
     pub chunk_block: Vec3i,
     pub chunk: Arc<Chunk>,
-    pub block_properties: &'a BlockProperties,
+    pub id_state: BlockIdState,
 }
 
 pub struct Planet {
@@ -77,8 +69,10 @@ impl Planet {
         self.chunks_manager.draw_chunks(dt, camera,chunks_renderer);
     }
 
-    pub fn place_block(&self, chunk: &Chunk, chunk_block: Vec3i, id_state: BlockIdState) {
-        let old_block = chunk.data.change_block(chunk_block, id_state);
+    pub fn place_block(&self, chunk: &Chunk, chunk_block: Vec3i, id_state: BlockIdState, args: PlaceBlockArgs) {
+        let id_state = block_registry::get().get(id_state).place_block(&args);
+
+        let old_block = block_registry::get().get_properties(chunk.data.change_block(chunk_block, id_state));
 
         self.change_block_logic(chunk, chunk_block, &old_block, block_registry::get().get_properties(id_state));
     }
@@ -86,10 +80,15 @@ impl Planet {
     pub fn destroy_block(&self, chunk: &Chunk, chunk_block: Vec3i, particles_manager: &mut ParticlesManager) {
         let old_block = chunk.data.change_block(chunk_block, BlockIdState::AIR);
 
-        self.change_block_logic(chunk, chunk_block, &old_block, block_registry::get().get_properties(BlockIdState::AIR));
+        self.change_block_logic(
+            chunk,
+            chunk_block,
+            block_registry::get().get_properties(old_block),
+            block_registry::get().get_properties(BlockIdState::AIR)
+        );
 
         particles_manager.spawn(ParticlesSpawnArgs::BlockDestroy(
-            old_block.base_properties.get_id_state(),
+            old_block,
             (chunk.position * Chunk::CHUNK_SIZE + chunk_block).as_vec3()
         ));
     }
@@ -99,8 +98,8 @@ impl Planet {
 
         aabb_list.clear();
 
-        self.iterate_over_blocks_cube(aabb, |_, x, y, z, properties|
-            if let Some(ref collision_box) = properties.collision_box {
+        self.iterate_over_blocks_cube(aabb, |_, x, y, z, id_state|
+            if let Some(ref collision_box) = block_registry::get().get(id_state).get_collision_box(id_state.state) {
                 aabb_list.push(collision_box.clone_move(x as f32, y as f32, z as f32));
             }
         );
@@ -115,15 +114,15 @@ impl Planet {
         mut func: impl FnMut(
             &mut bool,
             i32, i32, i32,
-            &BlockProperties
+            BlockIdState,
         )
     ) {
         let x0 = aabb.x0.floor() as i32;
         let y0 = aabb.y0.floor() as i32;
         let z0 = aabb.z0.floor() as i32;
-        let x1 = (aabb.x1 + 1.0).floor() as i32;
-        let y1 = (aabb.y1 + 1.0).floor() as i32;
-        let z1 = (aabb.z1 + 1.0).floor() as i32;
+        let x1 = aabb.x1.ceil() as i32;
+        let y1 = aabb.y1.ceil() as i32;
+        let z1 = aabb.z1.ceil() as i32;
 
         let mut chunk_getter = ChunkGetter::new();
 
@@ -138,10 +137,8 @@ impl Planet {
             if let Some(ref ch) = chunk_getter.chunk {
                 let chunk_block = math::get_chunk_block(chunk_pos, global_coords);
 
-                let block_properties = ch.data.get_block_properties(chunk_block);
-
                 let mut stop = false;
-                func(&mut stop, x, y, z, block_properties);
+                func(&mut stop, x, y, z, ch.data.get_block_id_state(chunk_block));
                 if stop { return }
 
             }
@@ -203,13 +200,11 @@ impl Planet {
             if let Some(chunk) = chunk_getter.change(chunk_pos, &self.chunks_manager) {
                 let chunk_block = math::get_chunk_block(chunk_pos, block_pos);
 
-                let block_properties = chunk.data.get_block_properties(chunk_block);
-
                 let iterater_info = BlockIteraterInfo {
                     global_block: block_pos,
                     chunk_block,
                     chunk: chunk.clone(),
-                    block_properties,
+                    id_state: chunk.data.get_block_id_state(chunk_block),
                 };
 
                 let mut stop = false;

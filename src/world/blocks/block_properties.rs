@@ -2,7 +2,11 @@ use std::sync::Arc;
 
 use crate::{
     render::chunks_renderer::ChunkRendererType,
-    world::{Aabb, items::*}
+    resources::ItemBlockModel,
+    world::{
+        blocks::block_states::{BlockStates, BlockStatesTypes},
+        items::*
+    }
 };
 
 
@@ -33,57 +37,68 @@ impl BlockIdState {
 }
 
 pub struct BlockProperties {
+    pub internal_name: &'static str,
+    pub name: &'static str,
+    pub id: u16,
+    pub default_state: u8,
+    model: Arc<ItemBlockModel>,
+
+    states: Vec<BlockStates>,
+
+
     pub can_replace: bool,
     pub light_filter: u8,
     pub light_emission: u8,
     pub renderer_type: ChunkRendererType,
-    pub collision_box: Option<Aabb>,
-    pub selection_box: Option<Aabb>,
 
-    pub base_properties: Arc<ItemBaseProperties>,
 }
 
 impl PartialEq for BlockProperties {
     fn eq(&self, other: &Self) -> bool {
-        self.base_properties.get_id_state() == other.base_properties.get_id_state()
-    }
-}
-
-impl PartialEq<BlockIdState> for BlockProperties{
-    fn eq(&self, id_state: &BlockIdState) -> bool {
-        self.base_properties.get_id_state() == *id_state
+        self.id == other.id
     }
 }
 
 impl BlockProperties {
-    pub fn new(args: &ItemCreationArgs, state: u8) -> Self {
+    pub fn new(args: &ItemCreationArgs) -> Self {
+        static mut CURRENT_ID: u16 = 0;
+
+        // SAFETY: called only on the main thread
+        let new_id = unsafe {
+            let temp = CURRENT_ID;
+            CURRENT_ID += 1;
+
+            temp
+        };
+
+
         Self {
+            internal_name: args.internal_name,
+            name: args.name,
+            id: new_id,
+            default_state: 0,
+            model: args.resources.get_model(args.internal_name),
+
+            states: Vec::new(),
+
             can_replace: false,
             light_filter: 0,
             light_emission: 0,
             renderer_type: ChunkRendererType::Opaque,
-            collision_box: Some(Aabb::CUBE),
-            selection_box: Some(Aabb::CUBE),
-
-            base_properties: Arc::new(ItemBaseProperties::new(
-                args.internal_name,
-                args.name,
-                args.resources.get_model(args.internal_name),
-                args.parent_id,
-                state,
-                ItemBaseType::Block
-            )),
         }
     }
 
-    pub fn set_selection_box(&mut self, x: i32, y: i32, z: i32, sx: i32, sy: i32, sz: i32) {
-        self.selection_box = Some(Aabb::new(
-            x as f32 / 16.0,
-            y as f32 / 16.0,
-            z as f32 / 16.0,
-            (x + sx) as f32 / 16.0,
-            (y + sy) as f32 / 16.0,
-            (z + sz) as f32 / 16.0,
-        ));
+    pub fn get_model(&self) -> &ItemBlockModel { &self.model }
+
+    pub fn add_states(&mut self, states: BlockStates) {
+        self.states.push(states);
+    }
+
+    pub fn get_states_idx(&self, required_states: &[BlockStatesTypes]) -> Option<usize> {
+        self.states.iter().position(|s| s.has(required_states))
+    }
+
+    pub fn get_states_from_idx(&self, idx: u8) -> &BlockStates {
+        return &self.states[idx as usize];
     }
 }

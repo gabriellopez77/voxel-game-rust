@@ -4,17 +4,20 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-#window
+
+# window
 glfw = { version = "0.62.0", features = ["vulkan"] }
-windows = { version = "0.58", features = ["Win32_Graphics_Dwm", "Win32_Foundation"] }
 ash-window = "0.13.0"
 raw-window-handle = "0.6.2"
 
-image = "0.25.10"
-
 # utils
+image = "0.25.10" # read png files
 fastnoise-lite = "1.1.1"
-rand = "0.10.1"
+rand = "0.10.1" # random numbers
+strum = "0.28.0" # enums iterator and utils
+strum_macros = "0.28.0" # enums iterator and utils
+filetime = "0.2" # modified the files metada
+windows = { version = "0.58", features = ["Win32_Graphics_Dwm", "Win32_Foundation"] } # windows lib
 
 # json
 serde = { version = "1.0.228", features = ["derive"] }
@@ -24,9 +27,6 @@ serde_json = "1.0.149"
 ash = "0.38.0"
 vk-mem = "0.5.0"
 shaderc = "0.10.1"
-
-# modified time metadata files manipulation
-filetime = "0.2"
 
 # imgui
 imgui = "0.12.0"

@@ -32,8 +32,8 @@ impl SlotHoverInfo {
     }
 
     pub fn set(&mut self, slot: &dyn UiElement, stack: &ItemStack) {
-        if let Some(item) = stack.get_item() {
-            self.item_name.set_text(item.name);
+        if let Some((item, _)) = stack.get_as_block() {
+            self.item_name.set_text(item.get_properties().name);
 
             self.background.set_sizev(self.item_name.get_size() + 8.0);
             self.background.set_pos(

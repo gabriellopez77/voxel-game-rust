@@ -1,9 +1,6 @@
 use crate::{
-    game::Directions,
-    render::chunks_renderer::ChunkRendererType,
-    world::{
-        blocks::{BlockBehaviors, BlockProperties, BlockTypes},
-        items::{ItemCreation, ItemCreationArgs}
+    game::Directions, render::chunks_renderer::ChunkRendererType, world::{
+        Aabb, blocks::{BlockBehaviors, BlockIdState, BlockProperties, BlockTypes}, items::{ItemCreation, ItemCreationArgs}
     }
 };
 
@@ -13,7 +10,7 @@ pub struct WaterBlock {
 }
 
 impl BlockBehaviors for WaterBlock {
-    fn get_properties(&self, state: u8) -> &BlockProperties {
+    fn get_properties(&self) -> &BlockProperties {
         &self.properties
     }
 
@@ -34,20 +31,21 @@ impl BlockBehaviors for WaterBlock {
 
         return true;
     }
+
+    fn get_collision_box(&self, state: u8) -> Option<Aabb> { None }
+    fn get_selection_box(&self, state: u8) -> Option<Aabb> { None }
 }
 
 impl ItemCreation for WaterBlock {
     type ItemType = Self;
 
     fn new(args: &mut ItemCreationArgs) -> Self {
-        let mut properties = BlockProperties::new(args, 0);
-        args.inventory.register_item(properties.base_properties.clone());
+        let mut properties = BlockProperties::new(args);
+        args.inventory.register_block(BlockIdState::new(properties.id, 0));
 
         properties.can_replace = true;
         properties.light_filter = 1;
         properties.renderer_type = ChunkRendererType::Alpha;
-        properties.collision_box = None;
-        properties.selection_box = None;
 
         Self {
             properties: properties,

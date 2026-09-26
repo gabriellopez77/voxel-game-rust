@@ -1,9 +1,6 @@
-use std::rc::Rc;
-
 use crate::{
-    resources::{ItemBlockModel, ResourceManager, TexCoords},
+    resources::{ResourceManager},
     world::{
-        blocks::BlockIdState,
         player::PlayerInventory
     }
 };
@@ -23,62 +20,10 @@ pub trait ItemCreation {
     fn new(args: &mut ItemCreationArgs) -> Self::ItemType;
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
-pub enum ItemBaseType {
-    Item,
-    Block
-}
-
 #[derive(Clone)]
 pub struct ItemBaseProperties {
-    id: u16,
-    state: u8,
-    pub internal_name: &'static str,
-    pub name: &'static str,
-    pub icon: TexCoords,
-    pub model: Rc<ItemBlockModel>,
 
-    parent_index: u32,
-    base_type: ItemBaseType,
 }
 
 impl ItemBaseProperties {
-    pub fn new(
-        internal_name: &'static str,
-        name: &'static str,
-        model: Rc<ItemBlockModel>,
-        parent_index: usize,
-        state: u8,
-        item_base_type: ItemBaseType
-    ) -> Self {
-        static mut CURRENT_ID: u16 = 0;
-
-        let new_id;
-
-        // SAFETY: called only on the main thread
-        unsafe {
-            new_id = CURRENT_ID;
-            CURRENT_ID += 1;
-        }
-
-        Self {
-            id: new_id,
-            name,
-            internal_name,
-            icon: model.icon_coords,
-
-            state,
-            parent_index: parent_index as u32,
-            base_type: item_base_type,
-
-            model,
-        }
-    }
-
-    pub fn get_id_state(&self) -> BlockIdState {
-        return BlockIdState { id: self.id, state: self.state };
-    }
-
-    pub fn is_block(&self) -> bool { self.base_type == ItemBaseType::Block }
-    pub fn is_item(&self) -> bool { self.base_type == ItemBaseType::Item }
 }

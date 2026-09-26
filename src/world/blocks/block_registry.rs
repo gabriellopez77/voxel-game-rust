@@ -84,8 +84,8 @@ impl BlockRegistry {
             white_oak_planks: Self::add::<DefaultOpaqueCube>("white_oak_planks", "White Oak Planks", &mut blocks, resources, inventory),
             oak_leaves: Self::add::<OakLeaves>("oak_leaves", "Oak Leaves", &mut blocks, resources, inventory),
             white_oak_leaves: Self::add::<WhiteOakLeaves>("white_oak_leaves", "White Oak Leaves", &mut blocks, resources, inventory),
-            oak_log: Self::add::<DefaultOpaqueCube>("oak_log", "Oak Log", &mut blocks, resources, inventory),
-            white_oak_log: Self::add::<DefaultOpaqueCube>("white_oak_log", "White Oak Log", &mut blocks, resources, inventory),
+            oak_log: Self::add::<DefaultLog>("oak_log", "Oak Log", &mut blocks, resources, inventory),
+            white_oak_log: Self::add::<DefaultLog>("white_oak_log", "White Oak Log", &mut blocks, resources, inventory),
 
             blocks,
         }
@@ -95,8 +95,8 @@ impl BlockRegistry {
         &*self.blocks[id_state.id as usize]
     }
 
-    pub fn get_properties(&self, id_stete: BlockIdState) -> &BlockProperties {
-        &self.blocks[id_stete.id as usize].get_properties(id_stete.state)
+    pub fn get_properties(&self, id_state: BlockIdState) -> &BlockProperties {
+        &self.blocks[id_state.id as usize].get_properties()
     }
 
 

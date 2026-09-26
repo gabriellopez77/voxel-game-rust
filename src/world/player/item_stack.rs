@@ -1,10 +1,9 @@
-use std::sync::Arc;
-use crate::world::items::ItemBaseProperties;
+use crate::world::{blocks::{BlockBehaviors, BlockIdState, block_registry}, player::player_inventory::ItemType};
 
 
 #[derive(Clone)]
 pub struct ItemStack {
-    item: Option<Arc<ItemBaseProperties>>,
+    item: Option<ItemType>,
     count: i32,
 }
 
@@ -12,7 +11,7 @@ impl ItemStack {
     pub const MAX_STACK_COUNT: i32 = 64;
     pub const EMPTY: ItemStack = ItemStack { item: None, count: 0 };
 
-    pub fn new(item: Arc<ItemBaseProperties>, count: i32) -> Self {
+    pub fn new(item: ItemType, count: i32) -> Self {
         Self {
             item: Some(item),
             count,
@@ -23,18 +22,29 @@ impl ItemStack {
     pub fn is_empty(&self) -> bool { self.item.is_none() || self.count == 0 }
     pub fn get_count(&self) -> i32 { self.count }
 
-    pub fn set(&mut self, item: Arc<ItemBaseProperties>, count: i32) {
+    pub fn set(&mut self, item: ItemType, count: i32) {
         self.item = Some(item);
         self.count = count;
     }
 
-    pub fn get_item(&self) -> Option<&Arc<ItemBaseProperties>> {
-        self.item.as_ref()
+    pub fn get_as_block(&self) -> Option<(&'static dyn BlockBehaviors, BlockIdState)> {
+        if let Some(item) = self.item {
+            return match item {
+                ItemType::Block(id_state) => Some((block_registry::get().get(id_state), id_state)),
+                _ => None,
+            }
+        }
+
+        return None;
+    }
+
+    pub fn get_item_type(&self) -> Option<ItemType> {
+        self.item
     }
 
     pub fn is_same(&self, other: &ItemStack) -> bool {
         if let Some(ref this) = self.item && let Some(ref other) = other.item {
-            return this.get_id_state().id ==  other.get_id_state().id
+            return this ==  other
         }
 
         return false;
