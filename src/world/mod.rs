@@ -11,6 +11,7 @@ pub mod particles;
 pub mod light_engine;
 pub mod chunks_manager;
 pub mod entities;
+pub mod ao_engine;
 
 pub use {
     chunk::Chunk,

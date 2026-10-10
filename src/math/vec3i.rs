@@ -5,7 +5,7 @@ use crate::math::Vec3;
 
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Vec3i {
     pub x: i32,
     pub y: i32,
@@ -25,18 +25,6 @@ impl Vec3i {
             z: self.z as f32,
         }
     }
-}
-
-impl Hash for Vec3i {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.x.hash(state);
-        self.y.hash(state);
-        self.z.hash(state);
-    }
-}
-
-impl PartialEq for Vec3i {
-    fn eq(&self, other: &Vec3i) -> bool { self.x == other.x && self.y == other.y && self.z == other.z }
 }
 
 

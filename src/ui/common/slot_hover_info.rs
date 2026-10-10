@@ -1,4 +1,13 @@
-use crate::{render::UiRenderer, ui::{ScreenStartArgs, tools::{Slice, Text, UiElement}}, world::player::ItemStack};
+use crate::{
+    render::UiRenderer,
+    ui::{
+        ScreenStartArgs,
+        tools::{
+            Slice, Text, UiElement, text::TextInfos
+        }
+    },
+    world::player::ItemStack
+};
 
 
 pub struct SlotHoverInfo {
@@ -19,7 +28,7 @@ impl SlotHoverInfo {
 
     pub fn start(&mut self, args: &ScreenStartArgs) {
         self.background.set_texture(&args.resources.ui_sprites_texture, "item_name_panel", 2);
-        self.item_name.set_font(args.resources.get_font("default"));
+        self.item_name.set_info(TextInfos::Font(args.resources.get_font("default")));
     }
 
     pub fn draw(&mut self, renderer: &mut UiRenderer) {

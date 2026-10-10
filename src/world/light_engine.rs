@@ -95,7 +95,7 @@ fn get_queue() -> VecDeque<LightQueueData> {
     return VecDeque::new();
 }
 
-fn restore_queue(queue: VecDeque<LightQueueData>) { QUEUE_DATA_POOL.lock().push(queue); }
+fn restore_queue(queue: VecDeque<LightQueueData>) { QUEUE_DATA_POOL.lock().push(queue) }
 
 pub fn update_light(
     chunks_map: Arc<RwLock<HashMap<Vec3i, Option<Arc<Chunk>>>>>,
@@ -105,8 +105,8 @@ pub fn update_light(
     new_block: &BlockProperties
 ) {
     // update the light is redundant
-    if old_block.light_filter == 0 && old_block.light_emission == 0 &&
-        new_block.light_filter == 0 && new_block.light_emission == 0 {
+    if old_block.light_filter == MIN_LEVEL && old_block.light_emission == MIN_LEVEL &&
+        new_block.light_filter == MIN_LEVEL && new_block.light_emission == MIN_LEVEL {
         return
     }
 
@@ -120,22 +120,26 @@ pub fn update_light(
         add_block_light_source(chunks_map.clone(), chunk_data.clone(), chunk_block, new_block);
     }
 
+    // sky light logic
     let mut add_sky_queue = get_queue();
     let mut remove_queue = get_queue();
 
     let mut new_value = MIN_LEVEL;
 
-    if chunk_block.y == Chunk::CHUNK_SIZE_MINUS_ONE.y && new_block.light_filter < MAX_LEVEL {
-        add_sky_queue.push_back(LightQueueData::new(chunk_data.clone(), chunk_block, MAX_LEVEL, 0));
-
+    if chunk_block.y == Chunk::CHUNK_SIZE_MINUS_ONE.y {
         new_value = MAX_LEVEL - new_block.light_filter;
+
+        // we can not use the remove light logic to update sky light, then we need update it manually
+        if new_block.light_filter > MIN_LEVEL || old_block.light_filter > MIN_LEVEL {
+            add_sky_queue.push_back(LightQueueData::new(chunk_data.clone(), chunk_block, new_value, MIN_LEVEL));
+        }
     }
 
-    // uses remove light logic to update skylight around
+    // we use the remove light logic to update sky light
     remove_queue.push_back(LightQueueData::new(
         chunk_data.clone(),
         chunk_block,
-        MIN_LEVEL,
+        new_value,
         chunk_data.get_light(chunk_block, LightType::Sky)
     ));
 
@@ -155,7 +159,7 @@ pub fn update_light_in_border_neighbors(
     chunk_data: Arc<ChunkData>,
     neighbors_chunks_data: NeighborsChunksData
 ) {
-    let update_light_in_border = |chunk_data: Arc<ChunkData>, light_type: LightType, face: Directions| {
+    let update_light_in_border = |chunk_data: Arc<ChunkData>, light_type: LightType, dir: Option<Directions>| {
         let mut add_queue = get_queue();
         let chunk_pos: Vec3i;
 
@@ -183,7 +187,25 @@ pub fn update_light_in_border_neighbors(
             return;
         }
 
-        if face == Directions::Nothing {
+        if let Some(dir) = dir {
+            for i in 0..Chunk::CHUNK_SIZE.x {
+                for y in 0..Chunk::CHUNK_SIZE.y {
+                    if dir == Directions::North {
+                        add_light_border_in_queue(&data, Vec3i::new(i, y, 0));
+                    }
+                    else if dir == Directions::South {
+                        add_light_border_in_queue(&data, Vec3i::new(i, y, Chunk::CHUNK_SIZE_MINUS_ONE.z));
+                    }
+                    else if dir == Directions::West {
+                        add_light_border_in_queue(&data, Vec3i::new(0, y, i));
+                    }
+                    else if dir == Directions::East {
+                        add_light_border_in_queue(&data, Vec3i::new(Chunk::CHUNK_SIZE_MINUS_ONE.x, y, i));
+                    }
+                }
+            }
+        }
+        else {
             for y in 0..Chunk::CHUNK_SIZE.y {
                 for x in 0..Chunk::CHUNK_SIZE.x {
                     add_light_border_in_queue(&data, Vec3i::new(x, y, 0));
@@ -196,24 +218,6 @@ pub fn update_light_in_border_neighbors(
                 }
             }
         }
-        else {
-            for i in 0..Chunk::CHUNK_SIZE.x {
-                for y in 0..Chunk::CHUNK_SIZE.y {
-                    if face == Directions::North {
-                        add_light_border_in_queue(&data, Vec3i::new(i, y, 0));
-                    }
-                    else if face == Directions::South {
-                        add_light_border_in_queue(&data, Vec3i::new(i, y, Chunk::CHUNK_SIZE_MINUS_ONE.z));
-                    }
-                    else if face == Directions::West {
-                        add_light_border_in_queue(&data, Vec3i::new(0, y, i));
-                    }
-                    else if face == Directions::East {
-                        add_light_border_in_queue(&data, Vec3i::new(Chunk::CHUNK_SIZE_MINUS_ONE.x, y, i));
-                    }
-                }
-            }
-        }
 
         std::mem::drop(data);
 
@@ -223,31 +227,31 @@ pub fn update_light_in_border_neighbors(
         restore_queue(add_queue);
     };
 
-    update_light_in_border(chunk_data.clone(), LightType::Block, Directions::Nothing);
-    update_light_in_border(chunk_data.clone(), LightType::Sky, Directions::Nothing);
+    update_light_in_border(chunk_data.clone(), LightType::Block, None);
+    update_light_in_border(chunk_data.clone(), LightType::Sky, None);
 
     if let Some(north) = neighbors_chunks_data.north {
         north.turn_on_flag(ChunkDataFlags::LIGHT_COMPUTE_STAGE_FLAG);
-        update_light_in_border(north.clone(), LightType::Block, Directions::South);
-        update_light_in_border(north.clone(), LightType::Sky, Directions::South);
+        update_light_in_border(north.clone(), LightType::Block, Some(Directions::South));
+        update_light_in_border(north.clone(), LightType::Sky, Some(Directions::South));
         north.turn_off_flag(ChunkDataFlags::LIGHT_COMPUTE_STAGE_FLAG)
     }
     if let Some(south) = neighbors_chunks_data.south {
         south.turn_on_flag(ChunkDataFlags::LIGHT_COMPUTE_STAGE_FLAG);
-        update_light_in_border(south.clone(), LightType::Block, Directions::North);
-        update_light_in_border(south.clone(), LightType::Sky, Directions::North);
+        update_light_in_border(south.clone(), LightType::Block, Some(Directions::North));
+        update_light_in_border(south.clone(), LightType::Sky, Some(Directions::North));
         south.turn_off_flag(ChunkDataFlags::LIGHT_COMPUTE_STAGE_FLAG)
     }
     if let Some(west) = neighbors_chunks_data.west {
         west.turn_on_flag(ChunkDataFlags::LIGHT_COMPUTE_STAGE_FLAG);
-        update_light_in_border(west.clone(), LightType::Block, Directions::East);
-        update_light_in_border(west.clone(), LightType::Sky, Directions::East);
+        update_light_in_border(west.clone(), LightType::Block, Some(Directions::East));
+        update_light_in_border(west.clone(), LightType::Sky, Some(Directions::East));
         west.turn_off_flag(ChunkDataFlags::LIGHT_COMPUTE_STAGE_FLAG)
     }
     if let Some(east) = neighbors_chunks_data.east {
         east.turn_on_flag(ChunkDataFlags::LIGHT_COMPUTE_STAGE_FLAG);
-        update_light_in_border(east.clone(), LightType::Block, Directions::West);
-        update_light_in_border(east.clone(), LightType::Sky, Directions::West);
+        update_light_in_border(east.clone(), LightType::Block, Some(Directions::West));
+        update_light_in_border(east.clone(), LightType::Sky, Some(Directions::West));
         east.turn_off_flag(ChunkDataFlags::LIGHT_COMPUTE_STAGE_FLAG)
     }
 
@@ -367,17 +371,20 @@ fn remove_block_light_source(
     let mut add_queue = get_queue();
     let mut remove_queue = get_queue();
 
-    let current_value = chunk_data.get_light(chunk_block, LightType::Block);
-    remove_queue.push_back(LightQueueData::new(chunk_data.clone(), chunk_block, MIN_LEVEL, current_value));
+    remove_queue.push_back(LightQueueData::new(
+        chunk_data.clone(),
+        chunk_block,
+        MIN_LEVEL,
+        chunk_data.get_light(chunk_block, LightType::Block)
+    ));
 
     chunk_data.set_light(chunk_block, MIN_LEVEL, LightType::Block);
 
     let mut neighbors = NeighborsChunksData::new(chunks_map.clone(), chunk_data.get_position(), false);
 
     process_remove_queue(Some(&chunks_map), LightType::Block, &mut add_queue, &mut remove_queue, &mut neighbors);
-
-    // add block light if necessary
     process_add_queue(Some(&chunks_map), LightType::Block, &mut add_queue, &mut neighbors);
+
     restore_queue(add_queue);
     restore_queue(remove_queue);
 }
@@ -430,7 +437,7 @@ fn process_light_logic(
     remove_queue: &mut Option<&mut VecDeque<LightQueueData>>,
     neighbor_chunks: &mut NeighborsChunksData,
 ) {
-    let new_value = (light_data.light_level as i8 - 1).max(0) as u8;
+    let value = light_data.light_level;
     let old_value = light_data.old_value;
 
     if let Some(chunks_map) = chunks_map {
@@ -442,77 +449,77 @@ fn process_light_logic(
     let z = light_data.chunk_block.z;
 
     if y < Chunk::CHUNK_SIZE_MINUS_ONE.y {
-        update_light_logic(old_value, new_value, light_type, update_type, Directions::Up,
+        update_light_logic(value, old_value, light_type, update_type, Directions::Up,
             Vec3i::new(x, y + 1, z), light_data.chunk_data.clone(), add_queue, remove_queue);
     }
 
     if y > 0 {
-        update_light_logic(old_value, new_value, light_type, update_type, Directions::Down,
+        update_light_logic(value, old_value, light_type, update_type, Directions::Down,
             Vec3i::new(x, y - 1, z), light_data.chunk_data.clone(), add_queue, remove_queue);
     }
 
     if z < Chunk::CHUNK_SIZE_MINUS_ONE.z {
-        update_light_logic(old_value, new_value, light_type, update_type, Directions::South,
+        update_light_logic(value, old_value, light_type, update_type, Directions::South,
             Vec3i::new(x, y, z + 1), light_data.chunk_data.clone(), add_queue, remove_queue);
     }
     else if let Some(ref south) = neighbor_chunks.south {
-        update_light_logic(old_value, new_value, light_type, update_type, Directions::South,
+        update_light_logic(value, old_value, light_type, update_type, Directions::South,
             Vec3i::new(x, y, 0), south.clone(), add_queue, remove_queue);
     }
 
     if z > 0 {
-        update_light_logic(old_value, new_value, light_type, update_type, Directions::North,
+        update_light_logic(value, old_value, light_type, update_type, Directions::North,
             Vec3i::new(x, y, z - 1), light_data.chunk_data.clone(), add_queue, remove_queue);
     }
     else if let Some(ref north) = neighbor_chunks.north {
-        update_light_logic(old_value, new_value, light_type, update_type, Directions::North,
+        update_light_logic(value, old_value, light_type, update_type, Directions::North,
             Vec3i::new(x, y, Chunk::CHUNK_SIZE_MINUS_ONE.z), north.clone(), add_queue, remove_queue);
     }
 
     if x > 0 {
-        update_light_logic(old_value, new_value, light_type, update_type, Directions::West,
+        update_light_logic(value, old_value, light_type, update_type, Directions::West,
             Vec3i::new(x - 1, y, z), light_data.chunk_data.clone(), add_queue, remove_queue);
     }
     else if let Some(ref west) = neighbor_chunks.west {
-        update_light_logic(old_value, new_value, light_type, update_type, Directions::West,
+        update_light_logic(value, old_value, light_type, update_type, Directions::West,
             Vec3i::new(Chunk::CHUNK_SIZE_MINUS_ONE.x, y, z), west.clone(), add_queue, remove_queue);
     }
 
     if x < Chunk::CHUNK_SIZE_MINUS_ONE.x {
-        update_light_logic(old_value, new_value, light_type, update_type, Directions::East,
+        update_light_logic(value, old_value, light_type, update_type, Directions::East,
             Vec3i::new(x + 1, y, z), light_data.chunk_data.clone(), add_queue, remove_queue);
     }
     else if let Some(ref east) = neighbor_chunks.east {
-        update_light_logic(old_value, new_value, light_type, update_type, Directions::East,
+        update_light_logic(value, old_value, light_type, update_type, Directions::East,
             Vec3i::new(0, y, z), east.clone(), add_queue, remove_queue);
     }
 }
 
 fn update_light_logic(
-    old_value: u8,
     mut new_value: u8,
+    old_value: u8,
     light_type: LightType,
     update_type: UpdateType,
     dir: Directions,
-    mut chunk_block: Vec3i,
+    chunk_block: Vec3i,
     chunk_data: Arc<ChunkData>,
     add_queue: &mut VecDeque<LightQueueData>,
     remove_queue: &mut Option<&mut VecDeque<LightQueueData>>
 ) {
     let mut ch_data = chunk_data.write_guard();
 
-    let mut current_value = ch_data.get_light(chunk_block, light_type);
-    let mut current_block = ch_data.get_block_properties(chunk_block);
+    let current_value = ch_data.get_light(chunk_block, light_type);
+    let current_block = ch_data.get_block_properties(chunk_block);
 
     if update_type == UpdateType::Add {
         if current_block.light_filter == MAX_LEVEL { return }
 
-        // if up block light level is 15 and type is sky sets current level to 15
-        if dir == Directions::Up && light_type == LightType::Sky && current_value == MAX_LEVEL {
-            chunk_block.y -= 1;
-            current_block = ch_data.get_block_properties(chunk_block);
-            current_value = ch_data.get_light(chunk_block, light_type);
+        // if up block light level is 15 and type is sky sets current level to 15 too
+        if dir == Directions::Down && light_type == LightType::Sky && new_value == MAX_LEVEL {
             new_value = MAX_LEVEL - current_block.light_filter;
+        }
+        else {
+            new_value = (new_value as i8 - 1).max(0) as u8;
         }
 
         if current_value < new_value {

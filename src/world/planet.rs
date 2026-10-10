@@ -3,7 +3,7 @@
 use crate::{
     math::{self, Vec3, Vec3i}, render::ChunksRenderer, world::{
         Aabb, ChunksManager, blocks::{BlockIdState, BlockProperties, block_behaviors::PlaceBlockArgs, block_registry}, chunk::{
-            Chunk, ChunkGetter, NeighborsChunks,
+            Chunk, ChunkGetter, NeighborsChunksGetter,
             chunk_data::{ChunkDataFlags, ChunkDataReadBehavior},
         }, light_engine, particles::{ParticlesManager, ParticlesSpawnArgs}, player::Camera,
     }
@@ -254,7 +254,7 @@ impl Planet {
     ) {
         light_engine::update_light(self.chunks_manager.chunks.clone(), chunk.data.clone(), chunk_block, old_block, new_block);
 
-        let neighbors = NeighborsChunks::new(&self.chunks_manager, chunk.position, false);
+        let neighbors = NeighborsChunksGetter::new(&self.chunks_manager, chunk.position, false);
 
         // update around chunks to avoids visual glitchs
         if let Some(south) = neighbors.south && chunk_block.z == Chunk::CHUNK_SIZE_MINUS_ONE.z {

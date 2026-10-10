@@ -1,6 +1,6 @@
 use crate::game::GameEvents;
-use crate::math::Color3b;
 use crate::render::UiRenderer;
+use crate::ui::tools::text::TextInfos;
 use crate::ui::tools::{Button, UiElement};
 use crate::ui::{ScreenBase, ScreenResizeArgs, ScreenStartArgs, ScreenUpdateArgs};
 
@@ -13,9 +13,8 @@ impl ScreenBase for PauseScreen {
     fn start(&mut self, args: &ScreenStartArgs) {
         self.quit_button.set_style(args.resources.ui_buttons_styles.get("red_button"));
         self.quit_button.set_size(145.0, 25.0);
-        self.quit_button.text.set_font(args.resources.get_font("default"));
+        self.quit_button.text.set_info(TextInfos::Font(args.resources.get_font("default")));
         self.quit_button.text.set_text("Leave the World");
-        self.quit_button.text.set_color(Color3b::WHITE);
     }
 
     fn update(&mut self, args: &mut ScreenUpdateArgs) {

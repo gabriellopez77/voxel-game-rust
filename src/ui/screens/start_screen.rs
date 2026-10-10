@@ -1,6 +1,7 @@
 ﻿use crate::game::GameEvents;
 use crate::math::{Color3b, Color4b};
 use crate::render::UiRenderer;
+use crate::ui::tools::text::TextInfos;
 use crate::ui::tools::{Button, Sprite, UiElement};
 use crate::ui::{ScreenBase, ScreenResizeArgs, ScreenStartArgs, ScreenUpdateArgs};
 
@@ -17,15 +18,15 @@ impl ScreenBase for StartScreen {
 
         self.start_button.set_style(args.resources.ui_buttons_styles.get("white_button"));
         self.start_button.set_size(145.0, 25.0);
-        self.start_button.text.set_font(args.resources.get_font("default"));
+        self.start_button.text.set_info(TextInfos::Font(args.resources.get_font("default")));
         self.start_button.text.set_text("Start");
-        self.start_button.text.set_color(Color3b::new(76, 76, 76));
+        self.start_button.text.set_info(TextInfos::Color(Color3b::new(76, 76, 76)));
 
         self.quit_button.set_style(args.resources.ui_buttons_styles.get("red_button"));
         self.quit_button.set_size(145.0, 25.0);
-        self.quit_button.text.set_font(args.resources.get_font("default"));
+        self.quit_button.text.set_info(TextInfos::Font(args.resources.get_font("default")));
         self.quit_button.text.set_text("Quit");
-        self.quit_button.text.set_color(Color3b::WHITE);
+        self.quit_button.text.set_info(TextInfos::Color(Color3b::WHITE));
     }
 
     fn update(&mut self, args: &mut ScreenUpdateArgs) {

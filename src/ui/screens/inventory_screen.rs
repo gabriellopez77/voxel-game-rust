@@ -1,12 +1,21 @@
 use std::array;
 
-use crate::render::UiRenderer;
-use crate::ui::tools::elements_grid::Alignment;
-use crate::ui::tools::inventory::{ItemSlot,};
-use crate::ui::tools::{ElementsGrid, Slice, Sprite, Text, UiElement};
-use crate::ui::{ScreenBase, ScreenResizeArgs, ScreenStartArgs, ScreenUpdateArgs};
-use crate::world::player::player_inventory::SlotType;
-use crate::world::player::PlayerInventory;
+use crate::{
+    render::UiRenderer,
+    ui::{
+        tools::{
+            elements_grid::Alignment,
+            inventory::ItemSlot,
+            text::TextInfos,
+            ElementsGrid, Slice, Sprite, Text, UiElement,
+        },
+        ScreenBase, ScreenResizeArgs, ScreenStartArgs, ScreenUpdateArgs
+    },
+    world::player::{
+        player_inventory::SlotType,
+        PlayerInventory
+    }
+};
 
 
 pub struct InventoryScreen {
@@ -34,7 +43,7 @@ impl ScreenBase for InventoryScreen {
         self.creative_background.set_texture(&args.resources.ui_sprites_texture, "inventory_background", 2);
         self.creative_background.set_size(220.0, 160.0);
 
-        self.creative_text.set_font(args.resources.get_font("default"));
+        self.creative_text.set_info(TextInfos::Font(args.resources.get_font("default")));
         self.creative_text.set_text("Creative Inventory");
 
         self.creative_slots.reserve(args.game.world.player.inventory.get_creative_items_count());
@@ -59,10 +68,10 @@ impl ScreenBase for InventoryScreen {
         self.background.set_texture(&args.resources.ui_sprites_texture, "inventory_background", 2);
         self.background.set_size(220.0, 125.0);
 
-        self.hotbar_text.set_font(args.resources.get_font("default"));
+        self.hotbar_text.set_info(TextInfos::Font(args.resources.get_font("default")));
         self.hotbar_text.set_text("Hotbar");
 
-        self.inventory_text.set_font(args.resources.get_font("default"));
+        self.inventory_text.set_info(TextInfos::Font(args.resources.get_font("default")));
         self.inventory_text.set_text("Inventory");
 
         for i in 0..PlayerInventory::HOTBAR_SLOTS_COUNT {

@@ -2,7 +2,7 @@
 
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Vec2i16 {
     pub x: i16,
     pub y: i16,
@@ -16,9 +16,6 @@ impl Vec2i16 {
 
 }
 
-impl PartialEq for Vec2i16 {
-    fn eq(&self, other: &Vec2i16) -> bool { self.x == other.x && self.y == other.y }
-}
 
 impl Add for Vec2i16 { type Output = Self; fn add(self, o: Self) -> Self { Self { x: self.x + o.x, y: self.y + o.y, } } }
 impl Mul for Vec2i16 { type Output = Self; fn mul(self, o: Self) -> Self { Self { x: self.x * o.x, y: self.y * o.y, } } }

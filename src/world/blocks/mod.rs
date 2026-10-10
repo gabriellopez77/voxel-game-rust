@@ -13,7 +13,7 @@ pub mod short_grass;
 pub mod red_flower;
 pub mod yellow_flower;
 pub mod dead_bush;
-pub mod smooth_stone_slab;
+pub mod default_slab;
 pub mod torch;
 pub mod glass_block;
 pub mod oak_leaves;
@@ -33,7 +33,7 @@ pub use {
     red_flower::*,
     yellow_flower::*,
     dead_bush::*,
-    smooth_stone_slab::*,
+    default_slab::*,
     torch::*,
     glass_block::*,
     oak_leaves::*,

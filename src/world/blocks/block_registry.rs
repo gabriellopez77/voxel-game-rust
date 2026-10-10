@@ -77,7 +77,7 @@ impl BlockRegistry {
             yellow_flower: Self::add::<YellowFlower>("yellow_flower", "Red Flower", &mut blocks, resources, inventory),
             dead_bush: Self::add::<DeadBush>("dead_bush", "Dead Bush", &mut blocks, resources, inventory),
             sandstone: Self::add::<DefaultOpaqueCube>("sandstone", "Sandstone", &mut blocks, resources, inventory),
-            smooth_stone_slab: Self::add::<SmoothStoneSlab>("smooth_stone_slab", "Smooth Stone Slab", &mut blocks, resources, inventory),
+            smooth_stone_slab: Self::add::<DefaultSlab>("smooth_stone_slab", "Smooth Stone Slab", &mut blocks, resources, inventory),
             torch: Self::add::<Torch>("torch", "Torch", &mut blocks, resources, inventory),
             glass_block: Self::add::<GlassBlock>("glass_block", "Glass Block", &mut blocks, resources, inventory),
             oak_planks: Self::add::<DefaultOpaqueCube>("oak_planks", "Oak Planks", &mut blocks, resources, inventory),

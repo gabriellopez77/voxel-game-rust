@@ -3,7 +3,7 @@ use super::{Vec3, Matrix4};
 
 
 #[repr(C)]
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq)]
 pub struct Vec4 {
     pub x: f32,
     pub y: f32,
@@ -25,10 +25,6 @@ impl Vec4 {
     }
 }
 
-
-impl PartialEq for Vec4 {
-    fn eq(&self, other: &Vec4) -> bool { self.x == other.x && self.y == other.y && self.z == other.z && self.w == other.w }
-}
 
 impl Add for Vec4 { type Output = Self; fn add(self, o: Self) -> Self { Vec4::new(self.x + o.x, self.y + o.y, self.z + o.z, self.w + o.w) } }
 impl Mul for Vec4 { type Output = Self; fn mul(self, o: Self) -> Self { Vec4::new(self.x * o.x, self.y * o.y, self.z * o.z, self.w * o.w) } }

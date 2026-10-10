@@ -2,7 +2,7 @@ use std::ops::{Add, Mul, Div, Sub, AddAssign, MulAssign, DivAssign, SubAssign};
 
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Vec2i {
     pub x: i32,
     pub y: i32,
@@ -13,10 +13,6 @@ impl Vec2i {
 
     pub fn new(x: i32, y: i32) -> Self { Self { x, y, } }
     pub fn from1(value: i32) -> Self { Self { x: value, y: value } }
-}
-
-impl PartialEq for Vec2i {
-    fn eq(&self, other: &Vec2i) -> bool { self.x == other.x && self.y == other.y }
 }
 
 

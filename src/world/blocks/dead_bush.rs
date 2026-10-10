@@ -18,7 +18,7 @@ impl BlockBehaviors for DeadBush {
 
     fn get_collision_box(&self, state: u8) -> Option<Aabb> { return None }
     fn get_selection_box(&self, state: u8) -> Option<Aabb> {
-        return Some(Aabb::new_cube(2, 0, 2, 11, 12, 11))
+        return Some(Aabb::new_cube(2, 0, 2, 12, 13, 12))
     }
 }
 

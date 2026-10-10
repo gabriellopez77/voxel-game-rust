@@ -4,11 +4,7 @@ use parking_lot::RwLock;
 use crate::{
     math::Vec3i,
     world::{
-        chunk::{
-            Chunk,
-            chunk_data::ChunkData,
-        },
-        ChunksManager,
+        chunk::{Chunk, chunk_data::ChunkData }
     }
 };
 

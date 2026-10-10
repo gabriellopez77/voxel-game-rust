@@ -1,14 +1,11 @@
 use std::sync::atomic::Ordering;
 
 use crate::{
-    math::Vec3i,
-    world::{
-        blocks::{BlockIdState, BlockProperties, block_registry},
-        chunk::{
+    math::Vec3i, world::{
+        blocks::{BlockBehaviors, BlockIdState, BlockProperties, block_behaviors::BlockBehaviorsState, block_registry}, chunk::{
             Chunk,
             chunk_data::{ChunkData, ChunkDataContent},
-        },
-        light_engine::{self, LightSectionLevel, LightType},
+        }, light_engine::{self, LightSectionLevel, LightType},
     }
 };
 
@@ -22,6 +19,16 @@ pub struct ChunkDataSharedContent {
 }
 
 impl ChunkDataSharedContent {
+    pub fn get_block_behaviors_state(&self, chunk_block: Vec3i) -> BlockBehaviorsState {
+        let id_state = self.get_block_id_state(chunk_block);
+
+        return BlockBehaviorsState(block_registry::get().get(id_state), id_state.state);
+    }
+
+    pub fn get_block_behaviors(&self, chunk_block: Vec3i) -> &'static dyn BlockBehaviors {
+        block_registry::get().get(self.get_block_id_state(chunk_block))
+    }
+
     pub fn get_block_properties<'a>(&self, chunk_block: Vec3i) -> &'a BlockProperties {
         block_registry::get().get_properties(self.get_block_id_state(chunk_block))
     }

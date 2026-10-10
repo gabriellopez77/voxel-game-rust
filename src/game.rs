@@ -22,7 +22,6 @@ pub enum Directions {
     South,
     West,
     East,
-    Nothing,
 }
 
 impl Directions {
@@ -52,7 +51,7 @@ impl GameFlags {
     pub const EMPTY: Self = Self(0b0000_0000);
     pub const PLAYABLE: Self = Self(0b0000_0001);
     pub const PAUSED: Self = Self(0b0000_0010);
-    pub const IN_WORLD: Self = Self(0b0001_0100);
+    pub const IN_WORLD: Self = Self(0b0000_0100);
 
     pub fn contains(self, state: GameFlags) -> bool { self.0 & state.0 != 0 }
 

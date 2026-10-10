@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{math::Vec3i, world::{Chunk}};
 use crate::world::ChunksManager;
 
-pub struct NeighborsChunks {
+pub struct NeighborsChunksGetter {
     pub north: Option<Arc<Chunk>>,
     pub south: Option<Arc<Chunk>>,
     pub west: Option<Arc<Chunk>>,
@@ -18,7 +18,7 @@ pub struct NeighborsChunks {
     first_time: bool,
 }
 
-impl NeighborsChunks {
+impl NeighborsChunksGetter {
     pub const EMPTY: Self = Self {
         north: None,
         south: None,

@@ -1,12 +1,22 @@
 use crate::{
-    game::Directions, math::Vec3, resources::{ItemBlockModel, TexCoords}, world::{Aabb, blocks::{BlockIdState, BlockProperties, BlockTypes}},
+    game::Directions,
+    math::Vec3,
+    resources::{ItemBlockModel, TexCoords},
+    world::{
+        Aabb,
+        blocks::{BlockIdState, BlockProperties, BlockTypes}
+    },
 };
+
+
+#[derive(Clone, Copy)]
+pub struct BlockBehaviorsState(pub &'static dyn BlockBehaviors, pub u8);
 
 pub struct PlaceBlockArgs {
     pub hit_normal: Vec3,
-
 }
 
+#[allow(unused_variables)]
 pub trait BlockBehaviors {
     fn get_properties(&self) -> &BlockProperties;
 
@@ -41,15 +51,15 @@ pub trait BlockBehaviors {
     fn compute_face_shade(&self, shade: bool) -> bool { return shade }
 
     /// check if current block face should be renderered if around block is equals to it
-    fn should_render_face_twin(&self, dir: Directions) -> bool { return true }
+    fn should_render_face_twin(&self, state: u8, dir: Directions, other: BlockBehaviorsState) -> bool { return true }
 
     /// check if current block face should be renderered
-    fn should_render_face(&self, dir: Directions, around: &dyn BlockBehaviors) -> bool {
+    fn should_render_face(&self, face: Directions, around: &dyn BlockBehaviors) -> bool {
         let around_type = around.get_type();
 
         if self.is_opaque() {
-            if dir == Directions::Up {
-                if around_type == BlockTypes::SnowLayer || around_type == BlockTypes::Slab {
+            if face == Directions::Up {
+                if around_type == BlockTypes::SnowLayer {
                     return false
                 }
             }

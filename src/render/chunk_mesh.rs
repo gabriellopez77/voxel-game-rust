@@ -1,9 +1,11 @@
-﻿use crate::math;
-use crate::render::chunks_renderer::{ChunkInstanceData, ChunkMeshResult, ChunkRendererType};
-use crate::render::multi_mesh::MultiMeshInfo;
-use crate::render::ChunksRenderer;
-
-
+﻿use crate::{
+    math,
+    render::{
+        chunks_renderer::{ChunkInstanceData, ChunkMeshResult, ChunkRendererType},
+        multi_mesh::MultiMeshInfo,
+        ChunksRenderer
+    }
+};
 
 
 pub struct ChunkMesh {

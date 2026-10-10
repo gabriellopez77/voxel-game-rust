@@ -60,12 +60,12 @@ impl Sky {
             fog_norm_distance: 0.0,
             fog_distance: 0.0,
             fog_density: 0.0,
-            fog_color: Color3b::ZERO,
-            sky_color: Color3b::ZERO,
-            clouds_color: Color3b::ZERO,
-            light_color: Color3b::ZERO,
-            darkness_color: Color3b::ZERO,
-            ambient_color: Color3b::ZERO,
+            fog_color: Color3b::BLACK,
+            sky_color: Color3b::BLACK,
+            clouds_color: Color3b::BLACK,
+            light_color: Color3b::BLACK,
+            darkness_color: Color3b::BLACK,
+            ambient_color: Color3b::BLACK,
 
             sky_color_gradient: KeyFrame::new(|factor, current, next| {
                 let r = current.r as f32 + (next.r as f32 - current.r as f32) * factor;

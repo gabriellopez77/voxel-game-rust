@@ -1,6 +1,14 @@
 use crate::{
-    game::Directions, world::{
-        blocks::{BlockBehaviors, BlockIdState, BlockProperties, BlockTypes}, items::{ItemCreation, ItemCreationArgs}
+    game::Directions,
+    world::{
+        blocks::{
+            BlockBehaviors,
+            BlockIdState,
+            BlockProperties,
+            BlockTypes,
+            block_behaviors::BlockBehaviorsState
+        },
+        items::{ItemCreation, ItemCreationArgs}
     }
 };
 
@@ -22,7 +30,7 @@ impl BlockBehaviors for GlassBlock {
         return false;
     }
 
-    fn should_render_face_twin(&self, dir: Directions) -> bool {
+    fn should_render_face_twin(&self, state: u8, dir: Directions, other: BlockBehaviorsState) -> bool {
         return false;
     }
 }

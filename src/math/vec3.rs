@@ -4,7 +4,7 @@ use crate::math::{Vec3i, Vec4, math};
 
 
 #[repr(C)]
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq)]
 pub struct Vec3 {
     pub x: f32,
     pub y: f32,
@@ -66,10 +66,6 @@ impl Vec3 {
     pub fn length(&self) -> f32 { ((self.x * self.x) + (self.y * self.y) + (self.z * self.z)).sqrt() }
 }
 
-
-impl PartialEq for Vec3 {
-    fn eq(&self, other: &Vec3) -> bool { self.x == other.x && self.y == other.y && self.z == other.z }
-}
 
 impl Add for Vec3 { type Output = Self; fn add(self, o: Self) -> Self { Vec3::new(self.x + o.x, self.y + o.y, self.z + o.z) } }
 impl Mul for Vec3 { type Output = Self; fn mul(self, o: Self) -> Self { Vec3::new(self.x * o.x, self.y * o.y, self.z * o.z) } }

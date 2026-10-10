@@ -1,5 +1,6 @@
 use crate::math::Color4b;
 use crate::render::UiRenderer;
+use crate::ui::tools::text::TextInfos;
 use crate::ui::tools::{Sprite, Text, UiElement};
 use crate::ui::{ScreenBase, ScreenResizeArgs, ScreenStartArgs, ScreenUpdateArgs};
 
@@ -13,7 +14,7 @@ impl ScreenBase for LoadingScreen {
     fn start(&mut self, args: &ScreenStartArgs) {
         self.background.color = Color4b::new(0, 94, 97, 255);
 
-        self.loading_text.set_font(args.resources.get_font("default"));
+        self.loading_text.set_info(TextInfos::Font(args.resources.get_font("default")));
         self.loading_text.set_text("Loading World...");
 
     }

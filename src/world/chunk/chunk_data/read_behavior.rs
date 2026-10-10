@@ -2,15 +2,12 @@ use std::sync::atomic::Ordering;
 use std::ops::Deref;
 
 use crate::{
-    math::Vec3i,
-    world::{
-        blocks::{BlockBehaviors, BlockIdState, BlockProperties, block_registry},
-        chunk::chunk_data::{
+    math::Vec3i, world::{
+        blocks::{BlockBehaviors, BlockIdState, BlockProperties, block_behaviors::BlockBehaviorsState, block_registry}, chunk::chunk_data::{
             ChunkDataContent,
             ChunkDataFlags,
             ChunkDataSharedContent,
-        },
-        light_engine::LightType,
+        }, light_engine::LightType,
     },
 };
 
@@ -21,14 +18,18 @@ pub(super) trait InternalReadBehavior<'a, T: Deref<Target = ChunkDataSharedConte
 }
 
 #[allow(private_bounds)]
-pub trait ChunkDataReadBehavior<'a, T> : InternalReadBehavior<'a, T>
+pub trait ChunkDataReadBehavior<'a, T>: InternalReadBehavior<'a, T>
 where T: Deref<Target = ChunkDataSharedContent> {
-    fn get_block_properties(&'a self, chunk_block: Vec3i) -> &'a BlockProperties {
-        self.get_shared_content().get_block_properties(chunk_block)
+    fn get_block_behaviors_state(&'a self, chunk_block: Vec3i) -> BlockBehaviorsState {
+        self.get_shared_content().get_block_behaviors_state(chunk_block)
     }
 
-    fn get_block_behaviors(&'a self, chunk_block: Vec3i) -> &'a dyn BlockBehaviors {
-        block_registry::get().get(self.get_shared_content().get_block_id_state(chunk_block))
+    fn get_block_behaviors(&'a self, chunk_block: Vec3i) -> &'static dyn BlockBehaviors {
+        self.get_shared_content().get_block_behaviors(chunk_block)
+    }
+
+    fn get_block_properties(&'a self, chunk_block: Vec3i) -> &'a BlockProperties {
+        self.get_shared_content().get_block_properties(chunk_block)
     }
 
     fn get_block_id_state(&'a self, chunk_block: Vec3i) -> BlockIdState {

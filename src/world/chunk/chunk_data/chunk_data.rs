@@ -5,7 +5,7 @@ use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use crate::{
     math::Vec3i,
     world::{
-        blocks::{BlockIdState, BlockProperties},
+        blocks::{BlockIdState},
         chunk::{
             chunk_data::{
                 ChunkDataReadBehavior,

@@ -1,0 +1,10 @@
+{
+    "parent": "blocks/parents/slab_top",
+    "itemIcon": "blocks/smooth_stone_slab_side",
+    "textures": {
+        "particle": "blocks/smooth_stone_slab_top",
+        "up": "blocks/smooth_stone_slab_top",
+        "down": "blocks/smooth_stone_slab_top",
+        "$side": "blocks/smooth_stone_slab_side"
+    }
+}

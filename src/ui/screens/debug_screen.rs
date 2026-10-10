@@ -1,12 +1,22 @@
 use std::collections::VecDeque;
 use std::fmt::Write;
-use crate::game::GameFlags;
-use crate::math::{self, Color3b, Color4b, KeyFrame, Vec3, Vec3i};
-use crate::render::{GlobalRenderer, UiRenderer};
-use crate::ui::tools::{Slice, Sprite, Text, UiElement};
-use crate::ui::{ScreenResizeArgs, ScreenStartArgs, ScreenUpdateArgs};
-use crate::world::light_engine::LightType;
-use crate::world::{Chunk, light_engine};
+
+use crate::{
+    game::GameFlags,
+    math::{self, Color3b, Color4b, KeyFrame, Vec3, Vec3i},
+    render::{GlobalRenderer, UiRenderer},
+    ui::{
+        tools::{
+            text::TextInfos,
+            Slice, Sprite, Text, UiElement
+        },
+        ScreenResizeArgs, ScreenStartArgs, ScreenUpdateArgs
+    },
+    world::{
+        light_engine::{self, LightType},
+        Chunk,
+    }
+};
 
 
 pub struct DebugScreen {
@@ -80,32 +90,38 @@ impl DebugScreen {
     }
 
     pub fn start(&mut self, args: &ScreenStartArgs) {
-        self.fps_text.set_font(args.resources.get_font("default"));
+        self.fps_text.set_info(TextInfos::Font(args.resources.get_font("default")));
+        self.fps_text.set_info(TextInfos::Background(Color3b::new(48, 48, 52)));
         self.fps_text.set_pos(10.0, 9.0 * 1.0);
 
-        self.player_block_pos_text.set_font(args.resources.get_font("default"));
+        self.player_block_pos_text.set_info(TextInfos::Font(args.resources.get_font("default")));
+        self.player_block_pos_text.set_info(TextInfos::Background(Color3b::new(48, 48, 52)));
         self.player_block_pos_text.set_pos(10.0, 9.0 * 2.0);
 
-        self.player_chunk_block_text.set_font(args.resources.get_font("default"));
+        self.player_chunk_block_text.set_info(TextInfos::Font(args.resources.get_font("default")));
+        self.player_chunk_block_text.set_info(TextInfos::Background(Color3b::new(48, 48, 52)));
         self.player_chunk_block_text.set_pos(10.0, 9.0 * 3.0);
 
-        self.global_staging_buffer_used_mb_text.set_font(args.resources.get_font("default"));
+        self.global_staging_buffer_used_mb_text.set_info(TextInfos::Font(args.resources.get_font("default")));
+        self.global_staging_buffer_used_mb_text.set_info(TextInfos::Background(Color3b::new(48, 48, 52)));
         self.global_staging_buffer_used_mb_text.set_pos(10.0, 28.0 + (9.0 * 3.0));
 
-        self.global_staging_buffer_capacity_text.set_font(args.resources.get_font("default"));
+        self.global_staging_buffer_capacity_text.set_info(TextInfos::Font(args.resources.get_font("default")));
+        self.global_staging_buffer_capacity_text.set_info(TextInfos::Background(Color3b::new(48, 48, 52)));
         self.global_staging_buffer_capacity_text.set_pos(10.0, 28.0 + (9.0 * 4.0));
 
-        self.player_light_level_text.set_font(args.resources.get_font("default"));
+        self.player_light_level_text.set_info(TextInfos::Font(args.resources.get_font("default")));
+        self.player_light_level_text.set_info(TextInfos::Background(Color3b::new(48, 48, 52)));
         self.player_light_level_text.set_pos(10.0, 9.0 * 4.0);
 
 
-        self.min_ms_text.set_font(args.resources.get_font("default"));
-        self.avg_ms_text.set_font(args.resources.get_font("default"));
-        self.max_ms_text.set_font(args.resources.get_font("default"));
+        self.min_ms_text.set_info(TextInfos::Font(args.resources.get_font("default")));
+        self.avg_ms_text.set_info(TextInfos::Font(args.resources.get_font("default")));
+        self.max_ms_text.set_info(TextInfos::Font(args.resources.get_font("default")));
 
-        self.min_ms_text.enable_shadow();
-        self.avg_ms_text.enable_shadow();
-        self.max_ms_text.enable_shadow();
+        self.min_ms_text.set_info(TextInfos::Shadow(true));
+        self.avg_ms_text.set_info(TextInfos::Shadow(true));
+        self.max_ms_text.set_info(TextInfos::Shadow(true));
 
         self.corner.set_texture(&args.resources.ui_sprites_texture, "debug_background", 2);
         self.corner.set_size(240.0, 60.0);

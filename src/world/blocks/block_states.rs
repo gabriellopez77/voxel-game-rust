@@ -13,9 +13,15 @@ pub enum Axis { X, Y, Z }
 impl Default for Axis { fn default() -> Self { Self::X } }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, EnumIter)]
+pub enum SlabType { Bottom, Top }
+
+impl Default for SlabType { fn default() -> Self { Self::Bottom } }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumIter)]
 pub enum BlockStatesTypes {
     Facing(Facing),
     Axis(Axis),
+    SlabType(SlabType),
 }
 
 pub struct BlockStates {

@@ -2,11 +2,7 @@ use std::fmt::Write;
 use std::rc::Rc;
 
 use crate::{
-    math::Vec2,
-    resources::FontInfo,
-    render::{GlobalRenderer, UiRenderer},
-    ui::tools::{Sprite, Text, UiElement},
-    world::player::{player_inventory::SlotType, PlayerInventory},
+    math::Vec2, render::{GlobalRenderer, UiRenderer}, resources::FontInfo, ui::tools::{Sprite, Text, UiElement, text::TextInfos}, world::player::{PlayerInventory, player_inventory::SlotType},
 };
 
 
@@ -65,7 +61,7 @@ impl SlotData {
         self.slot_index = slot_index;
         self.slot_type = slot_type;
 
-        self.count_text.set_font(text_font);
+        self.count_text.set_info(TextInfos::Font(text_font));
     }
 
     pub fn update(&mut self, inventory: &PlayerInventory) {

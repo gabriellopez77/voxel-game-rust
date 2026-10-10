@@ -1,6 +1,15 @@
 use crate::{
-    game::Directions, world::{
-        Aabb, blocks::{BlockBehaviors, BlockIdState, BlockProperties, BlockTypes}, items::{ItemCreation, ItemCreationArgs}
+    game::Directions,
+    world::{
+        Aabb,
+        blocks::{
+            BlockBehaviors,
+            BlockIdState,
+            BlockProperties,
+            BlockTypes,
+            block_behaviors::BlockBehaviorsState
+        },
+        items::{ItemCreation, ItemCreationArgs}
     }
 };
 
@@ -22,16 +31,12 @@ impl BlockBehaviors for SnowLayer {
         return false;
     }
 
-    fn should_render_face_twin(&self, dir: Directions) -> bool {
+    fn should_render_face_twin(&self, state: u8, dir: Directions, other: BlockBehaviorsState) -> bool {
         return dir.is_vertical()
     }
 
-    fn should_render_face(&self, dir: Directions, around: &dyn BlockBehaviors) -> bool {
-        if dir != Directions::Up && around.is_opaque()  {
-            return false;
-        }
-
-        return true;
+    fn should_render_face(&self, face: Directions, around: &dyn BlockBehaviors) -> bool {
+        return !(face != Directions::Up && around.is_opaque());
     }
 
     fn get_collision_box(&self, state: u8) -> Option<Aabb> { return None }

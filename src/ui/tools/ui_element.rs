@@ -1,18 +1,17 @@
 ﻿use crate::math::Vec2;
 
+
 #[allow(dead_code)]
-
-
 pub trait UiElement {
     fn get_pos(&self) -> Vec2;
     fn get_size(&self) -> Vec2;
 
-    
+
     fn set_pos(&mut self, x: f32, y: f32);
     fn set_posx(&mut self, x: f32) { self.set_pos(x, self.get_pos().y) }
     fn set_posy(&mut self, y: f32) { self.set_pos(self.get_pos().x, y) }
     fn set_posv(&mut self, pos: Vec2) { self.set_pos(pos.x, pos.y);}
-    
+
     fn set_size(&mut self, x: f32, y: f32);
     fn set_sizex(&mut self, x: f32) { self.set_size(x, self.get_size().y) }
     fn set_sizey(&mut self, y: f32) { self.set_size(self.get_size().x, y) }

@@ -3,7 +3,7 @@ use std::ops::Mul;
 use crate::math::Vec3;
 
 #[repr(C)]
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub struct Color3b {
     pub r: u8,
     pub g: u8,
@@ -11,7 +11,7 @@ pub struct Color3b {
 }
 
 impl Color3b {
-    pub const ZERO: Self = Self { r: 0, g: 0, b: 0 };
+    pub const BLACK: Self = Self { r: 0, g: 0, b: 0 };
     pub const WHITE: Self = Self { r: 255, g: 255, b: 255 };
 
     pub fn new(r: u8, g: u8, b: u8) -> Self { Self { r, g, b } }
@@ -30,11 +30,6 @@ impl Color3b {
     }
 }
 
-impl PartialEq for Color3b {
-    fn eq(&self, other: &Self) -> bool {
-        other.r == self.r && other.g == self.g && other.b == self.b
-    }
-}
 
 impl Mul for Color3b {
     type Output = Self;

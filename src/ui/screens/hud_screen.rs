@@ -1,10 +1,19 @@
 use std::array;
 
-use crate::{ui::{ScreenBase, ScreenResizeArgs, ScreenStartArgs, tools::{Slice, Sprite, UiElement, inventory::SlotData}}, world::player::{PlayerInventory, player_inventory::SlotType}};
-use crate::render::UiRenderer;
-use crate::ui::ScreenUpdateArgs;
-use crate::ui::tools::elements_grid::Alignment;
-use crate::ui::tools::{ElementsGrid, Text};
+use crate::{
+    math::Color3b,
+    render::UiRenderer,
+    ui::{
+        ScreenBase, ScreenResizeArgs, ScreenStartArgs, ScreenUpdateArgs,
+        tools::{
+            ElementsGrid, Slice, Sprite, Text, UiElement,
+            elements_grid::Alignment,
+            inventory::SlotData,
+            text::TextInfos,
+        }
+    },
+    world::player::{PlayerInventory, player_inventory::SlotType},
+};
 
 
 pub struct HudScreen {
@@ -22,8 +31,8 @@ impl ScreenBase for HudScreen {
         self.crosshair.set_texture(&args.resources.ui_sprites_texture, "crosshair");
         self.crosshair.set_size(16.0, 16.0);
 
-        self.item_name_text.set_font(args.resources.get_font("default"));
-        self.item_name_text.enable_shadow();
+        self.item_name_text.set_info(TextInfos::Font(args.resources.get_font("default")));
+        self.item_name_text.set_info(TextInfos::Background(Color3b::BLACK));
 
         self.hotbar_selected_slot.set_texture(&args.resources.ui_sprites_texture, "hotbar_selected_slot");
         self.hotbar_selected_slot.set_size(24.0, 24.0);
@@ -51,16 +60,17 @@ impl ScreenBase for HudScreen {
     fn update(&mut self, args: &mut ScreenUpdateArgs) {
         let player_inventory = &args.game.world.player.inventory;
 
-        // update selected hotbar slot position
-        let selected_hotbar_index = player_inventory.get_selected_hotbar_index();
-        self.hotbar_selected_slot.set_center(&self.hotbar_slots[selected_hotbar_index as usize]);
+        // update selected slot position
+        let selected_index = player_inventory.get_selected_hotbar_index() as usize;
+        self.hotbar_selected_slot.set_center(&self.hotbar_slots[selected_index]);
 
+        // update item name text
         if let Some((item, _)) = player_inventory.get_hand_slot().get_as_block() {
             self.item_name_text.set_text(item.get_properties().name);
 
             self.item_name_text.set_pos(
                 self.item_name_text.get_centerx(&self.hotbar_selected_slot),
-                self.hotbar_grid.get_pos().y - self.item_name_text.get_size().y - 5.0
+                self.hotbar_grid.get_pos().y - self.item_name_text.get_size().y - 7.0
             );
         }
         else {

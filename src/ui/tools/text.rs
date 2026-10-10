@@ -1,13 +1,13 @@
 use std::rc::Rc;
 
 use crate::{
-    math::{Color3b, Vec2, Vec2i16},
+    math::{Color3b, Color4b, Vec2, Vec2i16},
     render::{
         UiRenderer,
         vertices_data::TextVertices,
     },
-    ui::tools::UiElement,
     resources::FontInfo,
+    ui::tools::{Sprite, UiElement},
 };
 
 
@@ -18,20 +18,27 @@ enum TextTypes {
 }
 
 impl TextTypes {
-    pub fn get(&self) -> &str {
+    pub fn get_str(&self) -> Option<&str> {
         match self {
-            TextTypes::String(value) => value.as_str(),
-            TextTypes::Str(value) => value,
-            TextTypes::None => panic!("text not set!")
+            TextTypes::String(value) => Some(value.as_str()),
+            TextTypes::Str(value) => Some(value),
+            TextTypes::None => None
         }
     }
 
-    pub fn get_string_mut(&mut self) -> &mut String {
+    pub fn get_string_mut(&mut self) -> Option<&mut String> {
         match self {
-            TextTypes::String(value) => value,
-            _ => panic!("Invalid text type!")
+            TextTypes::String(value) => Some(value),
+            _ => None
         }
     }
+}
+
+pub enum TextInfos {
+    Font(Rc<FontInfo>),
+    Color(Color3b),
+    Shadow(bool),
+    Background(Color3b),
 }
 
 pub struct Text {
@@ -39,9 +46,11 @@ pub struct Text {
     size: Vec2,
     color: Color3b,
 
-    text: TextTypes,
-    delay: f32,
+    background: Option<Sprite>,
 
+    text: TextTypes,
+
+    delay: f32,
     pos_modified: bool,
     color_modified: bool,
     shadow: bool,
@@ -57,6 +66,10 @@ impl UiElement for Text {
 
         self.position = Vec2::new(x, y);
         self.pos_modified = true;
+
+        if let Some(background) = &mut self.background {
+            background.set_posv(self.position - 2.0);
+        }
     }
 
     fn get_size(&self) -> Vec2 { self.size }
@@ -70,9 +83,11 @@ impl Text {
             size: Vec2::ZERO,
             color: Color3b::WHITE,
 
-            text: TextTypes::None,
-            delay: 0.0,
+            background: None,
 
+            text: TextTypes::None,
+
+            delay: 0.0,
             pos_modified: false,
             color_modified: false,
             shadow: false,
@@ -82,17 +97,23 @@ impl Text {
         }
     }
 
-    pub fn set_font(&mut self, font: Rc<FontInfo>) {
-        self.font_info = Some(font);
-    }
+    pub fn set_info(&mut self, info: TextInfos) {
+        match info {
+            TextInfos::Font(font) => self.font_info = Some(font),
+            TextInfos::Color(color) => {
+                self.color = color;
+                self.color_modified = true;
+            },
+            TextInfos::Shadow(value) => self.shadow = value,
+            TextInfos::Background(color) => {
+                let mut background = Sprite::new();
+                background.color = Color4b::from3(color, 128);
+                background.set_posv(self.position);
+                background.set_sizev(self.size);
 
-    pub fn enable_shadow(&mut self) {
-        self.shadow = true;
-    }
-
-    pub fn set_color(&mut self, color: Color3b) {
-        self.color = color;
-        self.color_modified = true;
+                self.background = Some(background);
+            }
+        }
     }
 
     pub fn set_text(&mut self, text: &'static str) {
@@ -101,15 +122,15 @@ impl Text {
     }
 
     pub fn clear_text(&mut self) {
-        self.text = TextTypes::Str("");
+        self.text = TextTypes::None;
     }
 
     pub fn set_text_string(&mut self, func: impl Fn(&mut String) -> Result<(), std::fmt::Error>) {
-        if !matches!(self.text, TextTypes::String(_)) {
+        if let None = self.text.get_string_mut() {
             self.text = TextTypes::String(String::new());
         }
 
-        let text = self.text.get_string_mut();
+        let text = self.text.get_string_mut().unwrap();
         text.clear();
 
         func(text).unwrap();
@@ -126,26 +147,10 @@ impl Text {
         }
     }
 
-    //pub fn set_text_i32(&mut self, value: i32) {
-    //    use std::fmt::Write;
-
-    //    match self.text {
-    //        TextTypes::String(ref mut string) => {
-    //            string.clear();
-    //            write!(string, "{value}").unwrap();
-    //        }
-    //        _ => self.text = TextTypes::String(value.to_string()),
-    //    }
-
-    //    self.update_mesh();
-    //}
-
     pub fn draw(&mut self, renderer: &mut UiRenderer) {
-        match self.text {
-            TextTypes::String(ref string) => if string.is_empty() { return }
-            TextTypes::Str(value) => if value.is_empty() { return }
-            _ => return
-        }
+        if let Some(str) = self.text.get_str() {
+            if str.is_empty() { return }
+        } else { return }
 
         if self.pos_modified {
             self.pos_modified = false;
@@ -169,6 +174,10 @@ impl Text {
             }
         }
 
+        if let Some(background) = &mut self.background {
+            background.draw(renderer);
+        }
+
         // add text data to render buffer
         for item in &self.buffer {
             renderer.add_text(*item);
@@ -180,7 +189,6 @@ impl Text {
         let mut advance_y: i16 = 8;
         let mut max_advance_x = 0;
 
-
         self.buffer.clear();
         self.color_modified = false;
         self.pos_modified = false;
@@ -188,7 +196,9 @@ impl Text {
         let font_info = self.font_info.as_ref().expect("Text font not set!");
         let pos = Vec2i16::new(self.get_pos().x as i16, self.get_pos().y as i16);
 
-        for ch in self.text.get().chars() {
+        let str = if let Some(str) = self.text.get_str() { str } else { return };
+
+        for ch in str.chars() {
             // breakline
             if ch == '\n' {
                 advance_x = 0;
@@ -224,5 +234,11 @@ impl Text {
         }
 
         self.size = Vec2::new((max_advance_x - 1) as f32, (advance_y - 1) as f32);
+
+
+        if let Some(background) = &mut self.background {
+            background.set_posv(self.position - 1.0);
+            background.set_sizev(self.size + 2.0 + self.shadow as i8 as f32);
+        }
     }
 }

@@ -249,6 +249,7 @@ impl ChunksManager {
             let neighbors_data = NeighborsChunksData::new(self.chunks.clone(), new_chunk.position, false);
             self.regen_neighbor_chunks(&neighbors_data);
 
+            //new_chunk.set_neighbors(self.chunks.clone());
             *self.chunks.write().get_mut(&new_chunk.position).unwrap() = Some(new_chunk.clone());
 
             let chunk_data = new_chunk.data.clone();
