@@ -13,9 +13,10 @@ use crate::{
        vertices_data::{BlockItemVertices, ChunkVertices},
    },
    world::{
-       blocks::{BlockBehaviors, block_behaviors::BlockBehaviorsState, block_registry},
+       blocks::{block_behaviors::BlockBehaviorsState, block_registry},
        chunk::{
-           NeighborsChunksGetter, chunk_data::{
+           NeighborsChunksGetter,
+           chunk_data::{
                ChunkData,
                ChunkDataFlags,
                ChunkDataReadBehavior,
@@ -23,7 +24,7 @@ use crate::{
            },
            neighbors_chunks_data_getter::NeighborsChunksData,
        },
-       light_engine::LightType, player::Camera, world_gen::WorldGen,
+       entities::EntityBase, light_engine::LightType, player::Camera, world_gen::WorldGen,
    }
 };
 
@@ -31,8 +32,9 @@ use crate::{
 pub struct SingleThreadContent {
     pub renderer: ChunkMesh,
     pub inside_frustum: bool,
-}
 
+    pub entities: Vec<Box<dyn EntityBase>>,
+}
 
 pub struct Chunk {
     pub position: Vec3i,
@@ -46,6 +48,7 @@ pub struct Chunk {
 
 // SAFETY: 'content' is acessed only on the main thread
 unsafe impl Sync for Chunk {}
+unsafe impl Send for Chunk {}
 
 impl Chunk {
     pub const CHUNK_SIZE: Vec3i = Vec3i { x: 16, y: 128, z: 16 };
@@ -71,6 +74,8 @@ impl Chunk {
             content: RefCell::new(SingleThreadContent {
                 renderer: ChunkMesh::new(),
                 inside_frustum: false,
+
+                entities: Vec::new(),
             }),
         }
     }

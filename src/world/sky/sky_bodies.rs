@@ -12,7 +12,7 @@ use crate::{
         core::raw_buffer::{BufferFlags},
     },
     world::sky::Sky,
-    resources::{TexCoords, ResourceManager},
+    resources::{TexCoords, ResourcesManager},
 };
 
 
@@ -49,7 +49,7 @@ impl SkyBodies {
         }
     }
 
-    pub fn start(&mut self, resources: &ResourceManager, global_renderer: &mut GlobalRenderer) {
+    pub fn start(&mut self, resources: &ResourcesManager, global_renderer: &mut GlobalRenderer) {
         // possible stars colors
         let stars_color = [
             Vec3::new(255.0, 178.0, 085.0) / 255.0,

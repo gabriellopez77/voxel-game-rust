@@ -1,11 +1,19 @@
 ﻿use std::sync::Arc;
 
 use crate::{
-    math::{self, Vec3, Vec3i}, render::ChunksRenderer, world::{
-        Aabb, ChunksManager, blocks::{BlockIdState, BlockProperties, block_behaviors::PlaceBlockArgs, block_registry}, chunk::{
+    math::{self, Vec3, Vec3i},
+    render::ChunksRenderer,
+    world::{
+        Aabb, ChunksManager,
+        blocks::{BlockIdState, BlockProperties, block_behaviors::PlaceBlockArgs, block_registry},
+        chunk::{
             Chunk, ChunkGetter, NeighborsChunksGetter,
             chunk_data::{ChunkDataFlags, ChunkDataReadBehavior},
-        }, light_engine, particles::{ParticlesManager, ParticlesSpawnArgs}, player::Camera,
+        },
+        entities::{EntitiesManager, ItemDrop},
+        light_engine,
+        particles::{ParticlesManager, ParticlesSpawnArgs},
+        player::Camera,
     }
 };
 
@@ -21,8 +29,6 @@ pub struct Planet {
     pub chunks_manager: ChunksManager,
 
     pub render_distance: i32,
-
-    blocks_aabb_list: Vec<Aabb>,
 }
 
 impl Planet {
@@ -31,8 +37,6 @@ impl Planet {
             chunks_manager: ChunksManager::new(),
 
             render_distance: 4,
-
-            blocks_aabb_list: Vec::new(),
         }
     }
 
@@ -77,7 +81,12 @@ impl Planet {
         self.change_block_logic(chunk, chunk_block, &old_block, block_registry::get().get_properties(id_state));
     }
 
-    pub fn destroy_block(&self, chunk: &Chunk, chunk_block: Vec3i, particles_manager: &mut ParticlesManager) {
+    pub fn destroy_block(&self,
+        chunk: &Chunk,
+        chunk_block: Vec3i,
+        particles_manager: &mut ParticlesManager,
+        entities_manager: &mut EntitiesManager
+    ) {
         let old_block = chunk.data.change_block(chunk_block, BlockIdState::AIR);
 
         self.change_block_logic(
@@ -91,31 +100,23 @@ impl Planet {
             old_block,
             (chunk.position * Chunk::CHUNK_SIZE + chunk_block).as_vec3()
         ));
+
+        entities_manager.add_entity(ItemDrop::new_from_block_break(chunk.visual_position + chunk_block.as_vec3(), old_block));
     }
 
-    pub fn get_blocks_hitboxes(&mut self, aabb: &Aabb) -> &Vec<Aabb> {
-        let mut aabb_list = std::mem::take(&mut self.blocks_aabb_list);
-
-        aabb_list.clear();
+    pub fn get_blocks_hitboxes(&self, aabb: &Aabb, vec: &mut Vec<Aabb>) {
+        vec.clear();
 
         self.iterate_over_blocks_cube(aabb, |_, x, y, z, id_state|
             if let Some(ref collision_box) = block_registry::get().get(id_state).get_collision_box(id_state.state) {
-                aabb_list.push(collision_box.clone_move(x as f32, y as f32, z as f32));
+                vec.push(collision_box.clone_move(x as f32, y as f32, z as f32));
             }
         );
-
-        self.blocks_aabb_list = aabb_list;
-
-        return &self.blocks_aabb_list;
     }
 
-    pub fn iterate_over_blocks_cube(&mut self,
+    pub fn iterate_over_blocks_cube(&self,
         aabb: &Aabb,
-        mut func: impl FnMut(
-            &mut bool,
-            i32, i32, i32,
-            BlockIdState,
-        )
+        mut func: impl FnMut(&mut bool, i32, i32, i32, BlockIdState)
     ) {
         let x0 = aabb.x0.floor() as i32;
         let y0 = aabb.y0.floor() as i32;
@@ -252,7 +253,12 @@ impl Planet {
         old_block: &BlockProperties,
         new_block: &BlockProperties
     ) {
-        light_engine::update_light(self.chunks_manager.chunks.clone(), chunk.data.clone(), chunk_block, old_block, new_block);
+        light_engine::update_light(
+            self.chunks_manager.chunks.clone(),
+            chunk.data.clone(),
+            chunk_block,
+            old_block, new_block
+        );
 
         let neighbors = NeighborsChunksGetter::new(&self.chunks_manager, chunk.position, false);
 

@@ -23,7 +23,7 @@ use crate::{
 };
 
 
-pub struct ResourceManager {
+pub struct ResourcesManager {
     app: NullSafePtrMut<VulkanApp>,
 
     pub shader_path: String,
@@ -42,7 +42,7 @@ pub struct ResourceManager {
     pub ui_buttons_styles: ButtonsStyles,
 }
 
-impl ResourceManager {
+impl ResourcesManager {
     pub fn new() -> Self {
         let project_path: &'static str = env!("CARGO_MANIFEST_DIR");
 

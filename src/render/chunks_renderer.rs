@@ -15,7 +15,7 @@ use crate::{
         Chunk,
         chunk::{chunk_data::ChunkData, NeighborsChunksData}
     },
-    resources::{ResourceManager, ThreadWorkerValue},
+    resources::{ResourcesManager, ThreadWorkerValue},
     utils::ObjectPool,
 };
 
@@ -43,7 +43,7 @@ impl ChunkMeshResult {
 
             if vertices.is_empty() { continue }
 
-            ResourceManager::gen_indices(vertices.len(), &mut self.indices[i]);
+            ResourcesManager::gen_indices(vertices.len(), &mut self.indices[i]);
         }
     }
 }

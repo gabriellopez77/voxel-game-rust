@@ -35,7 +35,7 @@ use crate::{
         core::raw_buffer::BufferResizeMode,
     },
     utils::SafePtrMut,
-    resources::{ResourceManager, ShadersCompiler},
+    resources::{ResourcesManager, ShadersCompiler},
 };
 
 
@@ -107,7 +107,7 @@ impl GlobalRenderer {
         }
     }
 
-    pub fn start(&mut self, resources: &mut ResourceManager) {
+    pub fn start(&mut self, resources: &mut ResourcesManager) {
         self.shaders_compiler.start(resources.shader_path.clone());
 
         self.global_ubo.create(&mut self.app, BufferFlags::RAM);
@@ -307,6 +307,18 @@ impl GlobalRenderer {
             );
 
             self.default_materials.insert("outlineCube", Rc::new(RefCell::new(material)));
+        }
+        {
+            let mut material = self.create_material(r"itemDrop", MaterialType::Alpha);
+            material.set_blend(true);
+            material.set_attributes_info(*VertexAttribInfo::default()
+                .add_vertex(size_of::<BlockItemVertices>(), false)
+                .add_attribute(vk::Format::R32G32B32_SFLOAT, offset_of!(BlockItemVertices, vertices))
+                .add_attribute(vk::Format::R32G32B32_SFLOAT, offset_of!(BlockItemVertices, normal))
+                .add_attribute(vk::Format::R32G32_SFLOAT, offset_of!(BlockItemVertices, uv))
+            );
+
+            self.default_materials.insert("itemDrop", Rc::new(RefCell::new(material)));
         }
 
         {

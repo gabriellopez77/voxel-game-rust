@@ -1,15 +1,16 @@
 use std::collections::VecDeque;
 
 use crate::{
-    game::{GameEvents, PlayerStates, GameFlags, GameStates},
+    game::{GameEvents, GameFlags, GameStates, PlayerStates},
     inputs::Inputs,
-    resources::ResourceManager,
-    render::{ChunksRenderer, EntitiesRenderer, GlobalRenderer},
+    render::{ChunksRenderer, GlobalRenderer},
+    resources::ResourcesManager,
     ui::ui_manager::ScreensId,
     world::{
         Planet,
         Player,
         blocks::block_registry,
+        entities::EntitiesManager,
         particles::ParticlesManager,
         sky::Sky,
     }
@@ -22,7 +23,7 @@ pub struct WorldUpdateArgs<'a> {
     pub dt: f32,
     pub time: f32,
     pub current_screen_id: ScreensId,
-    pub resources: &'a mut ResourceManager,
+    pub resources: &'a mut ResourcesManager,
     pub game_state: GameStates,
     pub game_flags: GameFlags,
 }
@@ -33,9 +34,9 @@ pub struct World {
     pub planet: Planet,
     pub sky: Sky,
     pub particles_manager: ParticlesManager,
+    pub entities_manager: EntitiesManager,
 
     pub chunks_renderer: ChunksRenderer,
-    pub entities_renderer: EntitiesRenderer,
 }
 
 impl World {
@@ -46,13 +47,13 @@ impl World {
             planet: Planet::new(),
             sky: Sky::new(),
             particles_manager: ParticlesManager::new(),
+            entities_manager: EntitiesManager::new(),
 
             chunks_renderer: ChunksRenderer::new(),
-            entities_renderer: EntitiesRenderer::new(),
         }
     }
 
-    pub fn start(&mut self, resources: &mut ResourceManager, global_renderer: &mut GlobalRenderer) {
+    pub fn start(&mut self, resources: &mut ResourcesManager, global_renderer: &mut GlobalRenderer) {
         block_registry::init(resources, &mut self.player.inventory);
 
         self.player.start(resources, global_renderer);
@@ -61,9 +62,8 @@ impl World {
         self.sky.start(resources, global_renderer);
         self.particles_manager.start(global_renderer);
 
-
         self.chunks_renderer.start(global_renderer);
-        self.entities_renderer.start(global_renderer);
+        self.entities_manager.start(global_renderer);
     }
 
     pub fn update(&mut self, args: &mut WorldUpdateArgs) {
@@ -85,21 +85,22 @@ impl World {
             return;
         }
 
-        self.player.update(args, &mut self.planet, &mut self.particles_manager);
+        self.player.update(args, &self.planet, &mut self.particles_manager, &mut self.entities_manager);
 
         self.sky.update(args.dt, &self.player.camera, self.planet.render_distance);
 
         self.planet.update(self.player.get_pos());
 
         self.particles_manager.update(args.dt, args.resources, &self.planet);
+        self.entities_manager.update(args.dt, args.resources, &mut self.planet, &mut self.particles_manager);
     }
 
-    pub fn draw(&mut self, dt: f32, global_renderer: &mut GlobalRenderer) {
+    pub fn draw(&mut self, dt: f32, time: f32, global_renderer: &mut GlobalRenderer) {
         self.chunks_renderer.process_mesh_gen();
 
         self.sky.draw(global_renderer);
 
-        self.player.draw(&mut self.entities_renderer, global_renderer);
+        self.player.draw(&mut self.entities_manager.renderer, global_renderer);
 
         self.planet.draw(dt, &self.player.camera, &mut self.chunks_renderer);
         self.particles_manager.draw(global_renderer, self.player.camera.get_rot());
@@ -107,7 +108,9 @@ impl World {
         self.player.camera.view_changed = false;
 
         self.chunks_renderer.draw(global_renderer);
-        self.entities_renderer.draw(global_renderer);
+        self.entities_manager.draw(&self.planet.chunks_manager, global_renderer);
+
+
 
         let ubo = &mut global_renderer.global_ubo;
 

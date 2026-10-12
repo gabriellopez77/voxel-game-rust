@@ -4,7 +4,7 @@ use std::{rc::Rc, cell::RefCell};
 use crate::{
     window::Window,
     inputs::{self, Inputs},
-    resources::ResourceManager,
+    resources::ResourcesManager,
     render::{GlobalRenderer, core::VulkanApp},
     world::{
         World,
@@ -78,7 +78,7 @@ pub enum GameEvents {
 
 
 pub struct Game {
-    pub resources_manager: ResourceManager,
+    pub resources_manager: ResourcesManager,
     pub global_renderer: GlobalRenderer,
 
     pub world: World,
@@ -96,7 +96,7 @@ pub struct Game {
 impl Game {
     pub fn new(app: &mut VulkanApp) -> Self {
         Self {
-            resources_manager: ResourceManager::new(),
+            resources_manager: ResourcesManager::new(),
             global_renderer: GlobalRenderer::new(app),
 
             world: World::new(),
@@ -189,11 +189,11 @@ impl Game {
         self.ui_manager.clone().borrow_mut().update(dt, self, inputs);
     }
 
-    pub fn render(&mut self, dt: f32, imgui: &mut imgui::Context) {
+    pub fn render(&mut self, dt: f32, time: f32, imgui: &mut imgui::Context) {
         self.global_renderer.begin();
 
         if self.flags.contains(GameFlags::IN_WORLD) {
-            self.world.draw(dt, &mut self.global_renderer);
+            self.world.draw(dt, time, &mut self.global_renderer);
         }
 
         self.ui_manager.borrow_mut().draw(&mut self.global_renderer);

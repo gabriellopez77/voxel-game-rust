@@ -3,7 +3,7 @@ use crate::game::Game;
 use crate::inputs::Inputs;
 use crate::math::Vec2;
 use crate::render::UiRenderer;
-use crate::resources::ResourceManager;
+use crate::resources::ResourcesManager;
 use crate::ui::screens::UiCommon;
 use crate::ui::ui_manager::ScreensId;
 
@@ -39,7 +39,7 @@ impl ScreenInfo {
 
 
 pub struct ScreenStartArgs<'a> {
-    pub resources: &'a ResourceManager,
+    pub resources: &'a ResourcesManager,
 
     pub game: &'a Game,
 }

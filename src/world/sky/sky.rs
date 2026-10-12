@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::resources::ResourceManager;
+use crate::resources::ResourcesManager;
 use crate::math::{Color3b, KeyFrame};
 use crate::render::{GlobalRenderer, Material, Mesh};
 use crate::render::core::raw_buffer::BufferFlags;
@@ -108,8 +108,8 @@ impl Sky {
             underwater_fog_color: Color3b::new(24, 106, 178),
         }
     }
-    pub fn start(&mut self, resources_manager: &ResourceManager, global_renderer: &mut GlobalRenderer) {
-        let (vertices, indices) = ResourceManager::gen_sphere(16.0, 16.0);
+    pub fn start(&mut self, resources_manager: &ResourcesManager, global_renderer: &mut GlobalRenderer) {
+        let (vertices, indices) = ResourcesManager::gen_sphere(16.0, 16.0);
 
         let (mut mesh, material) = global_renderer.create_mesh_and_get_material("skyDome");
         mesh.set(&vertices, &indices, BufferFlags::VRAM | BufferFlags::ONCE);

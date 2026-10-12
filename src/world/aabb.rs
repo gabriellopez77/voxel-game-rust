@@ -1,7 +1,7 @@
 use crate::{math::{self, Matrix4, Vec3, Vec4}, resources::item_block_model::{RotateAxis, RotateDegrees}};
 
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct Aabb {
     pub x0: f32,
     pub y0: f32,
@@ -218,6 +218,29 @@ impl Aabb {
         }
 
         return Some(ray_origin + ray_dir * tmin);
+    }
+
+    pub fn response_collision(&mut self, velo: &mut Vec3, cubes: &Vec<Aabb>) {
+        for cube in cubes { velo.y = cube.clip_y_collide(self, velo.y) }
+        self.move_at(0.0, velo.y, 0.0);
+
+        for cube in cubes { velo.x = cube.clip_x_collide(&self, velo.x) }
+        for cube in cubes { velo.z = cube.clip_z_collide(&self, velo.z) }
+
+        if velo.x.abs() > velo.z.abs() {
+            for cube in cubes { velo.x = cube.clip_x_collide(&self, velo.x) }
+            self.move_at(velo.x, 0.0, 0.0);
+
+            for cube in cubes { velo.z = cube.clip_z_collide(&self, velo.z) }
+            self.move_at(0.0, 0.0, velo.z);
+        }
+        else {
+            for cube in cubes { velo.z = cube.clip_z_collide(&self, velo.z) }
+            self.move_at(0.0, 0.0, velo.z);
+
+            for cube in cubes { velo.x = cube.clip_x_collide(&self, velo.x) }
+            self.move_at(velo.x, 0.0, 0.0);
+        }
     }
 
     pub fn get_ray_hit_normal(&self, hit: Vec3) -> Vec3 {

@@ -15,7 +15,7 @@ use crate::{
         },
         core::raw_buffer::{BufferFlags, BufferResizeMode}
     },
-    resources::ResourceManager,
+    resources::ResourcesManager,
     world::{
         Chunk,
         Planet,
@@ -37,8 +37,7 @@ pub enum ParticlesSpawnArgs {
 }
 
 pub struct ParticlesBehaviorStartArgs<'a> {
-    pub resources: &'a ResourceManager,
-    pub rand: &'a mut ThreadRng,
+    pub resources: &'a ResourcesManager,
 
     behavior: Rc<dyn ParticlesBehavior>,
     particles_info: &'a mut Vec<(Rc<dyn ParticlesBehavior>, ParticlesInfo)>,
@@ -59,8 +58,6 @@ pub struct ParticlesManager {
     particles_info: Vec<(Rc<dyn ParticlesBehavior>, ParticlesInfo)>,
 
     spawn_list: Vec<ParticlesSpawnArgs>,
-
-    rand: ThreadRng,
 }
 
 impl ParticlesManager {
@@ -76,8 +73,6 @@ impl ParticlesManager {
             particles_info: Vec::new(),
 
             spawn_list: Vec::new(),
-
-            rand: rand::rng(),
         }
     }
 
@@ -91,7 +86,7 @@ impl ParticlesManager {
 
     pub fn update(&mut self,
         dt: f32,
-        resources: &ResourceManager,
+        resources: &ResourcesManager,
         planet: &Planet
     ) {
         //let now = std::time::Instant::now();
@@ -170,10 +165,9 @@ impl ParticlesManager {
         self.spawn_list.push(args);
     }
 
-    fn process_particles_spawn(&mut self, resources: &ResourceManager) {
+    fn process_particles_spawn(&mut self, resources: &ResourcesManager) {
         let mut start_args = ParticlesBehaviorStartArgs {
             resources,
-            rand: &mut self.rand,
             behavior: self.destroy_behavior.clone(),
             particles_info: &mut self.particles_info,
         };

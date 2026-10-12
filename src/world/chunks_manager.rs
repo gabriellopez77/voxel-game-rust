@@ -78,6 +78,8 @@ impl ChunksManager {
         return None;
     }
 
+    pub fn get_ordered_chunks_list(&self) -> &Vec<Arc<Chunk>> { &self.ordered_chunks }
+
     pub fn start(&mut self) {
         self.world_gen.lock().unwrap().start();
 

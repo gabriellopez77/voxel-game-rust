@@ -10,7 +10,7 @@ pub mod animation_frame;
 pub mod thread_worker;
 
 pub use {
-    resources_manager::ResourceManager,
+    resources_manager::ResourcesManager,
     tex_coords::TexCoords,
     text_font_info::*,
     item_block_model::ItemBlockModel,

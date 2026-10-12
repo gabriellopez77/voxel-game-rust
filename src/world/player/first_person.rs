@@ -4,7 +4,7 @@ use crate::{
     math::{Matrix4, Vec2, Vec3, math}, render::{GlobalRenderer, Material, Mesh}, resources::{
         AnimationFrame,
         ItemBlockModel,
-        ResourceManager,
+        ResourcesManager,
         animation_frame::{
             AnimationKeyFrameValue,
             AnimationRunMode,
@@ -79,7 +79,7 @@ impl FirstPerson {
         }
     }
 
-    pub fn start(&mut self, global_renderer: &mut GlobalRenderer, resources: &mut ResourceManager) {
+    pub fn start(&mut self, global_renderer: &mut GlobalRenderer, resources: &mut ResourcesManager) {
         self.swap_down_anim.start(1.0, vec![
             (0.0, None, None, Some(Vec3::ZERO)),
             (0.2, None, None, Some(Vec3::new(-90.0, 0.0, 0.0))),
@@ -112,7 +112,7 @@ impl FirstPerson {
 
     pub fn update(&mut self,
         args: &mut WorldUpdateArgs,
-        hand_item: &ItemStack,
+        hand_item: ItemStack,
         action: bool,
         walking: bool,
         player_vel: Vec3,

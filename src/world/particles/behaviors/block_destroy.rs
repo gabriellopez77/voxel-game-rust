@@ -27,11 +27,11 @@ impl BlockDestroyBehavior {
         //let now = std::time::Instant::now();
         for _ in 0..20 {
             let mut p = ParticlesInfo::default();
-            p.life = args.rand.random_range(0.4..1.5);
-            p.size = Vec2::from1(args.rand.random_range(0.1..=0.2));
+            p.life = rand::rng().random_range(0.4..1.5);
+            p.size = Vec2::from1(rand::rng().random_range(0.1..=0.2));
 
-            let uv_offsetx = args.rand.random_range(0.0..=(tex_size.x - SCALE));
-            let uv_offsety = args.rand.random_range(0.0..=(tex_size.y - SCALE));
+            let uv_offsetx = rand::rng().random_range(0.0..=(tex_size.x - SCALE));
+            let uv_offsety = rand::rng().random_range(0.0..=(tex_size.y - SCALE));
 
             p.uv.minx = particle_tex.minx + uv_offsetx;
             p.uv.miny = particle_tex.miny + uv_offsety;
@@ -40,9 +40,9 @@ impl BlockDestroyBehavior {
             p.uv = p.uv.normalized(world_tex_size);
 
             let rand_pos = Vec3::new(
-                args.rand.random_range(0.0..=(1.0 - (p.size.x / 2.0))),
-                args.rand.random_range(0.0..=(1.0 - (p.size.x / 2.0))),
-                args.rand.random_range(0.0..=(1.0 - (p.size.x / 2.0))),
+                rand::rng().random_range(0.0..=(1.0 - (p.size.x / 2.0))),
+                rand::rng().random_range(0.0..=(1.0 - (p.size.x / 2.0))),
+                rand::rng().random_range(0.0..=(1.0 - (p.size.x / 2.0))),
             );
 
             p.velocity = ((block_pos + rand_pos) - (block_pos + 0.5)).normalized() * 4.0;

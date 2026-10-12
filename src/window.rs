@@ -113,7 +113,7 @@ impl Window {
             }
 
             game.update(dt, time, self, &mut inputs);
-            game.render(dt, &mut imgui);
+            game.render(dt, time, &mut imgui);
 
             vulkan_app.end_frame();
         }

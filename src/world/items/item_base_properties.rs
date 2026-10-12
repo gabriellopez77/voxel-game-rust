@@ -1,5 +1,5 @@
 use crate::{
-    resources::{ResourceManager},
+    resources::{ResourcesManager},
     world::{
         player::PlayerInventory
     }
@@ -10,7 +10,7 @@ pub struct ItemCreationArgs<'a> {
     pub internal_name: &'static str,
     pub name: &'static str,
     pub parent_id: usize,
-    pub resources: &'a ResourceManager,
+    pub resources: &'a ResourcesManager,
     pub inventory: &'a mut PlayerInventory,
 }
 

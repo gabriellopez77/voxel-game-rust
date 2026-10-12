@@ -10,6 +10,8 @@ pub struct Matrix4 {
 }
 
 impl Matrix4 {
+    pub const SIZEOF: usize = size_of::<Self>();
+
     pub const ZERO: Matrix4 = Matrix4 { values: [Vec4::ZERO; 4] };
     pub const IDENTITY: Matrix4 = Matrix4 {
         values: [

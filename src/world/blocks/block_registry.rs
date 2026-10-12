@@ -1,7 +1,7 @@
-use std::sync::OnceLock;
+use std::sync::{LazyLock, OnceLock};
 
 use crate::{
-    resources::ResourceManager,
+    resources::ResourcesManager,
     world::{
         blocks::*,
         items::*,
@@ -12,7 +12,7 @@ use crate::{
 
 static BLOCKS_MANAGER: OnceLock<BlockRegistry> = OnceLock::new();
 
-pub fn init(resources: &ResourceManager, inventory: &mut PlayerInventory) {
+pub fn init(resources: &ResourcesManager, inventory: &mut PlayerInventory) {
     BLOCKS_MANAGER.set(BlockRegistry::new(resources, inventory)).ok();
 }
 
@@ -57,7 +57,7 @@ unsafe impl Send for BlockRegistry{}
 unsafe impl Sync for BlockRegistry{}
 
 impl BlockRegistry {
-    pub fn new(resources: &ResourceManager, inventory: &mut PlayerInventory) -> Self {
+    pub fn new(resources: &ResourcesManager, inventory: &mut PlayerInventory) -> Self {
         let mut blocks: Vec<&'static dyn BlockBehaviors> = Vec::new();
 
         Self {
@@ -104,7 +104,7 @@ impl BlockRegistry {
         internal_name: &'static str,
         name: &'static str,
         blocks: &mut Vec<&'static dyn BlockBehaviors>,
-        resources: &ResourceManager,
+        resources: &ResourcesManager,
         inventory: &mut PlayerInventory
     ) -> &'static dyn BlockBehaviors
     where

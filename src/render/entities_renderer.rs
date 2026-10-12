@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
-    render::{
+    math::Matrix4, render::{
         GlobalRenderer, Material, Mesh,
         core::raw_buffer::{BufferFlags, BufferResizeMode},
         vertices_data::{
@@ -14,6 +14,9 @@ pub struct EntitiesRenderer {
     renderer: Option<(Mesh, Rc<RefCell<Material>>)>,
 
     instance_data: Vec<EntitiesCubesVertices>,
+
+    item_model_material: Option<Rc<RefCell<Material>>>,
+    item_model_draw_list: Vec<(Matrix4, u8, Rc<RefCell<Mesh>>)>,
 }
 
 impl EntitiesRenderer {
@@ -22,6 +25,9 @@ impl EntitiesRenderer {
             renderer: None,
 
             instance_data: Vec::new(),
+
+            item_model_material: None,
+            item_model_draw_list: Vec::new(),
         }
     }
 
@@ -31,6 +37,7 @@ impl EntitiesRenderer {
         mesh.set(&ENTITIES_CUBES_VERTICES, &CUBE_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
         mesh.create_instance_buffer(size_of::<EntitiesCubesVertices>() * 64, None, BufferFlags::VRAM);
 
+        self.item_model_material = Some(global_renderer.get_material("itemDrop"));
         self.renderer = Some((mesh, material));
     }
 
@@ -42,6 +49,22 @@ impl EntitiesRenderer {
             &mut self.instance_data,
             BufferResizeMode::Discard
         );
+
+        let mut item_model_material = self.item_model_material.as_mut().unwrap().borrow_mut();
+
+        for (matrix, light_level, mesh) in &self.item_model_draw_list {
+            let light_level = *light_level as u32;
+
+            global_renderer.set_push_constant(0, matrix);
+            global_renderer.set_push_constant(Matrix4::SIZEOF, &light_level);
+            global_renderer.draw(&mesh.borrow(), &mut item_model_material);
+        }
+
+        self.item_model_draw_list.clear();
+    }
+
+    pub fn add_item_model(&mut self, matrix: Matrix4, light_level: u8, mesh: Rc<RefCell<Mesh>>) {
+        self.item_model_draw_list.push((matrix, light_level, mesh));
     }
 
     pub fn add_cube(&mut self, cube: EntitiesCubesVertices) {

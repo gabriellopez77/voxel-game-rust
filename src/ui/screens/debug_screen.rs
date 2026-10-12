@@ -27,6 +27,7 @@ pub struct DebugScreen {
     global_staging_buffer_used_mb_text: Text,
     global_staging_buffer_capacity_text: Text,
 
+    player_chunk_pos_text: Text,
     player_block_pos_text: Text,
     player_chunk_block_text: Text,
 
@@ -59,6 +60,7 @@ impl DebugScreen {
             global_staging_buffer_used_mb_text: Text::new(),
             global_staging_buffer_capacity_text: Text::new(),
 
+            player_chunk_pos_text: Text::new(),
             player_block_pos_text: Text::new(),
             player_chunk_block_text: Text::new(),
 
@@ -94,25 +96,30 @@ impl DebugScreen {
         self.fps_text.set_info(TextInfos::Background(Color3b::new(48, 48, 52)));
         self.fps_text.set_pos(10.0, 9.0 * 1.0);
 
+        self.player_chunk_pos_text.set_info(TextInfos::Font(args.resources.get_font("default")));
+        self.player_chunk_pos_text.set_info(TextInfos::Background(Color3b::new(48, 48, 52)));
+        self.player_chunk_pos_text.set_pos(10.0, 9.0 * 2.0);
+        
         self.player_block_pos_text.set_info(TextInfos::Font(args.resources.get_font("default")));
         self.player_block_pos_text.set_info(TextInfos::Background(Color3b::new(48, 48, 52)));
-        self.player_block_pos_text.set_pos(10.0, 9.0 * 2.0);
+        self.player_block_pos_text.set_pos(10.0, 9.0 * 3.0);
 
         self.player_chunk_block_text.set_info(TextInfos::Font(args.resources.get_font("default")));
         self.player_chunk_block_text.set_info(TextInfos::Background(Color3b::new(48, 48, 52)));
-        self.player_chunk_block_text.set_pos(10.0, 9.0 * 3.0);
-
-        self.global_staging_buffer_used_mb_text.set_info(TextInfos::Font(args.resources.get_font("default")));
-        self.global_staging_buffer_used_mb_text.set_info(TextInfos::Background(Color3b::new(48, 48, 52)));
-        self.global_staging_buffer_used_mb_text.set_pos(10.0, 28.0 + (9.0 * 3.0));
-
-        self.global_staging_buffer_capacity_text.set_info(TextInfos::Font(args.resources.get_font("default")));
-        self.global_staging_buffer_capacity_text.set_info(TextInfos::Background(Color3b::new(48, 48, 52)));
-        self.global_staging_buffer_capacity_text.set_pos(10.0, 28.0 + (9.0 * 4.0));
+        self.player_chunk_block_text.set_pos(10.0, 9.0 * 4.0);
 
         self.player_light_level_text.set_info(TextInfos::Font(args.resources.get_font("default")));
         self.player_light_level_text.set_info(TextInfos::Background(Color3b::new(48, 48, 52)));
-        self.player_light_level_text.set_pos(10.0, 9.0 * 4.0);
+        self.player_light_level_text.set_pos(10.0, 9.0 * 5.0);
+        
+        self.global_staging_buffer_used_mb_text.set_info(TextInfos::Font(args.resources.get_font("default")));
+        self.global_staging_buffer_used_mb_text.set_info(TextInfos::Background(Color3b::new(48, 48, 52)));
+        self.global_staging_buffer_used_mb_text.set_pos(10.0, 28.0 + (9.0 * 4.0));
+
+        self.global_staging_buffer_capacity_text.set_info(TextInfos::Font(args.resources.get_font("default")));
+        self.global_staging_buffer_capacity_text.set_info(TextInfos::Background(Color3b::new(48, 48, 52)));
+        self.global_staging_buffer_capacity_text.set_pos(10.0, 28.0 + (9.0 * 5.0));
+
 
 
         self.min_ms_text.set_info(TextInfos::Font(args.resources.get_font("default")));
@@ -145,6 +152,11 @@ impl DebugScreen {
         if self.in_world {
             self.player_chunk = math::get_chunk_pos(args.game.world.player.get_pos());
 
+            self.player_chunk_pos_text.set_text_delayed(args.dt, 0.1, |text| {
+                let chunk_pos = math::get_chunk_pos(args.game.world.player.get_pos());
+                write!(text, "Chunk: {}, {}, {}", chunk_pos.x, chunk_pos.y, chunk_pos.z)
+            });
+            
             self.player_block_pos_text.set_text_delayed(args.dt, 0.1, |text| {
                 let block_pos = math::get_global_block(args.game.world.player.get_pos());
                 write!(text, "Block: {}, {}, {}", block_pos.x, block_pos.y, block_pos.z)
@@ -233,6 +245,7 @@ impl DebugScreen {
 
     pub fn draw(&mut self, renderer: &mut UiRenderer, global_renderer: &mut GlobalRenderer) {
         if self.in_world {
+            self.player_chunk_pos_text.draw(renderer);
             self.player_block_pos_text.draw(renderer);
             self.player_chunk_block_text.draw(renderer);
             self.player_light_level_text.draw(renderer);

@@ -10,7 +10,7 @@ use crate::{
         vertices_data::{CUBE_INDICES, CLOUDS_VERTICES, CloudsVertices},
         core::raw_buffer::{BufferFlags, BufferResizeMode},
     },
-    resources::ResourceManager,
+    resources::ResourcesManager,
     world::Chunk,
 };
 
@@ -49,7 +49,7 @@ impl Clouds {
         }
     }
 
-    pub fn start(&mut self, resources: &ResourceManager, global_renderer: &mut GlobalRenderer) {
+    pub fn start(&mut self, resources: &ResourcesManager, global_renderer: &mut GlobalRenderer) {
         let (mut mesh, material) = global_renderer.create_mesh_and_get_material("clouds");
         mesh.set(&CLOUDS_VERTICES, &CUBE_INDICES, BufferFlags::VRAM | BufferFlags::ONCE);
         mesh.create_instance_buffer(size_of::<CloudsVertices>() * 64, None, BufferFlags::VRAM | BufferFlags::RARE_UPDATE);
